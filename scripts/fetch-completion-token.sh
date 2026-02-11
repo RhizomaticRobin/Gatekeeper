@@ -36,7 +36,7 @@ if [[ ! -f "$TOKEN_FILE" ]]; then
 fi
 
 # Parse state file for session info
-FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE")
+FRONTMATTER=$(awk 'NR==1 && /^---$/{next} /^---$/{exit} NR>1{print}' "$STATE_FILE")
 SESSION_ID=$(echo "$FRONTMATTER" | grep '^session_id:' | sed 's/session_id: *//' | sed 's/^"\(.*\)"$/\1/')
 PROJECT_DIR=$(echo "$FRONTMATTER" | grep '^project_dir:' | sed 's/project_dir: *//' | sed 's/^"\(.*\)"$/\1/')
 

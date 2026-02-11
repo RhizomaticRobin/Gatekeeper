@@ -22,14 +22,43 @@ Also usable as CLI:
 """
 
 import sys
+import os
 import json
 import re
+import fcntl
+import tempfile
+from contextlib import contextmanager
 from collections import deque
 
 try:
     import yaml
 except ImportError:
     yaml = None
+
+
+@contextmanager
+def _plan_lock(plan_path):
+    """Acquire an exclusive flock on plan_path + '.lock'.
+
+    Uses the same lock file that Bash flock uses in transition-task.sh,
+    ensuring mutual exclusion between Python and Bash writers.
+
+    When GSD_VGL_PLAN_LOCKED=1 is set in the environment (by a parent
+    Bash process that already holds the flock), this becomes a no-op
+    to avoid deadlock between parent shell flock and child Python flock.
+    """
+    lock_path = plan_path + ".lock"
+    if os.environ.get("GSD_VGL_PLAN_LOCKED") == "1":
+        # Parent process already holds the lock -- skip to avoid deadlock
+        yield lock_path
+        return
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield lock_path
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
 
 
 def _parse_yaml_minimal(text):
@@ -55,11 +84,35 @@ def load_plan(path):
 
 
 def save_plan(path, plan):
-    """Write plan dict back to YAML file."""
+    """Write plan dict back to YAML file.
+
+    Uses exclusive flock for mutual exclusion and writes to a tempfile
+    followed by os.replace for atomicity.
+    """
     if yaml is None:
         raise RuntimeError("PyYAML is required for writing. Install with: pip install pyyaml")
-    with open(path, "w") as f:
-        yaml.dump(plan, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    with _plan_lock(path):
+        _atomic_write_plan(path, plan)
+
+
+def _atomic_write_plan(path, plan):
+    """Write plan to path atomically using tempfile + os.replace.
+
+    Must be called while holding the plan lock.
+    """
+    dir_name = os.path.dirname(path) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".yaml.tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            yaml.dump(plan, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+        os.replace(tmp_path, path)
+    except BaseException:
+        # Clean up temp file on error
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def get_all_task_ids(plan):
@@ -82,15 +135,20 @@ def find_task(plan, task_id):
 
 
 def update_task_status(path, task_id, status):
-    """Update a task's status in-place and save."""
-    plan = load_plan(path)
+    """Update a task's status in-place and save.
+
+    Acquires exclusive lock spanning the entire read-modify-write cycle
+    to prevent concurrent corruption.
+    """
     task_id = str(task_id)
-    for phase in plan.get("phases", []):
-        for task in phase.get("tasks", []):
-            if str(task["id"]) == task_id:
-                task["status"] = status
-                save_plan(path, plan)
-                return True
+    with _plan_lock(path):
+        plan = load_plan(path)
+        for phase in plan.get("phases", []):
+            for task in phase.get("tasks", []):
+                if str(task["id"]) == task_id:
+                    task["status"] = status
+                    _atomic_write_plan(path, plan)
+                    return True
     return False
 
 

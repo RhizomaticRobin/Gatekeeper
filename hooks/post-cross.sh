@@ -30,7 +30,7 @@ if [[ ! -f "$PLAN_FILE" ]]; then
 fi
 
 # Read current task ID from state file
-FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE")
+FRONTMATTER=$(awk 'NR==1 && /^---$/{next} /^---$/{exit} NR>1{print}' "$STATE_FILE")
 CURRENT_TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/')
 
 if [[ -z "$CURRENT_TASK_ID" ]]; then

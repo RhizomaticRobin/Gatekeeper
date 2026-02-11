@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const readline = require('readline');
 const { execSync } = require('child_process');
+const lib = require('./install-lib');
 
 // Colors
 const crimson = '\x1b[38;2;220;20;60m';
@@ -59,11 +60,13 @@ function parseConfigDirArg() {
 }
 const explicitConfigDir = parseConfigDirArg();
 
-console.log(banner);
+// Banner and help are only shown when running directly
+if (require.main === module) {
+  console.log(banner);
 
-// Show help if requested
-if (hasHelp) {
-  console.log(`  ${yellow}Usage:${reset} npx gsd-vgl [options]
+  // Show help if requested
+  if (hasHelp) {
+    console.log(`  ${yellow}Usage:${reset} npx gsd-vgl [options]
 
   ${yellow}Options:${reset}
     ${crimson}-g, --global${reset}              Install globally (to Claude plugins directory)
@@ -89,7 +92,8 @@ if (hasHelp) {
     directory to your Claude plugins folder. Claude Code discovers
     commands, agents, and hooks automatically via \${CLAUDE_PLUGIN_ROOT}.
 `);
-  process.exit(0);
+    process.exit(0);
+  }
 }
 
 /**
@@ -102,37 +106,9 @@ function expandTilde(filePath) {
   return filePath;
 }
 
-// Directories/files to exclude when copying
-const EXCLUDE = new Set([
-  'node_modules',
-  '.git',
-  '.github',
-  '.npmrc',
-  '.npmignore',
-  '.gitignore',
-  '.DS_Store',
-]);
-
-/**
- * Recursively copy plugin directory, excluding build/dev artifacts.
- */
+// Delegate to library functions, binding fs and execSync from this module's scope
 function copyPluginDirectory(src, dest) {
-  fs.mkdirSync(dest, { recursive: true });
-
-  const entries = fs.readdirSync(src, { withFileTypes: true });
-
-  for (const entry of entries) {
-    if (EXCLUDE.has(entry.name)) continue;
-
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-
-    if (entry.isDirectory()) {
-      copyPluginDirectory(srcPath, destPath);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
-    }
-  }
+  return lib.copyPluginDirectory(fs, src, dest);
 }
 
 /**
@@ -162,28 +138,12 @@ function makeScriptsExecutable(pluginDir) {
   return count;
 }
 
-/**
- * Verify that key plugin files exist after installation.
- */
 function verifyInstallation(pluginDir) {
-  const requiredFiles = [
-    '.claude-plugin/plugin.json',
-    'hooks/hooks.json',
-    'commands/help.md',
-    'agents/verifier.md',
-    'bin/ralph.sh',
-    'templates/opencode.json',
-  ];
+  return lib.verifyInstallation(fs, pluginDir);
+}
 
-  const failures = [];
-  for (const relPath of requiredFiles) {
-    const fullPath = path.join(pluginDir, relPath);
-    if (!fs.existsSync(fullPath)) {
-      failures.push(relPath);
-    }
-  }
-
-  return failures;
+function setupMcpServer(pluginDir) {
+  return lib.setupMcpServer(fs, execSync, pluginDir);
 }
 
 /**
@@ -243,87 +203,6 @@ function install(isGlobal) {
 }
 
 /**
- * Set up the Better-OpenCodeMCP submodule: ensure source exists, npm install, build, register MCP.
- */
-function setupMcpServer(pluginDir) {
-  const mcpDir = path.join(pluginDir, 'Better-OpenCodeMCP');
-  const mcpPkg = path.join(mcpDir, 'package.json');
-  const mcpDist = path.join(mcpDir, 'dist', 'index.js');
-  const repoUrl = 'https://github.com/RhizomaticRobin/Better-OpenCodeMCP.git';
-
-  // If source wasn't copied (e.g. npx install without submodule), clone it
-  if (!fs.existsSync(mcpPkg)) {
-    console.log(`  ${dim}Cloning opencode-mcp server...${reset}`);
-    try {
-      execSync(`git clone --depth 1 ${repoUrl} "${mcpDir}"`, { stdio: 'pipe' });
-      console.log(`  ${green}✓${reset} Cloned opencode-mcp server`);
-    } catch (err) {
-      console.error(`\n  ${yellow}Failed to clone opencode-mcp server${reset}`);
-      console.error(`  ${dim}${err.stderr ? err.stderr.toString().trim() : err.message}${reset}`);
-      console.error(`  ${yellow}You can set it up manually later:${reset}`);
-      console.error(`  ${dim}cd ${mcpDir} && git clone ${repoUrl} . && npm install && npm run build${reset}`);
-      console.error(`  ${dim}claude mcp add opencode-mcp node ${mcpDist}${reset}`);
-      return;
-    }
-  }
-
-  // npm install
-  console.log(`  ${dim}Installing opencode-mcp dependencies...${reset}`);
-  try {
-    execSync('npm install --production=false', { cwd: mcpDir, stdio: 'pipe' });
-    console.log(`  ${green}✓${reset} Installed opencode-mcp dependencies`);
-  } catch (err) {
-    console.error(`\n  ${yellow}npm install failed for opencode-mcp${reset}`);
-    console.error(`  ${dim}${err.stderr ? err.stderr.toString().trim() : err.message}${reset}`);
-    console.error(`  ${yellow}Run manually:${reset} cd ${mcpDir} && npm install && npm run build`);
-    return;
-  }
-
-  // npm run build
-  console.log(`  ${dim}Building opencode-mcp server...${reset}`);
-  try {
-    execSync('npm run build', { cwd: mcpDir, stdio: 'pipe' });
-    console.log(`  ${green}✓${reset} Built opencode-mcp server`);
-  } catch (err) {
-    console.error(`\n  ${yellow}Build failed for opencode-mcp${reset}`);
-    console.error(`  ${dim}${err.stderr ? err.stderr.toString().trim() : err.message}${reset}`);
-    console.error(`  ${yellow}Run manually:${reset} cd ${mcpDir} && npm run build`);
-    return;
-  }
-
-  // Verify dist/index.js exists
-  if (!fs.existsSync(mcpDist)) {
-    console.error(`  ${yellow}Build produced no output at ${mcpDist}${reset}`);
-    return;
-  }
-
-  // Register MCP server with Claude Code
-  console.log(`  ${dim}Registering opencode-mcp with Claude Code...${reset}`);
-  try {
-    execSync(`claude mcp add opencode-mcp node "${mcpDist}"`, { stdio: 'pipe' });
-    console.log(`  ${green}✓${reset} Registered opencode-mcp MCP server`);
-  } catch (err) {
-    // claude CLI might not be available or might already be registered
-    const stderr = err.stderr ? err.stderr.toString().trim() : '';
-    if (stderr.includes('already exists')) {
-      // Remove and re-add to update the path
-      try {
-        execSync('claude mcp remove opencode-mcp', { stdio: 'pipe' });
-        execSync(`claude mcp add opencode-mcp node "${mcpDist}"`, { stdio: 'pipe' });
-        console.log(`  ${green}✓${reset} Updated opencode-mcp MCP server registration`);
-      } catch {
-        console.error(`  ${yellow}Could not update MCP registration. Run manually:${reset}`);
-        console.error(`  ${dim}claude mcp add opencode-mcp node ${mcpDist}${reset}`);
-      }
-    } else {
-      console.error(`  ${yellow}Could not register MCP server automatically${reset}`);
-      console.error(`  ${dim}${stderr || err.message}${reset}`);
-      console.error(`  ${yellow}Run manually:${reset} claude mcp add opencode-mcp node ${mcpDist}`);
-    }
-  }
-}
-
-/**
  * Check if a path is a symlink (even if target doesn't exist).
  */
 function isSymlink(p) {
@@ -378,17 +257,22 @@ function promptLocation() {
   });
 }
 
-// Main
-if (hasGlobal && hasLocal) {
-  console.error(`  ${yellow}Cannot specify both --global and --local${reset}`);
-  process.exit(1);
-} else if (explicitConfigDir && hasLocal) {
-  console.error(`  ${yellow}Cannot use --config-dir with --local${reset}`);
-  process.exit(1);
-} else if (hasGlobal) {
-  install(true);
-} else if (hasLocal) {
-  install(false);
-} else {
-  promptLocation();
+// Export functions for testing
+module.exports = { copyPluginDirectory, verifyInstallation, setupMcpServer };
+
+// Main — only run when executed directly (not when required/imported for testing)
+if (require.main === module) {
+  if (hasGlobal && hasLocal) {
+    console.error(`  ${yellow}Cannot specify both --global and --local${reset}`);
+    process.exit(1);
+  } else if (explicitConfigDir && hasLocal) {
+    console.error(`  ${yellow}Cannot use --config-dir with --local${reset}`);
+    process.exit(1);
+  } else if (hasGlobal) {
+    install(true);
+  } else if (hasLocal) {
+    install(false);
+  } else {
+    promptLocation();
+  }
 }

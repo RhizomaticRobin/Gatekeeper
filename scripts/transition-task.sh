@@ -32,13 +32,28 @@ if [[ ! -f "$STATE_FILE" ]]; then
   exit 1
 fi
 
-FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE")
+FRONTMATTER=$(awk 'NR==1 && /^---$/{next} /^---$/{exit} NR>1{print}' "$STATE_FILE")
 CURRENT_TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/')
 
 if [[ -z "$CURRENT_TASK_ID" ]]; then
   echo "Error: No task_id in state file frontmatter" >&2
   exit 1
 fi
+
+# Extract iteration count and started_at for history recording
+HISTORY_ITERATION=$(echo "$FRONTMATTER" | grep '^iteration:' | sed 's/iteration: *//')
+HISTORY_STARTED_AT=$(echo "$FRONTMATTER" | grep '^started_at:' | sed 's/started_at: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+HISTORY_SESSION_ID=$(echo "$FRONTMATTER" | grep '^session_id:' | sed 's/session_id: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+
+# Acquire exclusive flock for the read-modify-write cycle
+# Uses the same lock file as Python's _plan_lock (plan.yaml.lock)
+LOCK_FILE="${PLAN_FILE}.lock"
+exec 9>"$LOCK_FILE"
+flock -x 9
+
+# Tell child Python processes that we already hold the plan lock
+# so they skip their own flock (avoiding deadlock on same lock file)
+export GSD_VGL_PLAN_LOCKED=1
 
 # Mark current task as completed
 echo "Completing task: $CURRENT_TASK_ID" >&2
@@ -74,6 +89,38 @@ fi
 
 # Find next task
 NEXT_JSON=$(python3 "${SCRIPTS_DIR}/next-task.py" "$PLAN_FILE")
+
+# Release the flock and clear the lock environment variable
+flock -u 9
+exec 9>&-
+unset GSD_VGL_PLAN_LOCKED
+
+# Record history (non-blocking: if run_history.py fails or is missing, transition still works)
+HISTORY_DURATION=0
+if [[ -n "$HISTORY_STARTED_AT" ]]; then
+  STARTED_EPOCH=$(date -d "$HISTORY_STARTED_AT" +%s 2>/dev/null || date -jf "%Y-%m-%dT%H:%M:%SZ" "$HISTORY_STARTED_AT" +%s 2>/dev/null || echo "0")
+  NOW_EPOCH=$(date +%s)
+  if [[ "$STARTED_EPOCH" -gt 0 ]]; then
+    HISTORY_DURATION=$(( NOW_EPOCH - STARTED_EPOCH ))
+  fi
+fi
+
+HISTORY_ITERATIONS="${HISTORY_ITERATION:-1}"
+
+if [[ -f "${SCRIPTS_DIR}/run_history.py" ]]; then
+  python3 "${SCRIPTS_DIR}/run_history.py" \
+    --record \
+    --task-id "$CURRENT_TASK_ID" \
+    --iterations "$HISTORY_ITERATIONS" \
+    --passed \
+    --duration "$HISTORY_DURATION" \
+    --session-id "${HISTORY_SESSION_ID:-}" \
+    --history-dir ".planning/history" \
+    >/dev/null 2>&1 || true
+  echo "History recorded for task $CURRENT_TASK_ID" >&2
+else
+  echo "History: run_history.py not found, skipping recording" >&2
+fi
 
 if [[ "$NEXT_JSON" == "null" ]]; then
   echo "All plan tasks complete" >&2

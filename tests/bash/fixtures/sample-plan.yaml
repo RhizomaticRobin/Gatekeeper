@@ -1,0 +1,38 @@
+metadata:
+  project: "test-project"
+  dev_server_command: "echo ok"
+  dev_server_url: "http://localhost:3000"
+  model_profile: "default"
+phases:
+  - id: 1
+    name: "Phase 1"
+    tasks:
+      - id: "1.1"
+        name: "Task A"
+        status: "completed"
+        depends_on: []
+        deliverables:
+          backend: "test"
+          frontend: "test"
+        tests:
+          quantitative:
+            command: "echo pass"
+          qualitative:
+            criteria:
+              - "works"
+        prompt_file: "tasks/task-1.1.md"
+      - id: "1.2"
+        name: "Task B"
+        status: "pending"
+        depends_on:
+          - "1.1"
+        deliverables:
+          backend: "test"
+          frontend: "test"
+        tests:
+          quantitative:
+            command: "echo pass"
+          qualitative:
+            criteria:
+              - "works"
+        prompt_file: "tasks/task-1.2.md"

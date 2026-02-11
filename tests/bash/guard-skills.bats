@@ -1,0 +1,96 @@
+#!/usr/bin/env bats
+# guard-skills.bats — tests for hooks/guard-skills.sh
+# Verifies skill gating behavior during active VGL loops.
+
+setup() {
+    load 'test_helper/common-setup'
+    TEST_DIR=$(mktemp -d)
+    HOOK="$HOOKS_DIR/guard-skills.sh"
+    cd "$TEST_DIR"
+}
+
+teardown() {
+    if [[ -n "${TEST_DIR:-}" ]] && [[ -d "$TEST_DIR" ]]; then
+        rm -rf "$TEST_DIR"
+    fi
+}
+
+# --- Test 1: No VGL active, any skill exits 0 ---
+@test "no VGL active — any skill allowed (exit 0)" {
+    # No .claude/verifier-loop.local.md file exists
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:quest"}}'"'"' | bash "'"$HOOK"'"'
+    assert_success
+}
+
+# --- Test 2: VGL active, cross-team allowed ---
+@test "VGL active — cross-team allowed (exit 0)" {
+    mkdir -p .claude
+    touch .claude/verifier-loop.local.md
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:cross-team"}}'"'"' | bash "'"$HOOK"'"'
+    assert_success
+}
+
+# --- Test 3: VGL active, progress allowed ---
+@test "VGL active — progress allowed (exit 0)" {
+    mkdir -p .claude
+    touch .claude/verifier-loop.local.md
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:progress"}}'"'"' | bash "'"$HOOK"'"'
+    assert_success
+}
+
+# --- Test 4: VGL active, quest blocked (exit 2) ---
+@test "VGL active — quest blocked (exit 2 with BLOCKED)" {
+    mkdir -p .claude
+    touch .claude/verifier-loop.local.md
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:quest"}}'"'"' | bash "'"$HOOK"'" 2>&1'
+    assert_failure 2
+    assert_output --partial "BLOCKED"
+}
+
+# --- Test 5: VGL active, bridge blocked ---
+@test "VGL active — bridge blocked (exit 2)" {
+    mkdir -p .claude
+    touch .claude/verifier-loop.local.md
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:bridge"}}'"'"' | bash "'"$HOOK"'" 2>&1'
+    assert_failure 2
+}
+
+# --- Test 6: VGL active, run-away blocked ---
+@test "VGL active — run-away blocked (exit 2)" {
+    mkdir -p .claude
+    touch .claude/verifier-loop.local.md
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:run-away"}}'"'"' | bash "'"$HOOK"'" 2>&1'
+    assert_failure 2
+}
+
+# --- Test 7: VGL active, new-project blocked ---
+@test "VGL active — new-project blocked (exit 2)" {
+    mkdir -p .claude
+    touch .claude/verifier-loop.local.md
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:new-project"}}'"'"' | bash "'"$HOOK"'" 2>&1'
+    assert_failure 2
+}
+
+# --- Test 8: Non-gsd-vgl skill always allowed ---
+@test "non-gsd-vgl skill — allowed (exit 0)" {
+    mkdir -p .claude
+    touch .claude/verifier-loop.local.md
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"some-other-plugin:do-stuff"}}'"'"' | bash "'"$HOOK"'"'
+    assert_success
+}
+
+# --- Test 9: No skill in input exits 0 ---
+@test "no skill in input — allowed (exit 0)" {
+    mkdir -p .claude
+    touch .claude/verifier-loop.local.md
+    run bash -c 'echo '"'"'{"tool_input":{"foo":"bar"}}'"'"' | bash "'"$HOOK"'"'
+    assert_success
+}
+
+# --- Test 10: Bare skill name (cross-team without prefix) allowed ---
+@test "bare skill name cross-team — allowed (exit 0)" {
+    mkdir -p .claude
+    touch .claude/verifier-loop.local.md
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"cross-team"}}'"'"' | bash "'"$HOOK"'"'
+    assert_success
+}

@@ -34,10 +34,42 @@ fi
 debug "STATE_FILE exists"
 
 # Parse markdown frontmatter (YAML between ---) and extract values
-FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE")
+FRONTMATTER=$(awk 'NR==1 && /^---$/{next} /^---$/{exit} NR>1{print}' "$STATE_FILE")
+
+# Handle empty or corrupted state file (no frontmatter at all)
+if [[ -z "$FRONTMATTER" ]] || ! echo "$FRONTMATTER" | grep -q '^iteration:'; then
+  echo "VGL: State file corrupted or empty (no valid frontmatter). Cleaning up." >&2
+  echo "  Recovery: run /gsd-vgl:run-away to reset, then restart your task." >&2
+  rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
+  exit 0
+fi
+
 ITERATION=$(echo "$FRONTMATTER" | grep '^iteration:' | sed 's/iteration: *//')
 MAX_ITERATIONS=$(echo "$FRONTMATTER" | grep '^max_iterations:' | sed 's/max_iterations: *//')
-SESSION_ID=$(echo "$FRONTMATTER" | grep '^session_id:' | sed 's/session_id: *//' | sed 's/^"\(.*\)"$/\1/')
+SESSION_ID=$(echo "$FRONTMATTER" | grep '^session_id:' | sed 's/session_id: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+
+# Handle missing session_id
+if [[ -z "$SESSION_ID" ]]; then
+  echo "VGL: State file corrupted (missing session_id). Cleaning up." >&2
+  echo "  Recovery: run /gsd-vgl:run-away to reset, then restart your task." >&2
+  rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
+  exit 0
+fi
+
+# Stale session detection: warn and cleanup if started_at > 24h ago
+STARTED_AT=$(echo "$FRONTMATTER" | grep '^started_at:' | sed 's/started_at: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+if [[ -n "$STARTED_AT" ]]; then
+  STARTED_EPOCH=$(date -d "$STARTED_AT" +%s 2>/dev/null || date -jf "%Y-%m-%dT%H:%M:%SZ" "$STARTED_AT" +%s 2>/dev/null || echo "0")
+  NOW_EPOCH=$(date +%s)
+  ELAPSED=$(( NOW_EPOCH - STARTED_EPOCH ))
+  if [[ $STARTED_EPOCH -gt 0 ]] && [[ $ELAPSED -gt 86400 ]]; then
+    HOURS_AGO=$(( ELAPSED / 3600 ))
+    echo "VGL: Stale session detected (started ${HOURS_AGO}h ago, session: ${SESSION_ID}). Cleaning up." >&2
+    echo "  Recovery: run /gsd-vgl:run-away to reset, then restart your task." >&2
+    rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
+    exit 0
+  fi
+fi
 
 # Read completion token from secret file
 if [[ ! -f "$TOKEN_FILE" ]]; then
@@ -74,8 +106,13 @@ if [[ $MAX_ITERATIONS -gt 0 ]] && [[ $ITERATION -ge $MAX_ITERATIONS ]]; then
   exit 0
 fi
 
-# Get transcript path from hook input
-TRANSCRIPT_PATH=$(echo "$HOOK_INPUT" | jq -r '.transcript_path')
+# Get transcript path from hook input (handle malformed JSON gracefully)
+TRANSCRIPT_PATH=$(echo "$HOOK_INPUT" | jq -r '.transcript_path' 2>/dev/null) || true
+if [[ -z "$TRANSCRIPT_PATH" ]] || [[ "$TRANSCRIPT_PATH" == "null" ]]; then
+  debug "MALFORMED OR MISSING JSON INPUT — passthrough"
+  echo "VGL: Malformed hook input (could not parse transcript_path). Passing through." >&2
+  exit 0
+fi
 debug "TRANSCRIPT_PATH=$TRANSCRIPT_PATH"
 
 if [[ ! -f "$TRANSCRIPT_PATH" ]]; then
@@ -87,7 +124,7 @@ fi
 debug "TRANSCRIPT exists, size=$(wc -c < "$TRANSCRIPT_PATH")"
 
 # Search entire transcript for the completion token
-EXTRACTED_TOKEN=$(grep --no-filename -oP 'VGL_COMPLETE_[a-f0-9]{32}' "$TRANSCRIPT_PATH" | tail -1)
+EXTRACTED_TOKEN=$(grep --no-filename -oP 'VGL_COMPLETE_[a-f0-9]{32}' "$TRANSCRIPT_PATH" 2>/dev/null | tail -1 || true)
 debug "GREP_TRANSCRIPT_EXTRACTED=$EXTRACTED_TOKEN"
 debug "COMPLETION_TOKEN=$COMPLETION_TOKEN"
 debug "MATCH=$( [[ "$EXTRACTED_TOKEN" = "$COMPLETION_TOKEN" ]] && echo YES || echo NO )"
@@ -145,7 +182,52 @@ If the integration check reports NEEDS_FIXES with CRITICAL issues, fix them befo
 
       RAW_NEXT_TASK_PROMPT="$NEXT_TASK_PROMPT"
 
-      NEXT_TASK_PROMPT="${INTEGRATION_PREFIX}CRITICAL RULES — VIOLATION WILL BREAK THE LOOP:
+      # Query learnings from previous runs (graceful degradation if missing/empty)
+      LEARNINGS_PREFIX=""
+      LEARNINGS_SCRIPT="${PLUGIN_ROOT}/scripts/learnings.py"
+      LEARNINGS_STORAGE=".planning/learnings.jsonl"
+      if [[ -f "$LEARNINGS_SCRIPT" ]] && [[ -f "$LEARNINGS_STORAGE" ]]; then
+        # Build task context JSON from next task info
+        TASK_CONTEXT=$(echo "$NEXT_JSON" | python3 -c "
+import sys, json
+task = json.load(sys.stdin)
+# Extract file patterns from deliverables and prompt file
+file_patterns = []
+prompt_file = task.get('prompt_file', '')
+if prompt_file:
+    file_patterns.append(prompt_file)
+# Infer task_type from deliverables
+deliverables = task.get('deliverables', {})
+task_type = 'general'
+if deliverables.get('backend') and not deliverables.get('frontend'):
+    task_type = 'backend'
+elif deliverables.get('frontend') and not deliverables.get('backend'):
+    task_type = 'frontend'
+elif deliverables.get('backend') and deliverables.get('frontend'):
+    task_type = 'backend'
+print(json.dumps({'file_patterns': file_patterns, 'task_type': task_type}))
+" 2>/dev/null || echo '{}')
+
+        if [[ -n "$TASK_CONTEXT" ]] && [[ "$TASK_CONTEXT" != "{}" ]]; then
+          LEARNINGS_OUTPUT=$(python3 "$LEARNINGS_SCRIPT" --relevant "$TASK_CONTEXT" --storage "$LEARNINGS_STORAGE" 2>/dev/null || echo '{"learnings":[],"formatted":""}')
+          LEARNINGS_TEXT=$(echo "$LEARNINGS_OUTPUT" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+formatted = data.get('formatted', '')
+if formatted:
+    print(formatted)
+" 2>/dev/null || echo "")
+
+          if [[ -n "$LEARNINGS_TEXT" ]]; then
+            LEARNINGS_PREFIX="LEARNINGS FROM PREVIOUS RUNS:
+${LEARNINGS_TEXT}
+
+"
+          fi
+        fi
+      fi
+
+      NEXT_TASK_PROMPT="${LEARNINGS_PREFIX}${INTEGRATION_PREFIX}CRITICAL RULES — VIOLATION WILL BREAK THE LOOP:
 - Do NOT modify .claude/plan/plan.yaml or any .claude/ state files
 - Do NOT mark tasks as done or completed — the system handles all transitions
 - Do NOT edit .claude/verifier-loop.local.md or .claude/verifier-token.secret
