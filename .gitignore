@@ -3,3 +3,7 @@ node_modules/
 hooks/dist/
 __pycache__/
 *.pyc
+.planning/autopilot.log
+.planning/autopilot.pid
+.planning/.ralph-config
+.planning/.pause
