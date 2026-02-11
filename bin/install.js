@@ -6,7 +6,7 @@ const os = require('os');
 const readline = require('readline');
 
 // Colors
-const cyan = '\x1b[36m';
+const crimson = '\x1b[38;2;220;20;60m';
 const green = '\x1b[32m';
 const yellow = '\x1b[33m';
 const dim = '\x1b[2m';
@@ -16,7 +16,7 @@ const reset = '\x1b[0m';
 const pkg = require('../package.json');
 
 const banner = `
-${cyan} ██████╗  █████╗ ████████╗███████╗██╗  ██╗███████╗███████╗██████╗ ███████╗██████╗
+${crimson} ██████╗  █████╗ ████████╗███████╗██╗  ██╗███████╗███████╗██████╗ ███████╗██████╗
 ██╔════╝ ██╔══██╗╚══██╔══╝██╔════╝██║ ██╔╝██╔════╝██╔════╝██╔══██╗██╔════╝██╔══██╗
 ██║  ███╗███████║   ██║   █████╗  █████╔╝ █████╗  █████╗  ██████╔╝█████╗  ██████╔╝
 ██║   ██║██╔══██║   ██║   ██╔══╝  ██╔═██╗ ██╔══╝  ██╔══╝  ██╔═══╝ ██╔══╝  ██╔══██╗
@@ -65,10 +65,10 @@ if (hasHelp) {
   console.log(`  ${yellow}Usage:${reset} npx gsd-vgl [options]
 
   ${yellow}Options:${reset}
-    ${cyan}-g, --global${reset}              Install globally (to Claude plugins directory)
-    ${cyan}-l, --local${reset}               Install locally (to ./.claude/plugins in current directory)
-    ${cyan}-c, --config-dir <path>${reset}   Specify custom Claude config directory
-    ${cyan}-h, --help${reset}                Show this help message
+    ${crimson}-g, --global${reset}              Install globally (to Claude plugins directory)
+    ${crimson}-l, --local${reset}               Install locally (to ./.claude/plugins in current directory)
+    ${crimson}-c, --config-dir <path>${reset}   Specify custom Claude config directory
+    ${crimson}-h, --help${reset}                Show this help message
 
   ${yellow}Examples:${reset}
     ${dim}# Install to default ~/.claude/plugins/gsd-vgl${reset}
@@ -199,7 +199,7 @@ function install(isGlobal) {
   const destDir = path.join(claudeDir, 'plugins', 'gsd-vgl');
 
   const locationLabel = destDir.replace(os.homedir(), '~');
-  console.log(`  Installing to ${cyan}${locationLabel}${reset}\n`);
+  console.log(`  Installing to ${crimson}${locationLabel}${reset}\n`);
 
   // Remove existing installation (symlink or directory) for clean install
   if (fs.existsSync(destDir) || isSymlink(destDir)) {
@@ -233,7 +233,7 @@ function install(isGlobal) {
   console.log(`  ${green}✓${reset} Verified installation`);
 
   console.log(`
-  ${green}Done!${reset} Launch Claude Code and run ${cyan}/gsd-vgl:help${reset}.
+  ${green}Done!${reset} Launch Claude Code and run ${crimson}/gsd-vgl:help${reset}.
 `);
 }
 
@@ -280,8 +280,8 @@ function promptLocation() {
 
   console.log(`  ${yellow}Where would you like to install?${reset}
 
-  ${cyan}1${reset}) Global ${dim}(${globalLabel}/plugins/gsd-vgl)${reset} - available in all projects
-  ${cyan}2${reset}) Local  ${dim}(./.claude/plugins/gsd-vgl)${reset} - this project only
+  ${crimson}1${reset}) Global ${dim}(${globalLabel}/plugins/gsd-vgl)${reset} - available in all projects
+  ${crimson}2${reset}) Local  ${dim}(./.claude/plugins/gsd-vgl)${reset} - this project only
 `);
 
   rl.question(`  Choice ${dim}[1]${reset}: `, (answer) => {
