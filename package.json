@@ -1,0 +1,42 @@
+{
+  "name": "gsd-vgl",
+  "version": "1.0.0",
+  "description": "Get Shit Done - Verifier Gated Loop. Spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrency.",
+  "bin": {
+    "gsd-vgl": "bin/install.js"
+  },
+  "files": [
+    "bin",
+    "commands",
+    "agents",
+    "hooks",
+    "scripts",
+    "templates",
+    "references",
+    "workflows"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "verifier-loop",
+    "tdd",
+    "spec-driven-development",
+    "autopilot"
+  ],
+  "author": "User",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.7.0"
+  },
+  "dependencies": {
+    "command-exists": "^1.2.9"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "sql.js": "^1.12.0"
+  },
+  "scripts": {
+    "build:hooks": "node scripts/build-hooks.js",
+    "prepublishOnly": "npm run build:hooks"
+  }
+}

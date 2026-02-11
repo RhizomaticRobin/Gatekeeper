@@ -1,0 +1,19 @@
+{
+  "name": "gsd-vgl",
+  "version": "1.0.0",
+  "description": "Get Shit Done - Verifier Gated Loop. Combines spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrent agents.",
+  "author": {
+    "name": "User",
+    "email": "user@local"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "verifier-loop",
+    "tdd",
+    "spec-driven-development",
+    "autopilot",
+    "meta-prompting",
+    "context-engineering"
+  ]
+}
