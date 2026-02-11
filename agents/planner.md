@@ -1,7 +1,9 @@
 ---
 name: planner
 description: Creates plan.yaml + task-{id}.md files with goal-backward must_haves, wave assignment, file_scope, and TDD test specifications.
+model: opus
 tools: Read, Write, Bash, Glob, Grep, WebFetch
+disallowedTools: Edit, WebSearch, Task
 color: green
 ---
 
@@ -75,6 +77,7 @@ phases:
   - id: 1
     name: "Phase Name"
     goal: "What this phase delivers"
+    integration_check: true  # spawn integration-checker after this phase completes
     must_haves:
       truths:
         - "User-observable behavior 1"
@@ -140,9 +143,16 @@ phases:
 - {Pages/routes to add}
 - {How it connects to backend}
 
-## Implementation Strategy (opencode concurrency)
-- Test file 1 → launch_opencode(mode="build", task="Make tests in {file1} pass")
-- Test file 2 → launch_opencode(mode="build", task="Make tests in {file2} pass")
+## Test Dependency Graph
+| Test | File | Depends On | Guidance |
+|------|------|-----------|----------|
+| T1 | {test_file_1} | — | {files to create/modify, patterns, approach} |
+| T2 | {test_file_2} | — | {files to create/modify, patterns, approach} |
+| T3 | {test_file_3} | T1 | {what T1 produces, how to build on it} |
+
+Dispatch order:
+- Wave 1 (concurrent): T1, T2
+- Wave 2 (after wave 1): T3
 
 ## Qualitative Verification (Playwright)
 {What a browser should show — page-by-page walkthrough}

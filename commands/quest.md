@@ -151,6 +151,19 @@ Design must_haves goal-backward: start from the desired end state and work backw
 
 8. **Wave assignments**: Group tasks into waves for parallel execution. Tasks in the same wave have no dependencies on each other and non-overlapping file scopes. Format: `wave: 1`
 
+9. **Integration checkpoints**: Each phase gets an `integration_check` field (boolean). Set it to `true` when the phase introduces components that must integrate with prior phases' work. After all tasks in a phase with `integration_check: true` complete, the executor automatically spawns the integration-checker agent before moving to the next phase.
+
+### When to set `integration_check: true`
+- The phase consumes APIs, types, or components built in a prior phase
+- The phase introduces a new system boundary (e.g., auth middleware now used by feature routes)
+- Multiple parallel tasks in the phase touch shared interfaces
+- The phase is a natural seam: foundation complete, core features complete, etc.
+
+### When to set `integration_check: false`
+- First phase (nothing to integrate with yet)
+- Phase only adds isolated features with no cross-phase dependencies
+- Phase is purely additive (new pages, new tests) with no wiring changes
+
 ### Task Graph Design Process
 
 1. Define end-state must_haves for the entire project
@@ -200,6 +213,7 @@ phases:
   - id: 1
     name: "Foundation"
     goal: "Establish core infrastructure and base layout"
+    integration_check: false          # No check needed — first phase, nothing to integrate with yet
     must_haves:
       truths:
         - "Database schema is migrated and seeded"
@@ -272,12 +286,25 @@ Write ALL of these tests BEFORE any implementation code:
 - What the quantitative test command checks
 - Edge cases and error conditions
 
-## Implementation Strategy (Opencode Concurrency)
-After writing tests, use opencode agents for parallel implementation:
-- launch_opencode(mode="build", task="Make tests in {test_file_1} pass")
-- launch_opencode(mode="build", task="Make tests in {test_file_2} pass")
-- wait_for_completion() to collect results
-- Run full test suite to verify
+## Test Dependency Graph
+Each test becomes a single opencode agent dispatch. The executor assigns
+exactly 1 test per agent with the guidance below. Tests with no dependencies
+run concurrently; dependent tests wait for their prerequisite's agent to finish.
+
+| Test | File | Depends On | Guidance |
+|------|------|-----------|----------|
+| T1 | {test_file_1} | — | {files to create/modify, patterns, imports, approach} |
+| T2 | {test_file_2} | — | {files to create/modify, patterns, imports, approach} |
+| T3 | {test_file_3} | T1 | {depends on T1's output — what exists after T1, what to build on} |
+
+Dispatch order:
+- Wave 1 (concurrent): T1, T2
+- Wave 2 (after wave 1): T3
+
+### Guidance Rules
+- Each guidance entry MUST specify: target files to create/modify, relevant imports, patterns from the codebase to follow, and the specific approach to making that test pass
+- If a test depends on another, the guidance MUST describe what the prerequisite produces and how to build on it
+- Guidance should be detailed enough that the opencode agent needs no other context
 
 ## Qualitative Verification (Playwright)
 What a human (or Playwright) should see when navigating the app:
@@ -412,10 +439,11 @@ It will automatically parallelize if multiple tasks in Wave 1 are unblocked, or 
 5. Do NOT ask about things the codebase already answers (Phase 1 recon)
 6. Do NOT plan to reinvent existing packages or framework features
 7. Task prompts must be detailed enough for a fresh agent with no context
-8. Task prompts must include TDD-first workflow and opencode concurrency instructions
+8. Task prompts must include a Test Dependency Graph with 1 test per row, dependencies, and implementation guidance per test
 9. Plan summary MUST stay under 200 lines
 10. Dependencies must form a DAG (no cycles)
 11. Qualitative criteria must describe observable UI behavior (what you'd see in a browser)
 12. Use `$ARGUMENTS` as the project description if provided
 13. Design must_haves goal-backward: end state first, then decompose
 14. Assign wave numbers to enable parallel execution via `/gsd-vgl:cross-team`
+15. Set `integration_check` on each phase — true at natural seams where cross-phase wiring matters

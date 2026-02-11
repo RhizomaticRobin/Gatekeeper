@@ -44,6 +44,34 @@ fi
 echo "Completing task: $CURRENT_TASK_ID" >&2
 python3 "${SCRIPTS_DIR}/plan_utils.py" "$PLAN_FILE" --complete-task "$CURRENT_TASK_ID" >/dev/null
 
+# Check if completing this task finishes a phase that needs integration checking
+INTEGRATION_CHECK=$(python3 -c "
+import sys, json
+sys.path.insert(0, '${SCRIPTS_DIR}')
+from plan_utils import load_plan
+
+plan = load_plan('$PLAN_FILE')
+current_phase_id = '$CURRENT_TASK_ID'.split('.')[0]
+
+for phase in plan.get('phases', []):
+    if str(phase.get('id')) == current_phase_id:
+        # Check if all tasks in this phase are now completed
+        tasks = phase.get('tasks', [])
+        all_done = all(t.get('status') == 'completed' for t in tasks)
+        needs_check = phase.get('integration_check', False)
+        if all_done and needs_check:
+            print('true')
+        else:
+            print('false')
+        break
+else:
+    print('false')
+" 2>/dev/null || echo "false")
+
+if [[ "$INTEGRATION_CHECK" == "true" ]]; then
+  echo "INTEGRATION_CHECK_NEEDED" >&2
+fi
+
 # Find next task
 NEXT_JSON=$(python3 "${SCRIPTS_DIR}/next-task.py" "$PLAN_FILE")
 
@@ -55,6 +83,16 @@ fi
 NEXT_ID=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
 NEXT_NAME=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['name'])")
 echo "Next task: $NEXT_ID - $NEXT_NAME" >&2
+
+# If integration check needed, inject it as a signal in the JSON output
+if [[ "$INTEGRATION_CHECK" == "true" ]]; then
+  NEXT_JSON=$(echo "$NEXT_JSON" | python3 -c "
+import sys, json
+task = json.load(sys.stdin)
+task['_integration_check_before'] = True
+print(json.dumps(task))
+" 2>/dev/null || echo "$NEXT_JSON")
+fi
 
 # Output next task JSON to stdout
 echo "$NEXT_JSON"

@@ -1,7 +1,9 @@
 ---
 name: project-researcher
 description: Domain research agent. Investigates technology stacks, architecture patterns, best practices, and potential pitfalls for the project domain.
+model: opus
 tools: Read, Bash, WebSearch, WebFetch, Glob, Grep
+disallowedTools: Write, Edit, Task
 color: blue
 ---
 

@@ -14,6 +14,18 @@ set -euo pipefail
 
 PLUGIN_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
 
+# Deploy gsd-builder agent config if not already present
+OPENCODE_CONFIG="opencode.json"
+if [[ ! -f "$OPENCODE_CONFIG" ]] || ! python3 -c "
+import json
+with open('$OPENCODE_CONFIG') as f:
+    cfg = json.load(f)
+raise SystemExit(0 if 'gsd-builder' in cfg.get('agent', {}) else 1)
+" 2>/dev/null; then
+  cp "${PLUGIN_ROOT}/templates/opencode.json" "$OPENCODE_CONFIG"
+  echo "Deployed gsd-builder agent config"
+fi
+
 # Check if JSON input is provided via --from-json
 if [[ "${1:-}" == "--from-json" ]]; then
   JSON_INPUT="${2:-}"

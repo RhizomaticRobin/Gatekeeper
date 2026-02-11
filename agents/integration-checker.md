@@ -1,7 +1,9 @@
 ---
 name: integration-checker
 description: Cross-phase wiring verification. Checks that completed phases connect properly — APIs consumed, data flows end-to-end, no broken references.
+model: opus
 tools: Read, Bash, Grep, Glob
+disallowedTools: Write, Edit, WebFetch, WebSearch, Task
 color: green
 ---
 

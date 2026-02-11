@@ -97,7 +97,7 @@ TASK_PROMPT="CRITICAL RULES — VIOLATION WILL BREAK THE LOOP:
 TDD-FIRST + OPENCODE MCP WORKFLOW (MANDATORY):
 You MUST follow this execution order:
 1. Write ALL tests first — unit tests, integration tests, edge cases. Every deliverable gets a test BEFORE any implementation code is written.
-2. Spawn opencode agents concurrently using launch_opencode MCP tool — one agent per test file or implementation module. Example: launch_opencode(mode=\"build\", task=\"Make tests in <file> pass\")
+2. Dispatch opencode agents from the Test Dependency Graph — 1 test per agent with guidance. Dispatch in waves respecting test dependencies.
 3. Wait for all opencode agents to complete using wait_for_completion MCP tool.
 4. Run the FULL test suite yourself to verify all tests pass: $TEST_CMD
 5. If any tests fail, fix issues and re-run until green.
@@ -186,17 +186,19 @@ Before writing ANY implementation code:
 - Write tests that validate must_haves truths are enforced
 - Tests MUST fail at this point (Red phase) — that is correct
 
-#### Step 3: Spawn Opencode Agents (Concurrent Implementation)
-Use the `launch_opencode` MCP tool to spawn concurrent agents:
-- One agent per test file or implementation module
-- Each agent gets: "Make tests in {file} pass" as its task
-- Agents work in parallel on non-overlapping file scopes
-- Example: `launch_opencode(mode="build", task="Make tests in tests/auth.test.ts pass")`
+#### Step 3: Dispatch Opencode Agents (1 Test Per Agent)
+Read the **Test Dependency Graph** from the task prompt. Dispatch in waves:
+- Wave 1: launch fresh agents for all tests with no dependencies (concurrent)
+- Wave 2+: for dependent tests, **continue the session** of the agent that completed the dependency — it already has context about its implementation
+- If a test has multiple dependencies, continue the most significant dependency's agent and tell it to review the other dependencies' work first
+- Each agent gets exactly 1 test file + the guidance from the graph
 
-#### Step 4: Wait for Completion
-Use the `wait_for_completion` MCP tool to collect results from all opencode agents.
+#### Step 4: Wait for Completion (Per Wave)
+Use `wait_for_completion` after each wave. Track `test → sessionId` for continuations.
 - Review each agent's output for errors or incomplete work
-- If any agent failed, address its issues before proceeding
+- If any agent failed, address its issues before dispatching next wave
+- If any agent has status "input_required", answer via `launch_opencode(sessionId=<id>, task="<answer>")`, then call `wait_for_completion()` again
+- Verify the wave's tests pass before dispatching the next wave
 
 #### Step 5: Run Full Test Suite (Green Phase)
 Run the quantitative test command yourself:
@@ -244,19 +246,19 @@ prompt_template = open('${CLAUDE_PLUGIN_ROOT}/scripts/team-orchestrator-prompt.m
 
 ### Orchestration Workflow
 
-1. **Spawn worker teammates** for each dispatched task:
-   - One teammate per task
-   - Each worker gets: task prompt + VGL instructions + TDD-first workflow + session directory path
-   - Workers write ALL tests first, spawn opencode agents via `launch_opencode` MCP tool, wait for completion via `wait_for_completion`, run full test suite, then spawn their own Verifier subagents
-   - Workers report back with completion tokens or failure reasons
+1. **Spawn executor sub-orchestrators** for each dispatched task:
+   - One `Task(subagent_type='executor')` per task (model: opus, no web access)
+   - Each executor gets: task prompt + VGL instructions + TDD-first workflow + session directory path
+   - Executors write ALL tests first, spawn gsd-builder opencode agents concurrently, wait for completion, run full test suite, then spawn their own Verifier subagents
+   - Executors return completion tokens or failure reasons in their Task output
 
-2. **Monitor worker messages** for:
+2. **Collect executor results** from each Task:
    - `TASK_COMPLETE:{task_id}:{token}` — validate token, mark task completed
    - `TASK_FAILED:{task_id}:{reason}` — log failure, decide retry or skip
 
 3. **Validate completion tokens**:
    - Read `.claude/vgl-sessions/task-{id}/verifier-token.secret` (line 1)
-   - Compare with the token reported by the worker
+   - Compare with the token reported by the executor
    - Only mark complete if tokens match
 
 4. **Mark tasks completed** via:
@@ -264,24 +266,34 @@ prompt_template = open('${CLAUDE_PLUGIN_ROOT}/scripts/team-orchestrator-prompt.m
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id}
    ```
 
-5. **Check for newly unblocked tasks** after each completion:
+5. **Check for integration checkpoints** after marking a task complete:
+   - If the completed task was the last task in its phase, check if that phase has `integration_check: true`
+   - If so, spawn an integration-checker before dispatching next-phase tasks:
+     ```
+     Task(subagent_type='integration-checker',
+          prompt='Verify integration between all completed phases. Check cross-phase links, data flows, type contracts, and dead endpoints. Report PASS or NEEDS_FIXES with details.')
+     ```
+   - If the checker reports NEEDS_FIXES with CRITICAL issues, fix them before spawning next-phase executors
+   - WARNING-level issues can be noted and addressed later
+
+6. **Check for newly unblocked tasks** after each completion:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/get-unblocked-tasks.py" .claude/plan/plan.yaml
    ```
-   - For each newly unblocked task, set up its VGL session and spawn a new worker
+   - For each newly unblocked task, set up its VGL session and spawn a new executor sub-orchestrator
 
-6. **When all tasks are done**:
-   - Shut down all workers
+7. **When all tasks are done**:
+   - All executor Tasks have returned
    - Remove `.claude/vgl-team-active`
    - Remove `.claude/vgl-sessions/`
    - Report final status
 
 ### Critical Rules
 
-- You are the LEAD — never write implementation code
-- Only YOU update plan.yaml — workers must not touch it
+- You are the LEAD ORCHESTRATOR — never write implementation code
+- Only YOU update plan.yaml — executor sub-orchestrators must not touch it
 - Validate every token before marking a task complete
-- Workers with overlapping file scopes must NOT run simultaneously
-- If a worker fails 3 times, skip the task and note it for the user
-- Workers must follow TDD-first: tests before implementation, opencode for concurrency
+- Executors with overlapping file scopes must NOT run simultaneously
+- If an executor fails 3 times, skip the task and note it for the user
+- Executors are sub-orchestrators: they spawn gsd-builder opencode agents, not implement directly
 - Verify must_haves (truths, artifacts, key_links) are satisfied before marking complete

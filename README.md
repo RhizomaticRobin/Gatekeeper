@@ -96,7 +96,7 @@ npm install -g gsd-vgl
 Executor Agent:
   1. Read task-{id}.md
   2. Write ALL tests first (TDD Red phase)
-  3. launch_opencode() × N for concurrent implementation
+  3. launch_opencode(task=...) × N for concurrent implementation (uses gsd-builder agent)
   4. wait_for_completion() → integrate
   5. Run full test suite (Green phase)
   6. Spawn verifier

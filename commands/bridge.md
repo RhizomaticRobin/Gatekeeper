@@ -24,16 +24,18 @@ Before writing ANY implementation code:
 - Write tests that validate must_haves truths if provided
 - Tests MUST fail at this point — that is correct and expected
 
-### Step 2: Spawn Opencode Agents (Concurrent Implementation)
-Use the `launch_opencode` MCP tool to spawn concurrent agents:
-- One agent per test file or implementation module
-- Each agent gets: "Make tests in {file} pass" as its task
-- Agents work in parallel on non-overlapping file scopes
+### Step 2: Dispatch Opencode Agents (1 Test Per Agent)
+Use the `launch_opencode` MCP tool — dispatch 1 test per agent with guidance:
+- Wave 1: launch fresh agents for independent tests (concurrent)
+- Wave 2+: continue prior agent sessions for dependent tests — the agent that completed the dependency already has context
+- If a test has multiple dependencies, continue the most significant one's session and tell it to review the others' work
+- Each agent gets exactly 1 test file + specific implementation guidance
 
-### Step 3: Wait for Completion
-Use the `wait_for_completion` MCP tool to collect results from all opencode agents.
+### Step 3: Wait for Completion (Per Wave)
+Use `wait_for_completion` after each wave. Track `test → sessionId` for continuations.
 - Review each agent's output for errors or incomplete work
-- If any agent failed, address its issues before proceeding
+- If any agent failed, address its issues before dispatching next wave
+- If any agent has status "input_required", answer via `launch_opencode(sessionId=<id>, task="<answer>")`, then call `wait_for_completion()` again
 
 ### Step 4: Run Tests Locally (Green Phase)
 Run the test command yourself to verify all tests pass:

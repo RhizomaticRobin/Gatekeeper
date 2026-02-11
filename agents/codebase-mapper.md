@@ -1,7 +1,9 @@
 ---
 name: codebase-mapper
 description: Codebase analysis agent. Maps existing codebases for brownfield projects — stack, architecture, structure, conventions, testing, integrations, concerns.
+model: opus
 tools: Read, Bash, Glob, Grep
+disallowedTools: Write, Edit, WebFetch, WebSearch, Task
 color: blue
 ---
 

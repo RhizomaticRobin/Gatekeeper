@@ -28,6 +28,18 @@ if [[ $VALIDATE_EXIT -ne 0 ]]; then
   exit 0
 fi
 
+# Deploy gsd-builder agent config if not already present
+OPENCODE_CONFIG="opencode.json"
+if [[ ! -f "$OPENCODE_CONFIG" ]] || ! python3 -c "
+import json
+with open('$OPENCODE_CONFIG') as f:
+    cfg = json.load(f)
+raise SystemExit(0 if 'gsd-builder' in cfg.get('agent', {}) else 1)
+" 2>/dev/null; then
+  cp "${PLUGIN_ROOT}/templates/opencode.json" "$OPENCODE_CONFIG"
+  echo "Deployed gsd-builder agent config"
+fi
+
 # 3. Find ALL unblocked tasks
 echo ""
 echo "Finding all unblocked tasks..."

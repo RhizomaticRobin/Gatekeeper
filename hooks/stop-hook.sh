@@ -121,6 +121,19 @@ for c in criteria:
     print(f'- {c}')
 " 2>/dev/null || echo "")
 
+      # Check if an integration check is needed before this task
+      NEEDS_INTEGRATION=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('_integration_check_before', False))" 2>/dev/null || echo "False")
+      INTEGRATION_PREFIX=""
+      if [[ "$NEEDS_INTEGRATION" == "True" ]]; then
+        echo "VGL: Integration check required before next phase" >&2
+        INTEGRATION_PREFIX="INTEGRATION CHECK REQUIRED:
+Before starting this task, spawn an integration-checker agent to verify cross-phase wiring:
+  Task(subagent_type='integration-checker', prompt='Verify integration between all completed phases. Check cross-phase links, data flows, type contracts, and dead endpoints. Report PASS or NEEDS_FIXES with details.')
+If the integration check reports NEEDS_FIXES with CRITICAL issues, fix them before proceeding to this task. WARNING-level issues can be noted and addressed later.
+
+"
+      fi
+
       echo "VGL: Auto-transitioning to: $NEXT_ID - $NEXT_NAME" >&2
 
       FULL_PROMPT_PATH=".claude/plan/${NEXT_PROMPT_FILE}"
@@ -132,7 +145,7 @@ for c in criteria:
 
       RAW_NEXT_TASK_PROMPT="$NEXT_TASK_PROMPT"
 
-      NEXT_TASK_PROMPT="CRITICAL RULES — VIOLATION WILL BREAK THE LOOP:
+      NEXT_TASK_PROMPT="${INTEGRATION_PREFIX}CRITICAL RULES — VIOLATION WILL BREAK THE LOOP:
 - Do NOT modify .claude/plan/plan.yaml or any .claude/ state files
 - Do NOT mark tasks as done or completed — the system handles all transitions
 - Do NOT edit .claude/verifier-loop.local.md or .claude/verifier-token.secret
@@ -140,11 +153,13 @@ for c in criteria:
 TDD-FIRST WORKFLOW:
 1. Read task-{id}.md for full specification and must_haves
 2. Write ALL tests first (Red phase)
-3. Spawn concurrent opencode agents: launch_opencode(mode=\"build\", task=\"Make tests in {file} pass\")
-4. Wait for completion: wait_for_completion()
-5. Run full test suite (Green phase)
-6. If tests fail, fix and retry
-7. When ready, spawn Verifier subagent from .claude/verifier-prompt.local.md
+3. Read the Test Dependency Graph from the task prompt
+4. Wave 1: launch fresh agents for independent tests (1 per test with guidance)
+5. Wave 2+: continue prior agent sessions for dependent tests
+6. wait_for_completion() after each wave, answer agent questions if input_required
+7. Run full test suite (Green phase)
+8. If tests fail, fix and retry
+9. When ready, spawn Verifier subagent from .claude/verifier-prompt.local.md
 
 YOUR TASK:
 $NEXT_TASK_PROMPT"

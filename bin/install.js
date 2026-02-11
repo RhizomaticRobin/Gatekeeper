@@ -171,6 +171,7 @@ function verifyInstallation(pluginDir) {
     'commands/help.md',
     'agents/verifier.md',
     'bin/ralph.sh',
+    'templates/opencode.json',
   ];
 
   const failures = [];

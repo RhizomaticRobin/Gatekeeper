@@ -1,7 +1,9 @@
 ---
 name: plan-checker
 description: Pre-execution plan quality gate. Verifies plans WILL achieve phase goal before execution starts. 6 verification dimensions.
+model: opus
 tools: Read, Bash, Glob, Grep
+disallowedTools: Write, Edit, WebFetch, WebSearch, Task
 color: green
 ---
 
