@@ -31,12 +31,14 @@ if [[ "${1:-}" == "--from-json" ]]; then
   JSON_INPUT="${2:-}"
   if [[ -z "$JSON_INPUT" ]]; then
     echo "Error: --from-json requires JSON string" >&2
+    echo "Try: Provide a valid JSON string as the second argument to --from-json." >&2
     exit 1
   fi
 
   PARSE_ERROR=$(echo "$JSON_INPUT" | jq -r '.error // empty' 2>/dev/null)
   if [[ -n "$PARSE_ERROR" ]]; then
     echo "Error: $PARSE_ERROR" >&2
+    echo "Try: Check the JSON input for syntax errors." >&2
     exit 1
   fi
 
@@ -53,11 +55,13 @@ if [[ "${1:-}" == "--from-json" ]]; then
 
   if [[ -z "$PROMPT" ]] || [[ "$PROMPT" == "null" ]]; then
     echo "Error: No prompt provided" >&2
+    echo "Try: Include a 'prompt' field in the JSON input." >&2
     exit 1
   fi
 
   if [[ -z "$VERIFICATION_CRITERIA" ]] || [[ "$VERIFICATION_CRITERIA" == "null" ]]; then
     echo "Error: --verification-criteria is required" >&2
+    echo "Try: Include a 'verification_criteria' field in the JSON input, or pass --verification-criteria on the command line." >&2
     exit 1
   fi
 else
@@ -107,6 +111,7 @@ HELP_EOF
       --max-iterations)
         if [[ -z "${2:-}" ]] || ! [[ "$2" =~ ^[0-9]+$ ]]; then
           echo "Error: --max-iterations requires a positive integer" >&2
+          echo "Try: Use --max-iterations 5 (or another positive number)." >&2
           exit 1
         fi
         MAX_ITERATIONS="$2"
@@ -115,6 +120,7 @@ HELP_EOF
       --verification-criteria)
         if [[ -z "${2:-}" ]]; then
           echo "Error: --verification-criteria requires text argument" >&2
+          echo "Try: Use --verification-criteria 'describe what to verify'." >&2
           exit 1
         fi
         VERIFICATION_CRITERIA="$2"
@@ -123,6 +129,7 @@ HELP_EOF
       --test-command)
         if [[ -z "${2:-}" ]]; then
           echo "Error: --test-command requires a command" >&2
+          echo "Try: Use --test-command 'pytest' or --test-command 'npm test'." >&2
           exit 1
         fi
         TEST_COMMAND="$2"
@@ -131,6 +138,7 @@ HELP_EOF
       --verifier-model)
         if [[ -z "${2:-}" ]]; then
           echo "Error: --verifier-model requires a model name" >&2
+          echo "Try: Use --verifier-model opus or --verifier-model sonnet." >&2
           exit 1
         fi
         VERIFIER_MODEL="$2"
@@ -147,11 +155,13 @@ HELP_EOF
 
   if [[ -z "$PROMPT" ]]; then
     echo "Error: No prompt provided" >&2
+    echo "Try: Pass a prompt as positional arguments, e.g.: /bridge 'Implement feature X'." >&2
     exit 1
   fi
 
   if [[ -z "$VERIFICATION_CRITERIA" ]]; then
     echo "Error: --verification-criteria is required" >&2
+    echo "Try: Add --verification-criteria 'describe what the verifier should check'." >&2
     exit 1
   fi
 fi

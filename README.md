@@ -1,10 +1,10 @@
-# Gatekeeper (GSD-VGL)
+# EvoGatekeeper (GSD-VGL)
 
 A Claude Code plugin for spec-driven development with cryptographic verifier loops, TDD-first execution, and concurrent opencode agents.
 
 ## How It Works
 
-Gatekeeper orchestrates software projects through a structured pipeline where no task can be marked complete without passing independent verification:
+EvoGatekeeper orchestrates software projects through a structured pipeline where no task can be marked complete without passing independent verification:
 
 1. **Plan** (`/quest`) — Deep discovery + plan.yaml with phases, tasks, must_haves, TDD test specs, and per-task prompt files
 2. **Execute** (`/cross-team`) — TDD-first implementation with parallel opencode agents, wave-based dispatch, and session continuations

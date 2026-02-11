@@ -25,13 +25,15 @@ TOKEN_FILE="${SESSION_DIR}/verifier-token.secret"
 
 # Check state file exists
 if [[ ! -f "$STATE_FILE" ]]; then
-  echo "ERROR: No active VGL session found"
+  echo "Error: No active VGL session found at ${STATE_FILE}"
+  echo "Try: Run /gsd-vgl:cross-team to start a new VGL session, or check that the session directory is correct."
   exit 1
 fi
 
 # Check token file exists (created by setup, only this script should read it)
 if [[ ! -f "$TOKEN_FILE" ]]; then
-  echo "ERROR: Token file not found - VGL session may be corrupted"
+  echo "Error: Token file not found at ${TOKEN_FILE} - VGL session may be corrupted"
+  echo "Try: Run /gsd-vgl:run-away to reset the session, then restart with /gsd-vgl:cross-team."
   exit 1
 fi
 
@@ -46,7 +48,8 @@ STORED_B64=$(echo "$TOKEN_FILE_CONTENT" | grep '^TEST_CMD_B64:' | sed 's/^TEST_C
 STORED_HASH=$(echo "$TOKEN_FILE_CONTENT" | grep '^TEST_CMD_HASH:' | sed 's/^TEST_CMD_HASH://')
 
 if [[ -z "$STORED_B64" ]] || [[ -z "$STORED_HASH" ]]; then
-  echo "ERROR: Token file missing test command data - session may be corrupted"
+  echo "Error: Token file missing test command data - session may be corrupted"
+  echo "Try: Run /gsd-vgl:run-away to reset the session, then restart with /gsd-vgl:cross-team."
   exit 1
 fi
 
@@ -55,9 +58,10 @@ TEST_COMMAND=$(echo "$STORED_B64" | base64 -d)
 COMPUTED_HASH=$(echo -n "$TEST_COMMAND" | sha256sum | cut -d' ' -f1)
 
 if [[ "$COMPUTED_HASH" != "$STORED_HASH" ]]; then
-  echo "ERROR: Test command integrity check FAILED - token file may have been tampered with"
-  echo "Expected hash: $STORED_HASH"
-  echo "Computed hash: $COMPUTED_HASH"
+  echo "Error: Test command integrity check FAILED - token file may have been tampered with"
+  echo "  Expected hash: $STORED_HASH"
+  echo "  Computed hash: $COMPUTED_HASH"
+  echo "Try: Run /gsd-vgl:run-away to reset the session, then restart with /gsd-vgl:cross-team."
   exit 1
 fi
 
@@ -98,10 +102,10 @@ if [[ $TEST_EXIT_CODE -ne 0 ]]; then
   echo "                         VERIFICATION FAILED - TOKEN DENIED"
   echo "═══════════════════════════════════════════════════════════════════════════════════════"
   echo ""
-  echo "Tests failed with exit code: $TEST_EXIT_CODE"
+  echo "Error: Tests failed with exit code: $TEST_EXIT_CODE"
   echo ""
   echo "The completion token will NOT be revealed."
-  echo "Fix the failing tests and try again."
+  echo "Try: Fix the failing tests and run the test command again."
   echo ""
   echo "<token-denied>"
   echo "TESTS_FAILED"
@@ -135,10 +139,11 @@ if [[ -n "$ISSUES" ]]; then
   echo "                         VERIFICATION FAILED - TOKEN DENIED"
   echo "═══════════════════════════════════════════════════════════════════════════════════════"
   echo ""
-  echo "Tests passed but additional checks failed:"
+  echo "Error: Tests passed but additional checks failed:"
   echo -e "$ISSUES"
   echo ""
   echo "The completion token will NOT be revealed."
+  echo "Try: Address the issues above (remove TODOs, replace stubs with real implementations) and retry."
   echo ""
   echo "<token-denied>"
   echo "ADDITIONAL_CHECKS_FAILED"

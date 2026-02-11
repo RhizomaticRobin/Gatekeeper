@@ -23,20 +23,23 @@ STATE_FILE=".claude/verifier-loop.local.md"
 # Check plan file
 if [[ ! -f "$PLAN_FILE" ]]; then
   echo "Error: Plan file not found: $PLAN_FILE" >&2
+  echo "Try: Run /gsd-vgl:quest to generate a plan, or ensure .claude/plan/plan.yaml exists." >&2
   exit 1
 fi
 
 # Read current task_id from state file frontmatter
 if [[ ! -f "$STATE_FILE" ]]; then
   echo "Error: State file not found: $STATE_FILE" >&2
+  echo "Try: Run /gsd-vgl:cross-team to start a new VGL session." >&2
   exit 1
 fi
 
 FRONTMATTER=$(awk 'NR==1 && /^---$/{next} /^---$/{exit} NR>1{print}' "$STATE_FILE")
-CURRENT_TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/')
+CURRENT_TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/' || true)
 
 if [[ -z "$CURRENT_TASK_ID" ]]; then
   echo "Error: No task_id in state file frontmatter" >&2
+  echo "Try: Check .claude/verifier-loop.local.md has a valid task_id field, or run /gsd-vgl:run-away to reset." >&2
   exit 1
 fi
 

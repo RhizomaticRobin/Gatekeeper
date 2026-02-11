@@ -1,7 +1,7 @@
 {
-  "name": "gsd-vgl",
+  "name": "evogatekeeper",
   "version": "1.0.0",
-  "description": "Get Shit Done - Verifier Gated Loop. Spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrency.",
+  "description": "EvoGatekeeper — Spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrency.",
   "bin": {
     "gsd-vgl": "bin/install.js"
   },

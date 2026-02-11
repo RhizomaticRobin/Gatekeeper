@@ -1,0 +1,64 @@
+metadata:
+  project: "sample-project"
+  dev_server_command: "echo ok"
+  dev_server_url: "http://localhost:3000"
+  model_profile: "default"
+phases:
+  - id: 1
+    name: "Phase 1"
+    tasks:
+      - id: "1.1"
+        name: "Setup Foundation"
+        status: "pending"
+        depends_on: []
+        deliverables:
+          backend: "foundation setup"
+          frontend: "base layout"
+        tests:
+          quantitative:
+            command: "echo pass"
+          qualitative:
+            criteria:
+              - "foundation is working"
+        prompt_file: "tasks/task-1.1.md"
+        must_haves:
+          truths:
+            - "foundation is set up"
+          artifacts:
+            - "src/foundation.js"
+          key_links:
+            - "foundation connects to app"
+        file_scope:
+          owns:
+            - "src/foundation.js"
+          reads:
+            - "config.json"
+        wave: 1
+      - id: "1.2"
+        name: "Build Feature"
+        status: "pending"
+        depends_on:
+          - "1.1"
+        deliverables:
+          backend: "feature implementation"
+          frontend: "feature UI"
+        tests:
+          quantitative:
+            command: "echo pass"
+          qualitative:
+            criteria:
+              - "feature works end to end"
+        prompt_file: "tasks/task-1.2.md"
+        must_haves:
+          truths:
+            - "feature is operational"
+          artifacts:
+            - "src/feature.js"
+          key_links:
+            - "feature uses foundation"
+        file_scope:
+          owns:
+            - "src/feature.js"
+          reads:
+            - "src/foundation.js"
+        wave: 2

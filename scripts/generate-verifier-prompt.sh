@@ -37,6 +37,7 @@ done
 
 if [[ -z "$TASK_JSON" ]] || [[ -z "$SESSION_DIR" ]] || [[ -z "$FETCH_SCRIPT" ]]; then
   echo "Error: --task-json, --session-dir, and --fetch-script are required" >&2
+  echo "Try: Ensure all three flags are passed when calling generate-verifier-prompt.sh." >&2
   exit 1
 fi
 

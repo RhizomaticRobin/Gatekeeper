@@ -11,7 +11,7 @@ Display the following command reference to the user. Do NOT attempt to run any t
 
 ```
 ===============================================================================
-  GSD-VGL — Get Shit Done with Verified Game Logic
+  EvoGatekeeper — Spec-Driven Development with Verifier-Gated Loops
   Command Reference
 ===============================================================================
 
@@ -142,7 +142,7 @@ Cross-verification adds adversarial review for high-stakes changes.
 
 ## Security Model
 
-GSD-VGL commands operate within a defined security boundary:
+EvoGatekeeper commands operate within a defined security boundary:
 
 | Command           | File Access        | Network   | Git          |
 |-------------------|--------------------|-----------|--------------|
@@ -165,7 +165,7 @@ GSD-VGL commands operate within a defined security boundary:
 
 ## State Files
 
-GSD-VGL maintains state in the `.planning/` directory:
+EvoGatekeeper maintains state in the `.planning/` directory:
 
 ```
 .planning/

@@ -1,7 +1,7 @@
 {
-  "name": "gsd-vgl",
+  "name": "evogatekeeper",
   "version": "1.0.0",
-  "description": "Gatekeeper — spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrent agents.",
+  "description": "EvoGatekeeper — spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrent agents.",
   "author": {
     "name": "RhizomaticRobin",
     "email": "atatle@proton.me"
