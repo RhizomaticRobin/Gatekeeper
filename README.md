@@ -14,22 +14,21 @@ Gatekeeper orchestrates software projects through a structured pipeline where no
 
 ## Installation
 
+Add the marketplace and install the plugin:
+
 ```bash
-npx gsd-vgl --global
+/plugin marketplace add RhizomaticRobin/gsd-vgl
+/plugin install gsd-vgl@gsd-vgl
 ```
 
-The installer:
-1. Copies the plugin to `~/.claude/plugins/gsd-vgl`
-2. Makes all scripts executable
-3. Clones and builds the [Better-OpenCodeMCP](https://github.com/RhizomaticRobin/Better-OpenCodeMCP) submodule (the MCP server for concurrent agents)
-4. Registers the MCP server via `claude mcp add opencode-mcp`
+Or via the CLI outside of Claude Code:
 
-Other install options:
 ```bash
-npx gsd-vgl --local                     # Current project only (./.claude/plugins/)
-npx gsd-vgl --global --config-dir ~/x   # Custom Claude config directory
-CLAUDE_CONFIG_DIR=~/x npx gsd-vgl -g    # Via environment variable
+claude plugin marketplace add RhizomaticRobin/gsd-vgl
+claude plugin install gsd-vgl@gsd-vgl --scope user
 ```
+
+The opencode MCP server ([Better-OpenCodeMCP](https://github.com/RhizomaticRobin/Better-OpenCodeMCP)) is bundled as a submodule and declared in `plugin.json`. It auto-builds on first launch — no manual setup needed.
 
 ## Architecture
 
@@ -194,14 +193,17 @@ The opencode MCP server hardcodes all spawned agents to use the `gsd-builder` pr
 
 ```
 gsd-vgl/
-├── .claude-plugin/plugin.json       Plugin manifest
+├── .claude-plugin/
+│   ├── plugin.json                  Plugin manifest + MCP server declaration
+│   └── marketplace.json             Self-contained marketplace definition
 ├── .gitmodules                      Submodule reference
 ├── package.json                     npm package config (v1.0.0)
 ├── Better-OpenCodeMCP/              Submodule — opencode MCP server
 │   └── dist/index.js                Built MCP entry point
 ├── agents/                          9 agent definitions (.md with frontmatter)
 ├── bin/
-│   ├── install.js                   Installer (copy, build MCP, register)
+│   ├── install.js                   Legacy installer (npx fallback)
+│   ├── opencode-mcp.sh              MCP server launcher (auto-builds on first run)
 │   ├── ralph.sh                     Autopilot outer loop
 │   └── lib/                         Shell libraries (state, budget, display, ...)
 ├── commands/                        14 slash commands

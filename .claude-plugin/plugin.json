@@ -1,10 +1,10 @@
 {
   "name": "gsd-vgl",
   "version": "1.0.0",
-  "description": "Get Shit Done - Verifier Gated Loop. Combines spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrent agents.",
+  "description": "Gatekeeper — spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrent agents.",
   "author": {
-    "name": "User",
-    "email": "user@local"
+    "name": "RhizomaticRobin",
+    "email": "atatle@proton.me"
   },
   "keywords": [
     "claude",
@@ -15,5 +15,11 @@
     "autopilot",
     "meta-prompting",
     "context-engineering"
-  ]
+  ],
+  "mcpServers": {
+    "opencode-mcp": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/opencode-mcp.sh",
+      "env": {}
+    }
+  }
 }
