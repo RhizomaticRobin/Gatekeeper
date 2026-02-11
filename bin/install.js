@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const readline = require('readline');
+const { execSync } = require('child_process');
 
 // Colors
 const crimson = '\x1b[38;2;220;20;60m';
@@ -233,9 +234,93 @@ function install(isGlobal) {
   }
   console.log(`  ${green}✓${reset} Verified installation`);
 
+  // Set up opencode-mcp server (clone/build/register)
+  setupMcpServer(destDir);
+
   console.log(`
   ${green}Done!${reset} Launch Claude Code and run ${crimson}/gsd-vgl:help${reset}.
 `);
+}
+
+/**
+ * Set up the Better-OpenCodeMCP submodule: ensure source exists, npm install, build, register MCP.
+ */
+function setupMcpServer(pluginDir) {
+  const mcpDir = path.join(pluginDir, 'Better-OpenCodeMCP');
+  const mcpPkg = path.join(mcpDir, 'package.json');
+  const mcpDist = path.join(mcpDir, 'dist', 'index.js');
+  const repoUrl = 'https://github.com/RhizomaticRobin/Better-OpenCodeMCP.git';
+
+  // If source wasn't copied (e.g. npx install without submodule), clone it
+  if (!fs.existsSync(mcpPkg)) {
+    console.log(`  ${dim}Cloning opencode-mcp server...${reset}`);
+    try {
+      execSync(`git clone --depth 1 ${repoUrl} "${mcpDir}"`, { stdio: 'pipe' });
+      console.log(`  ${green}✓${reset} Cloned opencode-mcp server`);
+    } catch (err) {
+      console.error(`\n  ${yellow}Failed to clone opencode-mcp server${reset}`);
+      console.error(`  ${dim}${err.stderr ? err.stderr.toString().trim() : err.message}${reset}`);
+      console.error(`  ${yellow}You can set it up manually later:${reset}`);
+      console.error(`  ${dim}cd ${mcpDir} && git clone ${repoUrl} . && npm install && npm run build${reset}`);
+      console.error(`  ${dim}claude mcp add opencode-mcp node ${mcpDist}${reset}`);
+      return;
+    }
+  }
+
+  // npm install
+  console.log(`  ${dim}Installing opencode-mcp dependencies...${reset}`);
+  try {
+    execSync('npm install --production=false', { cwd: mcpDir, stdio: 'pipe' });
+    console.log(`  ${green}✓${reset} Installed opencode-mcp dependencies`);
+  } catch (err) {
+    console.error(`\n  ${yellow}npm install failed for opencode-mcp${reset}`);
+    console.error(`  ${dim}${err.stderr ? err.stderr.toString().trim() : err.message}${reset}`);
+    console.error(`  ${yellow}Run manually:${reset} cd ${mcpDir} && npm install && npm run build`);
+    return;
+  }
+
+  // npm run build
+  console.log(`  ${dim}Building opencode-mcp server...${reset}`);
+  try {
+    execSync('npm run build', { cwd: mcpDir, stdio: 'pipe' });
+    console.log(`  ${green}✓${reset} Built opencode-mcp server`);
+  } catch (err) {
+    console.error(`\n  ${yellow}Build failed for opencode-mcp${reset}`);
+    console.error(`  ${dim}${err.stderr ? err.stderr.toString().trim() : err.message}${reset}`);
+    console.error(`  ${yellow}Run manually:${reset} cd ${mcpDir} && npm run build`);
+    return;
+  }
+
+  // Verify dist/index.js exists
+  if (!fs.existsSync(mcpDist)) {
+    console.error(`  ${yellow}Build produced no output at ${mcpDist}${reset}`);
+    return;
+  }
+
+  // Register MCP server with Claude Code
+  console.log(`  ${dim}Registering opencode-mcp with Claude Code...${reset}`);
+  try {
+    execSync(`claude mcp add opencode-mcp node "${mcpDist}"`, { stdio: 'pipe' });
+    console.log(`  ${green}✓${reset} Registered opencode-mcp MCP server`);
+  } catch (err) {
+    // claude CLI might not be available or might already be registered
+    const stderr = err.stderr ? err.stderr.toString().trim() : '';
+    if (stderr.includes('already exists')) {
+      // Remove and re-add to update the path
+      try {
+        execSync('claude mcp remove opencode-mcp', { stdio: 'pipe' });
+        execSync(`claude mcp add opencode-mcp node "${mcpDist}"`, { stdio: 'pipe' });
+        console.log(`  ${green}✓${reset} Updated opencode-mcp MCP server registration`);
+      } catch {
+        console.error(`  ${yellow}Could not update MCP registration. Run manually:${reset}`);
+        console.error(`  ${dim}claude mcp add opencode-mcp node ${mcpDist}${reset}`);
+      }
+    } else {
+      console.error(`  ${yellow}Could not register MCP server automatically${reset}`);
+      console.error(`  ${dim}${stderr || err.message}${reset}`);
+      console.error(`  ${yellow}Run manually:${reset} claude mcp add opencode-mcp node ${mcpDist}`);
+    }
+  }
 }
 
 /**
