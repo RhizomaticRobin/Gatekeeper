@@ -20,6 +20,15 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-skills.sh"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|WebFetch|WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-orchestrator.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -37,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/intel-index.js"
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/dist/intel-index.js"
           }
         ]
       }

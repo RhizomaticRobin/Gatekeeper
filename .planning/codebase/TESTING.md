@@ -1,57 +1,54 @@
-# Testing Overview
+# Testing
 
-## Current State
+## Test Framework Matrix
+| Framework | Language | Location | Config | Count |
+|-----------|----------|----------|--------|-------|
+| pytest | Python | `tests/python/` | `pytest.ini` | ~250 tests |
+| bats-core | Bash | `tests/bash/`, `tests/e2e/` | loaded via node_modules | ~100 tests |
+| vitest | JavaScript | `tests/node/` | `vitest.config.js` | ~15 tests |
 
-**No automated tests exist.** The plugin has zero test files, no test framework configured, no CI pipeline.
+Total: ~385 tests (as of Phase 5 completion).
 
-Testing is currently:
-- **Manual** — run commands and observe behavior
-- **Implicit** — the VGL loop itself tests user projects via fetch-completion-token.sh
-- **Specification-driven** — agent prompts define expected behavior
+## Test File Patterns
+- **Python:** `tests/python/test_{module}.py` (e.g., `test_plan_utils.py`, `test_evo_db.py`)
+- **Bash:** `tests/bash/{feature}.bats` (e.g., `stop-hook.bats`, `file-locking.bats`)
+- **E2E Bash:** `tests/e2e/{name}-test.bats` (e.g., `smoke-test.bats`, `evo-smoke-test.bats`)
+- **Node:** `tests/node/{module}.test.js` (e.g., `install.test.js`, `smoke.test.js`)
 
-## What Exists
+## Test Infrastructure
+- **Python conftest:** `tests/python/conftest.py` — Fixtures: `sample_plan`, `plan_file` (tmp_path YAML), `empty_plan`. Adds `scripts/` to sys.path.
+- **Bash test_helper:** `tests/bash/test_helper/common-setup.bash` — Exports `PLUGIN_ROOT`, `SCRIPTS_DIR`, `HOOKS_DIR`. Loads bats-support/assert/file. Provides `setup_test_dir()`, `teardown_test_dir()`, `create_sample_plan()`, `create_sample_state()`.
+- **Test fixtures:** `tests/fixtures/sample-project/` (plan + tasks), `tests/fixtures/evo-project/` (plan + evolution data + source + tests).
+- **Bash fixtures:** `tests/bash/fixtures/sample-plan.yaml`, `sample-state.md`.
 
-### fetch-completion-token.sh (verifier testing mechanism)
-- Runs user project tests in independent subprocess
-- Validates SHA-256 integrity of test command
-- Checks for TODO/FIXME/stub patterns
-- Issues 128-bit token only on full pass
-- This tests the *user's code*, not gsd-vgl itself
-
-### validate-plan.py (plan validation)
-- Can be run standalone: `python3 scripts/validate-plan.py plan.yaml`
-- Exit 0 = valid, Exit 1 = errors
-- Checks structure, dependencies, required fields
-
-### plan_utils.py CLI
-- `--next-task`, `--complete-task`, `--unblocked-tasks`, `--all-ids`
-- Can be tested via command line
-
-## What Needs Testing
-
-| Component | Priority | Framework | What to Test |
-|-----------|----------|-----------|--------------|
-| plan_utils.py | High | pytest | load, save, find_task, topological_sort, get_next_task |
-| validate-plan.py | High | pytest | All validation rules, edge cases |
-| stop-hook.sh | High | bats/bash | Token extraction, validation, auto-transition |
-| guard-skills.sh | Medium | bats/bash | Blocking and pass-through |
-| fetch-completion-token.sh | High | bats/bash | Token generation, integrity check, stub detection |
-| transition-task.sh | Medium | bats/bash | Status update, next task finding |
-| install.js | Low | jest/vitest | Copy, verify, MCP setup |
-| intel-index.js | Low | jest/vitest | Graph DB operations |
-| End-to-end pipeline | High | Custom | /quest → /cross-team → verifier → completion |
-
-## Test Infrastructure Needed
-
+## Running Tests
 ```bash
-# Python tests
-pip install pytest
-pytest tests/
+# All Python tests
+pytest tests/python/
 
-# Bash tests (bats-core)
-npm install -D bats
-npx bats tests/
+# All Bash tests
+npx bats tests/bash/ tests/e2e/
 
-# Integration test
-# Needs: Claude Code CLI, opencode MCP, sample project fixture
+# All Node tests
+npx vitest run
+
+# Individual test files
+pytest tests/python/test_plan_utils.py -v
+npx bats tests/bash/stop-hook.bats
+npx vitest run tests/node/install.test.js
 ```
+
+## Test Categories by Module
+**Core infrastructure:** test_plan_utils.py (44), test_validate_plan.py (49), test_file_locking.py (10)
+**VGL mechanics:** stop-hook.bats, vgl-edge-cases.bats, fetch-completion-token.bats, guard-skills.bats
+**Evolutionary intelligence:** test_evo_db.py, test_evo_eval.py, test_evo_prompt.py, test_evo_pollinator.py, test_evo_executor.py, evo-stop-hook.bats, evo-migration.bats
+**Feedback loop:** test_run_history.py, test_learnings.py, test_patterns.py, history-integration.bats, learnings-injection.bats
+**Branding/UX:** rename-verification.bats, error-messages.bats, onboarding.bats
+**E2E:** smoke-test.bats, evo-smoke-test.bats
+
+## Test Conventions
+- Python tests use `tmp_path` fixture for isolated file operations
+- Bash tests create temp dirs via `mktemp -d` in setup, clean in teardown
+- All tests are self-contained (no external network, no Claude CLI calls)
+- Python uses `monkeypatch` for env var and function mocking
+- Bash uses function overrides and environment manipulation for mocking

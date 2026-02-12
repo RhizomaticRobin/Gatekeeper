@@ -2,8 +2,8 @@
   "agent": {
     "gsd-builder": {
       "description": "Gatekeeper builder agent. Makes failing tests pass by implementing code. No web access, no destructive operations.",
-      "mode": "subagent",
-      "model": "zai-coding-plan/glm-4.7",
+      "mode": "primary",
+      "model": "zai-coding-plan/glm-5",
       "tools": {
         "bash": true,
         "read": true,

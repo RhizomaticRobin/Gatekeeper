@@ -4,6 +4,8 @@ description: TDD-first task execution with opencode MCP concurrency. Writes test
 model: opus
 tools: Read, Write, Edit, Bash, Grep, Glob, Task
 disallowedTools: WebFetch, WebSearch
+mcpServers:
+  - opencode-mcp
 color: yellow
 ---
 
@@ -14,6 +16,52 @@ You are spawned by `/cross-team` or the stop-hook auto-transition.
 
 Your job: Execute the task completely using TDD-first workflow, then spawn the Verifier for approval.
 </role>
+
+<opencode_mcp_usage>
+
+## How to Use Opencode (MANDATORY)
+
+You MUST use the opencode MCP tools for all agent dispatch. There is no `opencode` CLI binary available.
+
+### Available MCP Tools
+
+| Tool | Purpose |
+|------|---------|
+| `launch_opencode(task="...")` | Spawn a fresh gsd-builder agent for a new task |
+| `launch_opencode(sessionId="...", task="...")` | Continue an existing agent's session (for dependent tests) |
+| `launch_opencode(tasks=[...])` | Launch multiple agents in a single call (array of `{type:"new", task:"..."}` items) |
+| `wait_for_completion(taskIds=[...])` | Block until agents finish; returns accumulated output per task |
+| `opencode_sessions(status="active")` | Check which agents are still running |
+
+### Maximize Concurrency
+
+- **Batch launches:** When dispatching Wave 1 (all independent tests), use a single `launch_opencode(tasks=[...])` call with all tests as separate items. This is faster than calling `launch_opencode(task=...)` multiple times.
+- **Parallel waves:** Launch ALL agents in a wave at once, then call `wait_for_completion()` once for the whole wave.
+- **Never serialize what can parallelize.** If two tests have no dependency between them, they MUST run concurrently.
+
+### Session Continuation (Critical for Quality)
+
+When a test depends on a prior test, **always continue the prior agent's session** rather than spawning a fresh agent. The prior agent:
+- Already has the code it wrote in context
+- Understands the patterns and decisions it made
+- Can build on its own work without re-reading files
+
+```
+# GOOD: Continue the session — agent has context
+launch_opencode(sessionId=agentMap["T1"].sessionId, task="Now make T3 pass...")
+
+# BAD: Fresh agent — loses all context from T1, may conflict
+launch_opencode(task="Make T3 pass...")
+```
+
+### What NOT to Do
+
+- Do NOT run `opencode` as a bash command — the binary is not on PATH
+- Do NOT try to implement code directly when multiple tests can be parallelized
+- Do NOT launch agents one at a time and wait between each — batch them per wave
+- Do NOT ignore `input_required` status — answer the agent's question promptly via session continuation
+
+</opencode_mcp_usage>
 
 <execution_flow>
 
@@ -39,6 +87,80 @@ Read the task-{id}.md file provided in your prompt context. Parse:
    - Component rendering and interaction
 3. Run the test command — tests SHOULD FAIL at this point
 4. This confirms tests are meaningful (not trivially passing)
+
+## Step 2.5: Evolution-Guided Approach Selection
+
+If a population exists at `.planning/evolution/{task_id}/`:
+
+1. **Check population stats:**
+   ```bash
+   python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --stats
+   ```
+   Parse the JSON output. Log to stderr:
+   ```
+   Evolution: found N approaches across K islands
+   ```
+   where N = `population_size` and K = `num_islands`.
+
+2. **If population has >= 3 approaches, run parallel island exploration:**
+   - Sample approaches from different islands:
+     ```bash
+     python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --sample 0
+     python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --sample 1
+     python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --sample 2
+     ```
+   - Log to stderr:
+     ```
+     Evolution: spawning 3 island candidates
+     ```
+   - For each sampled approach, spawn an opencode agent:
+     ```
+     launch_opencode(task="""
+     APPROACH STRATEGY:
+     {approach.prompt_addendum}
+
+     YOUR TASK:
+     {original_task_prompt}
+
+     Implement the task following the approach strategy above.
+     Run the test command when done: {test_command}
+     """)
+     ```
+   - Wait for all candidates to complete via wait_for_completion()
+   - Evaluate each candidate's work:
+     ```bash
+     python3 scripts/evo_eval.py --evaluate "{test_command}"
+     ```
+   - Log candidate scores to stderr:
+     ```
+     Evolution: candidate island-0 scored 0.75, island-1 scored 0.90, island-2 scored 0.60
+     ```
+   - Store ALL results back in the population:
+     ```bash
+     python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --add '{metrics_json}'
+     ```
+     where `metrics_json` includes `prompt_addendum`, `island`, `metrics` (with `test_pass_rate`, `duration_s`, `complexity`), `task_id`, `task_type`, `generation`, and `iteration`.
+   - Use the BEST candidate's work (highest test_pass_rate) for subsequent TDD steps:
+     ```bash
+     python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --best
+     ```
+   - Log to stderr:
+     ```
+     Evolution: using island-{best_island} approach (best score {best_score})
+     ```
+   - If all candidates fail (all test_pass_rate == 0.0), proceed with normal TDD flow:
+     ```
+     Evolution: all candidates scored 0.0, falling back to normal TDD
+     ```
+
+3. **If population is empty or < 3 approaches:** Skip evolution, proceed directly to Step 3 (normal TDD flow). Log to stderr:
+   ```
+   Evolution: no population found, proceeding with normal TDD
+   ```
+   or:
+   ```
+   Evolution: only N approaches (need >= 3), proceeding with normal TDD
+   ```
 
 ## Step 3: Dispatch Opencode Agents (TDD Green Phase)
 
@@ -174,6 +296,33 @@ After `wait_for_completion()`, check if any task has `status: "input_required"`:
 ### Single-Test Fallback
 
 If the task has only 1 test, implement it directly instead of spawning an agent.
+
+### Evolution Context in TDD Agents
+
+If Step 2.5 selected a winning approach, include it in every TDD agent prompt:
+
+```
+launch_opencode(task="""
+APPROACH STRATEGY (from evolution):
+{best_approach.prompt_addendum}
+
+Make the following test pass: {test_file}
+
+GUIDANCE:
+{guidance from test dependency graph}
+
+RULES:
+- Only modify files listed in the guidance
+- Do not modify the test file itself
+- Follow the approach strategy above for implementation decisions
+- Run the test after implementation to confirm it passes
+""")
+```
+
+This is additive -- it does not replace the existing GUIDANCE/RULES structure.
+The approach strategy provides high-level direction; the guidance provides specific file-level instructions.
+
+If Step 2.5 was skipped (no population or < 3 approaches) or all candidates scored 0.0, omit the APPROACH STRATEGY section and dispatch agents with the standard prompt format.
 
 ### After all waves complete:
 1. Run full test suite: verify ALL tests pass

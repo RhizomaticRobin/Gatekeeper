@@ -1,53 +1,52 @@
-# Concerns & Tech Debt
+# Concerns
 
-## Critical
+## Technical Debt
 
-### No automated tests
-All 90+ source files are untested. Regressions can't be detected before release. Core logic (plan_utils.py, stop-hook.sh, fetch-completion-token.sh) is complex and error-prone without tests.
+### Mixed Language Complexity
+The codebase uses Bash, Python, and JavaScript for different components. Cross-language calls (Bash calling Python, Python called from Bash with env vars) create fragile interfaces. The `sys.path.insert(0, ...)` pattern in every Python script is a code smell — a proper Python package structure would be cleaner.
 
-### No error recovery
-If VGL loop crashes mid-execution, state files remain in `.claude/` and require manual cleanup. No rollback or resume capability.
+### No Python Package Structure
+Python scripts in `scripts/` are flat files that import each other via sys.path manipulation. There is no `setup.py`, `pyproject.toml`, or `__init__.py` for the scripts directory. This makes testing harder and IDE support weaker.
 
-## High Priority
+### Frontmatter Parsing is Fragile
+YAML frontmatter in `.claude/verifier-loop.local.md` is parsed with awk/sed/grep chains in Bash. This was hardened in Phase 1 (sed -> awk for embedded `---` markers) but remains brittle compared to a proper parser.
 
-### Race conditions in team mode
-Multiple concurrent executors can call transition-task.sh simultaneously, risking plan.yaml corruption. No file locking or atomic writes.
+### Large Shell Scripts
+`stop-hook.sh` (~400 lines) and `ralph.sh` (~550 lines) plus its lib/ (~2,500 lines total) are substantial Bash programs. Complex control flow in Bash is harder to test and maintain than equivalent Python/JS.
 
-### Incomplete plan validation
-validate-plan.py misses: file scope conflicts, must_haves format validation, prompt_file existence check, test command syntax validation.
+## Known Issues
 
-### Weak token validation
-Token extracted via grep from transcript — no check that it appears in verifier output specifically. No replay protection, no expiration.
+### Evolution DB Cold Start
+On first iteration of a task, the evolution population is empty. The pollinator (`evo_pollinator.py`) migrates approaches from similar completed tasks, but if no tasks are completed yet, the first task gets no evolutionary guidance.
 
-### Hardcoded agent model
-gsd-builder uses `zai-coding-plan/glm-4.7` (in opencode.json). Not configurable per-project. If model becomes unavailable, system breaks.
+### GSD_VGL_PLAN_LOCKED Deadlock Prevention
+The `GSD_VGL_PLAN_LOCKED=1` environment variable is used to prevent deadlock when a parent Bash process holds the plan.yaml flock and calls a Python child. If this env var is not properly propagated (e.g., in a subprocess without `export`), deadlock can occur.
 
-## Medium Priority
+### Team Mode Stop Hook Skip
+When `.claude/vgl-team-active` exists, the stop hook skips all VGL processing. If a team execution is interrupted without cleanup, this marker file can persist and break subsequent single-task VGL executions. Manual removal of `.claude/vgl-team-active` is the recovery.
 
-### Insufficient input validation
-Scripts assume well-formed input. Task IDs not validated against pattern. Iteration counts not bounds-checked. Potential for unexpected behavior on malformed data.
+## Performance Concerns
 
-### Limited logging
-Only stop-hook.sh has DEBUG_LOG. Other scripts have minimal error output. Hard to debug failures in production.
+### Cascade Evaluator Subprocess Overhead
+`evo_eval.py` runs up to 3 subprocess invocations (collect-only, partial, full) per evaluation. Each is a fresh process spawn. For test suites with fast individual tests, the overhead of spawning is significant relative to test execution time.
 
-### Submodule version not pinned
-Better-OpenCodeMCP submodule points to main branch. Breaking changes upstream could break the plugin.
+### JSONL Scan for History/Learnings
+`run_history.py` and `learnings.py` read the entire JSONL file on every query. For long-running projects with many tasks, this linear scan becomes slow. A SQLite backend (like intel-index.js uses) would scale better.
 
-## Low Priority
+## Security Considerations
 
-### Static template files
-Templates don't reflect plugin version. Users may have stale configs after upgrade.
+### Token in Transcript
+The VGL completion token appears in the Claude Code transcript. The stop-hook greps for it. An adversarial executor agent could hypothetically try to forge a token, but:
+- The token has 128-bit entropy (32 hex chars)
+- The executor never sees the token value
+- The verifier can only obtain it via `fetch-completion-token.sh` which runs tests independently
+- SHA-256 integrity check prevents test command tampering
 
-### Inconsistent error messages
-Different scripts use different error formats (`PLAN_NOT_FOUND:` vs `Error:` vs plain text).
+### eval in fetch-completion-token.sh
+Line 93: `TEST_OUTPUT=$(eval "$TEST_COMMAND" 2>&1)` uses eval on a string from the token file. This is protected by the SHA-256 integrity check (the test command is base64-encoded at setup time and verified before execution), but `eval` with untrusted input is inherently risky.
 
-### No performance monitoring
-Can't measure task duration, agent utilization, or identify bottlenecks.
+### chmod 600 on Token File
+`verifier-token.secret` is chmod 600, but this only protects against other system users. The Claude Code process running as the same user can still read it. The real protection is that the executor agent's prompt tells it not to read the file, and the verifier agent has Write/Edit disabled.
 
-## TODOs Found
-
-| Area | Description |
-|------|-------------|
-| Integration prefix | INTEGRATION_PREFIX constructed in stop-hook.sh — recently wired but not battle-tested |
-| Ralph autopilot | Shell libraries in bin/lib/ — large codebase not fully audited |
-| Intel index | sql.js graph DB in hooks — feature completeness unknown |
+## Warnings from Phase Integration Checks
+- Phase 3 and Phase 4 integration checks both noted 2 warnings (non-critical). These were accepted and not addressed, representing minor gaps in cross-phase documentation or optional features.

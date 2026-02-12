@@ -29,12 +29,10 @@ After fixing, run `/gsd-vgl:cross-team` again.
 
 ## If CROSS_TEAM_SINGLE_OK — Single-Task VGL Execution
 
-Only 1 unblocked task was found. Extract the task ID from the setup output (the `SINGLE_TASK_ID=...` line) and run the single-task setup script.
+Only 1 unblocked task was found. Extract the task ID from the `SINGLE_TASK_ID=...` line in the setup output above, then run this command (replacing the task ID):
 
-**IMPORTANT:** Replace `__TASK_ID__` below with the actual task ID from the `SINGLE_TASK_ID=...` line in the setup output above.
-
-```!
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/single-task-setup.sh" "${CLAUDE_PLUGIN_ROOT}" "__TASK_ID__"
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/single-task-setup.sh" "${CLAUDE_PLUGIN_ROOT}" "<task_id>"
 ```
 
 If the last line is **CROSS_TEAM_FAILED**, follow the recovery steps above. If it is **CROSS_OK**, proceed to the single-task workflow below.

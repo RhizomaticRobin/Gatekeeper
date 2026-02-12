@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
-# learnings-injection.bats — tests for learnings injection into task prompts
-# Verifies that stop-hook.sh queries learnings.py --relevant before building
-# NEXT_TASK_PROMPT and formats relevant learnings as bullet points.
+# learnings-injection.bats — tests for evolution context injection into task prompts
+# Previously tested learnings.py injection; now verifies that stop-hook.sh uses
+# the evolution engine (evo_prompt.py) instead of the legacy learnings system.
 
 setup() {
     load 'test_helper/common-setup'
@@ -112,12 +112,12 @@ create_learnings_file() {
 JSONL
 }
 
-# --- Test 1: Prompt includes learnings when available ---
-@test "prompt includes LEARNINGS section when relevant learnings exist" {
+# --- Test 1: Learnings replaced by evolution context ---
+@test "prompt no longer includes LEARNINGS section (replaced by evolution)" {
     local token
     token="$(create_plan_state)"
 
-    # Create learnings file with entries that will match based on task_type
+    # Create learnings file with entries — should be ignored now
     create_learnings_file
 
     local transcript_path
@@ -130,9 +130,10 @@ JSONL
     run bash -c "echo '${input_json}' | bash '$HOOK' 2>/dev/null"
     assert_success
 
-    # The output should be JSON with "decision":"block" containing the next task prompt
-    # The prompt (in "reason" field) should contain LEARNINGS section
-    assert_output --partial 'LEARNINGS FROM PREVIOUS RUNS'
+    # The output should NOT contain the old LEARNINGS section (replaced by evolution engine)
+    refute_output --partial 'LEARNINGS FROM PREVIOUS RUNS'
+    # Should still produce valid JSON with block decision
+    assert_output --partial '"decision"'
 }
 
 # --- Test 2: Prompt is clean when no learnings exist ---

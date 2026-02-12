@@ -1,392 +1,431 @@
 metadata:
-  project: "evogatekeeper-evolution"
-  description: "Replace static heuristics with OpenEvolve-style evolutionary intelligence for VGL task execution"
-  dev_server_command: "echo ok"
-  dev_server_url: "http://localhost:3000"
-  test_framework: "pytest"
-  model_profile: "opus"
-  created_at: "2026-02-11"
-
+  project: evogatekeeper-evolution
+  description: Replace static heuristics with OpenEvolve-style evolutionary intelligence
+    for VGL task execution
+  dev_server_command: echo ok
+  dev_server_url: http://localhost:3000
+  test_framework: pytest
+  model_profile: opus
+  created_at: '2026-02-11'
 phases:
-  - id: 1
-    name: "Evolution Core Engine"
-    goal: "Build the foundational evolution data structures and algorithms"
-    integration_check: false
+- id: 1
+  name: Evolution Core Engine
+  goal: Build the foundational evolution data structures and algorithms
+  integration_check: false
+  must_haves:
+    truths:
+    - Population database stores approaches with MAP-Elites grid and island isolation
+    - Cascade evaluator produces multi-dimensional metrics from test execution
+    - Prompt builder creates rich evolution context from population data
+    - 'Sampling uses three-tier selection: exploration, exploitation, weighted'
+    artifacts:
+    - scripts/evo_db.py
+    - scripts/evo_eval.py
+    - scripts/evo_prompt.py
+    - tests/python/test_evo_db.py
+    - tests/python/test_evo_eval.py
+    - tests/python/test_evo_prompt.py
+    key_links:
+    - 'OpenEvolve database.py: MAP-Elites algorithm reference'
+    - 'OpenEvolve evaluator.py: cascade evaluation reference'
+    - 'OpenEvolve prompt/sampler.py: context-rich prompt construction'
+  tasks:
+  - id: '1.1'
+    name: Population database with MAP-Elites and islands
+    status: completed
+    depends_on: []
+    deliverables:
+      backend: scripts/evo_db.py with Approach dataclass, EvolutionDB class implementing
+        MAP-Elites grid, island-based populations, three-tier sampling, migration,
+        and JSONL persistence
+      frontend: 'CLI interface: --add, --sample, --stats, --best, --migrate. Stats
+        output shows population size, island distribution, best score, feature map
+        coverage'
+    tests:
+      quantitative:
+        command: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/python/test_evo_db.py
+          -v
+      qualitative:
+        criteria:
+        - CLI --stats outputs JSON with population_size, num_islands, best_score,
+          feature_map_coverage
+        - CLI --sample returns parent and inspiration approaches as JSON
+        - CLI --best returns the highest-scoring approach
     must_haves:
       truths:
-        - "Population database stores approaches with MAP-Elites grid and island isolation"
-        - "Cascade evaluator produces multi-dimensional metrics from test execution"
-        - "Prompt builder creates rich evolution context from population data"
-        - "Sampling uses three-tier selection: exploration, exploitation, weighted"
+      - Approach dataclass stores id, prompt_addendum, parent_id, generation, metrics,
+        island, feature_coords, task_id, artifacts
+      - EvolutionDB.add() places approaches in MAP-Elites grid, replacing only if
+        better
+      - 'EvolutionDB.sample() uses three-tier selection: 20% exploration, 70% exploitation,
+        10% weighted'
+      - Islands are isolated populations with ring-topology migration
+      - Feature dimensions are configurable with automatic min-max binning
+      - Persistence uses JSONL for approaches and JSON for metadata
       artifacts:
-        - "scripts/evo_db.py"
-        - "scripts/evo_eval.py"
-        - "scripts/evo_prompt.py"
-        - "tests/python/test_evo_db.py"
-        - "tests/python/test_evo_eval.py"
-        - "tests/python/test_evo_prompt.py"
+      - scripts/evo_db.py
+      - tests/python/test_evo_db.py
       key_links:
-        - "OpenEvolve database.py: MAP-Elites algorithm reference"
-        - "OpenEvolve evaluator.py: cascade evaluation reference"
-        - "OpenEvolve prompt/sampler.py: context-rich prompt construction"
-    tasks:
-      - id: "1.1"
-        name: "Population database with MAP-Elites and islands"
-        status: "pending"
-        depends_on: []
-        deliverables:
-          backend: "scripts/evo_db.py with Approach dataclass, EvolutionDB class implementing MAP-Elites grid, island-based populations, three-tier sampling, migration, and JSONL persistence"
-          frontend: "CLI interface: --add, --sample, --stats, --best, --migrate. Stats output shows population size, island distribution, best score, feature map coverage"
-        tests:
-          quantitative:
-            command: "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/python/test_evo_db.py -v"
-          qualitative:
-            criteria:
-              - "CLI --stats outputs JSON with population_size, num_islands, best_score, feature_map_coverage"
-              - "CLI --sample returns parent and inspiration approaches as JSON"
-              - "CLI --best returns the highest-scoring approach"
-        must_haves:
-          truths:
-            - "Approach dataclass stores id, prompt_addendum, parent_id, generation, metrics, island, feature_coords, task_id, artifacts"
-            - "EvolutionDB.add() places approaches in MAP-Elites grid, replacing only if better"
-            - "EvolutionDB.sample() uses three-tier selection: 20% exploration, 70% exploitation, 10% weighted"
-            - "Islands are isolated populations with ring-topology migration"
-            - "Feature dimensions are configurable with automatic min-max binning"
-            - "Persistence uses JSONL for approaches and JSON for metadata"
-          artifacts:
-            - "scripts/evo_db.py"
-            - "tests/python/test_evo_db.py"
-          key_links:
-            - "OpenEvolve database.py lines 43-700: Program dataclass and ProgramDatabase"
-        prompt_file: "tasks/task-1.1.md"
-        file_scope:
-          owns:
-            - "scripts/evo_db.py"
-            - "tests/python/test_evo_db.py"
-          reads: []
-        wave: 1
-
-      - id: "1.2"
-        name: "Cascade evaluator with multi-dimensional metrics"
-        status: "pending"
-        depends_on: []
-        deliverables:
-          backend: "scripts/evo_eval.py with CascadeEvaluator class implementing 3-stage evaluation pipeline, multi-dimensional metrics extraction, and artifact capture"
-          frontend: "CLI interface: --evaluate TEST_CMD [--source-dirs DIRS]. Outputs stage-by-stage results as JSON with metrics dict"
-        tests:
-          quantitative:
-            command: "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/python/test_evo_eval.py -v"
-          qualitative:
-            criteria:
-              - "Stage 1 rejects code that fails to parse within 2 seconds"
-              - "Stage 2 runs subset of tests and reports partial pass rate"
-              - "Stage 3 produces full metrics: test_pass_rate, duration_s, complexity, todo_count"
-        must_haves:
-          truths:
-            - "Stage 1 quick check validates syntax and imports in under 2 seconds"
-            - "Stage 2 runs first 3 tests and eliminates approaches with pass_rate below 0.5"
-            - "Stage 3 runs full test suite and extracts multi-dimensional metrics"
-            - "Metrics include test_pass_rate, duration_s, complexity, todo_count, error_count"
-            - "Artifacts (test output, error traces) are captured for prompt feedback"
-            - "Timeout handling returns partial metrics with stage indicator"
-          artifacts:
-            - "scripts/evo_eval.py"
-            - "tests/python/test_evo_eval.py"
-          key_links:
-            - "OpenEvolve evaluator.py lines 132-230: cascade evaluation pattern"
-        prompt_file: "tasks/task-1.2.md"
-        file_scope:
-          owns:
-            - "scripts/evo_eval.py"
-            - "tests/python/test_evo_eval.py"
-          reads: []
-        wave: 1
-
-      - id: "1.3"
-        name: "Prompt evolution builder"
-        status: "pending"
-        depends_on:
-          - "1.1"
-        deliverables:
-          backend: "scripts/evo_prompt.py with EvolutionPromptBuilder class that samples from population and builds rich context prompts including parent approach, inspirations, failure artifacts, and evolution directives"
-          frontend: "CLI interface: --build DB_PATH TASK_ID [--island N]. Outputs formatted evolution context section for prompt injection"
-        tests:
-          quantitative:
-            command: "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/python/test_evo_prompt.py -v"
-          qualitative:
-            criteria:
-              - "Built prompt includes parent approach with metrics"
-              - "Built prompt includes 2-3 inspiration approaches from different islands"
-              - "Built prompt includes failure artifacts when available"
-              - "Evolution directive instructs agent to improve on parent strategy"
-        must_haves:
-          truths:
-            - "build_prompt() produces context with parent approach, metrics, inspirations, and artifacts"
-            - "Inspirations are sampled from different islands than the parent"
-            - "Failure artifacts (error traces, test output) are included when available"
-            - "Evolution directive varies across generations to prevent repetition"
-            - "Output format is markdown suitable for injection into task prompts"
-            - "Empty population gracefully produces minimal context without crash"
-          artifacts:
-            - "scripts/evo_prompt.py"
-            - "tests/python/test_evo_prompt.py"
-          key_links:
-            - "OpenEvolve prompt/sampler.py lines 51-172: prompt construction"
-        prompt_file: "tasks/task-1.3.md"
-        file_scope:
-          owns:
-            - "scripts/evo_prompt.py"
-            - "tests/python/test_evo_prompt.py"
-          reads:
-            - "scripts/evo_db.py"
-        wave: 2
-
-  - id: 2
-    name: "VGL Loop Integration"
-    goal: "Wire the evolution engine into the existing VGL loop, replacing static retry with evolutionary selection"
-    integration_check: true
+      - 'OpenEvolve database.py lines 43-700: Program dataclass and ProgramDatabase'
+    prompt_file: tasks/task-1.1.md
+    file_scope:
+      owns:
+      - scripts/evo_db.py
+      - tests/python/test_evo_db.py
+      reads: []
+    wave: 1
+  - id: '1.2'
+    name: Cascade evaluator with multi-dimensional metrics
+    status: completed
+    depends_on: []
+    deliverables:
+      backend: scripts/evo_eval.py with CascadeEvaluator class implementing 3-stage
+        evaluation pipeline, multi-dimensional metrics extraction, and artifact capture
+      frontend: 'CLI interface: --evaluate TEST_CMD [--source-dirs DIRS]. Outputs
+        stage-by-stage results as JSON with metrics dict'
+    tests:
+      quantitative:
+        command: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/python/test_evo_eval.py
+          -v
+      qualitative:
+        criteria:
+        - Stage 1 rejects code that fails to parse within 2 seconds
+        - Stage 2 runs subset of tests and reports partial pass rate
+        - 'Stage 3 produces full metrics: test_pass_rate, duration_s, complexity,
+          todo_count'
     must_haves:
       truths:
-        - "stop-hook.sh uses evolutionary selection between VGL iterations"
-        - "Executor spawns parallel candidates from different islands"
-        - "Successful approaches migrate from completed tasks to similar new tasks"
-        - "Evolution context replaces simple learnings injection in prompts"
+      - Stage 1 quick check validates syntax and imports in under 2 seconds
+      - Stage 2 runs first 3 tests and eliminates approaches with pass_rate below
+        0.5
+      - Stage 3 runs full test suite and extracts multi-dimensional metrics
+      - Metrics include test_pass_rate, duration_s, complexity, todo_count, error_count
+      - Artifacts (test output, error traces) are captured for prompt feedback
+      - Timeout handling returns partial metrics with stage indicator
       artifacts:
-        - "tests/bash/evo-stop-hook.bats"
-        - "agents/executor.md with parallel island support"
-        - "scripts/evo_pollinator.py"
-        - "tests/python/test_evo_pollinator.py"
+      - scripts/evo_eval.py
+      - tests/python/test_evo_eval.py
       key_links:
-        - "Existing stop-hook.sh: current VGL loop controller"
-        - "Existing executor.md: current TDD-first workflow"
-    tasks:
-      - id: "2.1"
-        name: "Stop-hook evolution integration"
-        status: "pending"
-        depends_on:
-          - "1.1"
-          - "1.2"
-          - "1.3"
-        deliverables:
-          backend: "Modify hooks/stop-hook.sh to replace learnings injection with evolution engine: after each iteration, call evo_eval.py to compute metrics, evo_db.py to store attempt and sample next, evo_prompt.py to build evolution context for next iteration"
-          frontend: "Debug log shows evolution metrics per iteration: generation, island, test_pass_rate, population_size. EVOLUTION CONTEXT section visible in injected prompts"
-        tests:
-          quantitative:
-            command: "npx bats tests/bash/evo-stop-hook.bats"
-          qualitative:
-            criteria:
-              - "Stop-hook injects EVOLUTION CONTEXT section into next iteration prompt"
-              - "Population grows across iterations visible in debug log"
-              - "Best approach score improves or stays stable across iterations"
-        must_haves:
-          truths:
-            - "After failed verification, stop-hook evaluates attempt via evo_eval.py"
-            - "Evaluation results stored in population via evo_db.py --add"
-            - "Next iteration prompt includes evolution context from evo_prompt.py --build"
-            - "Population database persisted at .planning/evolution/{task_id}/"
-            - "Graceful degradation: if evo scripts missing, falls back to basic retry"
-            - "First iteration with empty population works without evolution context"
-          artifacts:
-            - "tests/bash/evo-stop-hook.bats"
-          key_links:
-            - "hooks/stop-hook.sh lines 126-200: current learnings injection"
-        prompt_file: "tasks/task-2.1.md"
-        file_scope:
-          owns:
-            - "hooks/stop-hook.sh"
-            - "tests/bash/evo-stop-hook.bats"
-          reads:
-            - "scripts/evo_db.py"
-            - "scripts/evo_eval.py"
-            - "scripts/evo_prompt.py"
-        wave: 3
-
-      - id: "2.2"
-        name: "Executor parallel island support"
-        status: "pending"
-        depends_on:
-          - "1.1"
-          - "1.3"
-        deliverables:
-          backend: "Update agents/executor.md and references/tdd-opencode-workflow.md to spawn 2-3 opencode agents per iteration, each with a different approach sampled from a different island. Evaluate all candidates, store results in population, use best for verification"
-          frontend: "Executor output shows candidate comparison: Candidate A (island 0, score 0.8), Candidate B (island 1, score 0.6). Best candidate selected for verification"
-        tests:
-          quantitative:
-            command: "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/python/test_evo_executor.py -v"
-          qualitative:
-            criteria:
-              - "Executor spawns multiple candidates with different approaches"
-              - "All candidate results stored in population database"
-              - "Best candidate by test_pass_rate selected for verifier"
-        must_haves:
-          truths:
-            - "Executor reads population from .planning/evolution/{task_id}/"
-            - "Samples 2-3 approaches from different islands via evo_db.py"
-            - "Each opencode agent gets task prompt plus unique approach addendum"
-            - "All candidate metrics stored back in population after evaluation"
-            - "Best candidate with highest test_pass_rate used for full test suite and verifier"
-            - "First iteration with empty population spawns agents without evolution context"
-          artifacts:
-            - "agents/executor.md"
-            - "references/tdd-opencode-workflow.md"
-            - "tests/python/test_evo_executor.py"
-          key_links:
-            - "OpenEvolve process_parallel.py: parallel candidate evaluation"
-        prompt_file: "tasks/task-2.2.md"
-        file_scope:
-          owns:
-            - "agents/executor.md"
-            - "references/tdd-opencode-workflow.md"
-            - "tests/python/test_evo_executor.py"
-          reads:
-            - "scripts/evo_db.py"
-            - "scripts/evo_prompt.py"
-        wave: 3
-
-      - id: "2.3"
-        name: "Cross-task approach pollination"
-        status: "pending"
-        depends_on:
-          - "1.1"
-        deliverables:
-          backend: "scripts/evo_pollinator.py that migrates successful approaches from completed tasks to new tasks with similar file_scope or task_type. Similarity scoring based on file pattern overlap and task description keywords"
-          frontend: "CLI: --pollinate TARGET_DB SOURCE_PATTERN [--threshold 0.3]. Outputs JSON showing migrated approaches with similarity scores"
-        tests:
-          quantitative:
-            command: "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/python/test_evo_pollinator.py -v"
-          qualitative:
-            criteria:
-              - "Pollinator finds similar completed tasks by file_scope overlap"
-              - "Top approaches from similar tasks imported with similarity scores"
-              - "Imported approaches placed on separate island to avoid contamination"
-        must_haves:
-          truths:
-            - "Similarity scored by file_scope overlap (+3 exact path, +1 shared directory) and task_type match (+2)"
-            - "Only approaches with test_pass_rate >= 0.5 are eligible for migration"
-            - "Migrated approaches placed on a designated inspiration island"
-            - "Empty or no similar tasks returns gracefully with empty migration"
-            - "Pollination called by stop-hook.sh on first iteration of a new task"
-          artifacts:
-            - "scripts/evo_pollinator.py"
-            - "tests/python/test_evo_pollinator.py"
-          key_links:
-            - "OpenEvolve database.py migrate_between_islands: ring topology migration"
-            - "scripts/learnings.py get_relevant_learnings: existing similarity scoring"
-        prompt_file: "tasks/task-2.3.md"
-        file_scope:
-          owns:
-            - "scripts/evo_pollinator.py"
-            - "tests/python/test_evo_pollinator.py"
-          reads:
-            - "scripts/evo_db.py"
-        wave: 3
-
-  - id: 3
-    name: "Migration and End-to-End Verification"
-    goal: "Remove static heuristic scripts, update all references, and verify the full evolution pipeline end-to-end"
-    integration_check: true
+      - 'OpenEvolve evaluator.py lines 132-230: cascade evaluation pattern'
+    prompt_file: tasks/task-1.2.md
+    file_scope:
+      owns:
+      - scripts/evo_eval.py
+      - tests/python/test_evo_eval.py
+      reads: []
+    wave: 1
+  - id: '1.3'
+    name: Prompt evolution builder
+    status: completed
+    depends_on:
+    - '1.1'
+    deliverables:
+      backend: scripts/evo_prompt.py with EvolutionPromptBuilder class that samples
+        from population and builds rich context prompts including parent approach,
+        inspirations, failure artifacts, and evolution directives
+      frontend: 'CLI interface: --build DB_PATH TASK_ID [--island N]. Outputs formatted
+        evolution context section for prompt injection'
+    tests:
+      quantitative:
+        command: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/python/test_evo_prompt.py
+          -v
+      qualitative:
+        criteria:
+        - Built prompt includes parent approach with metrics
+        - Built prompt includes 2-3 inspiration approaches from different islands
+        - Built prompt includes failure artifacts when available
+        - Evolution directive instructs agent to improve on parent strategy
     must_haves:
       truths:
-        - "No static heuristic scripts remain"
-        - "All references updated to use evolution engine"
-        - "E2E test verifies population growth and approach improvement across VGL iterations"
+      - build_prompt() produces context with parent approach, metrics, inspirations,
+        and artifacts
+      - Inspirations are sampled from different islands than the parent
+      - Failure artifacts (error traces, test output) are included when available
+      - Evolution directive varies across generations to prevent repetition
+      - Output format is markdown suitable for injection into task prompts
+      - Empty population gracefully produces minimal context without crash
       artifacts:
-        - "tests/bash/evo-migration.bats"
-        - "tests/e2e/evo-smoke-test.bats"
-        - "tests/fixtures/evo-project/"
+      - scripts/evo_prompt.py
+      - tests/python/test_evo_prompt.py
       key_links:
-        - "tests/e2e/smoke-test.bats: existing E2E pattern"
-    tasks:
-      - id: "3.1"
-        name: "Remove static heuristics and update references"
-        status: "pending"
-        depends_on:
-          - "2.1"
-          - "2.2"
-          - "2.3"
-        deliverables:
-          backend: "Delete scripts/wave_sizer.py, task_router.py, failure_classifier.py, budget_scheduler.py, auto_fixer.py, dep_resolver.py, progress_advisor.py and their test files. Update all agent prompts, commands, and references that mention the old scripts"
-          frontend: "README.md updated to describe evolution engine instead of static heuristics. help.md reflects new architecture"
-        tests:
-          quantitative:
-            command: "npx bats tests/bash/evo-migration.bats"
-          qualitative:
-            criteria:
-              - "No references to deleted scripts in any active code"
-              - "README describes evolutionary approach to task execution"
-        must_haves:
-          truths:
-            - "grep for wave_sizer, task_router, failure_classifier, budget_scheduler, auto_fixer, dep_resolver, progress_advisor in scripts/ hooks/ agents/ returns no matches"
-            - "All imports and CLI calls to deleted scripts are removed"
-            - "stop-hook.sh uses evo_prompt.py instead of learnings.py for prompt injection"
-            - "Agent prompts reference evolution engine, not static heuristics"
-          artifacts:
-            - "tests/bash/evo-migration.bats"
-          key_links:
-            - "scripts/ directory: files to remove"
-            - "hooks/stop-hook.sh: primary integration point"
-        prompt_file: "tasks/task-3.1.md"
-        file_scope:
-          owns:
-            - "scripts/wave_sizer.py"
-            - "scripts/task_router.py"
-            - "scripts/failure_classifier.py"
-            - "scripts/budget_scheduler.py"
-            - "scripts/auto_fixer.py"
-            - "scripts/dep_resolver.py"
-            - "scripts/progress_advisor.py"
-            - "tests/python/test_wave_sizer.py"
-            - "tests/python/test_failure_classifier.py"
-            - "tests/python/test_task_router.py"
-            - "tests/python/test_budget_scheduler.py"
-            - "tests/python/test_auto_fixer.py"
-            - "tests/python/test_dep_resolver.py"
-            - "tests/python/test_progress_advisor.py"
-            - "README.md"
-            - "commands/help.md"
-            - "tests/bash/evo-migration.bats"
-          reads:
-            - "hooks/stop-hook.sh"
-            - "agents/executor.md"
-        wave: 4
-
-      - id: "3.2"
-        name: "End-to-end evolution smoke test"
-        status: "pending"
-        depends_on:
-          - "3.1"
-        deliverables:
-          backend: "tests/e2e/evo-smoke-test.bats that verifies the full evolution pipeline: population creation, approach storage, sampling, prompt building, cascade evaluation, and cross-task pollination using a fixture project"
-          frontend: "Test output shows each pipeline stage with PASS/FAIL and summary of population growth"
-        tests:
-          quantitative:
-            command: "npx bats tests/e2e/evo-smoke-test.bats"
-          qualitative:
-            criteria:
-              - "E2E test creates population, stores approaches, samples, and builds prompts"
-              - "Cascade evaluation produces multi-dimensional metrics"
-              - "Cross-task pollination transfers approaches between similar tasks"
-        must_haves:
-          truths:
-            - "Fixture project in tests/fixtures/evo-project/ has valid plan.yaml with 2 tasks"
-            - "Population grows from 0 to 3+ approaches across simulated iterations"
-            - "Best approach score improves or stays stable"
-            - "Cascade evaluator correctly stages evaluation"
-            - "Cross-pollination imports approaches from completed task to new task"
-          artifacts:
-            - "tests/e2e/evo-smoke-test.bats"
-            - "tests/fixtures/evo-project/"
-          key_links:
-            - "tests/e2e/smoke-test.bats: existing E2E pattern"
-            - "tests/fixtures/sample-project/: existing fixture pattern"
-        prompt_file: "tasks/task-3.2.md"
-        file_scope:
-          owns:
-            - "tests/e2e/evo-smoke-test.bats"
-            - "tests/fixtures/evo-project/"
-          reads:
-            - "scripts/evo_db.py"
-            - "scripts/evo_eval.py"
-            - "scripts/evo_prompt.py"
-            - "scripts/evo_pollinator.py"
-        wave: 5
+      - 'OpenEvolve prompt/sampler.py lines 51-172: prompt construction'
+    prompt_file: tasks/task-1.3.md
+    file_scope:
+      owns:
+      - scripts/evo_prompt.py
+      - tests/python/test_evo_prompt.py
+      reads:
+      - scripts/evo_db.py
+    wave: 2
+- id: 2
+  name: VGL Loop Integration
+  goal: Wire the evolution engine into the existing VGL loop, replacing static retry
+    with evolutionary selection
+  integration_check: true
+  must_haves:
+    truths:
+    - stop-hook.sh uses evolutionary selection between VGL iterations
+    - Executor spawns parallel candidates from different islands
+    - Successful approaches migrate from completed tasks to similar new tasks
+    - Evolution context replaces simple learnings injection in prompts
+    artifacts:
+    - tests/bash/evo-stop-hook.bats
+    - agents/executor.md with parallel island support
+    - scripts/evo_pollinator.py
+    - tests/python/test_evo_pollinator.py
+    key_links:
+    - 'Existing stop-hook.sh: current VGL loop controller'
+    - 'Existing executor.md: current TDD-first workflow'
+  tasks:
+  - id: '2.1'
+    name: Stop-hook evolution integration
+    status: completed
+    depends_on:
+    - '1.1'
+    - '1.2'
+    - '1.3'
+    deliverables:
+      backend: 'Modify hooks/stop-hook.sh to replace learnings injection with evolution
+        engine: after each iteration, call evo_eval.py to compute metrics, evo_db.py
+        to store attempt and sample next, evo_prompt.py to build evolution context
+        for next iteration'
+      frontend: 'Debug log shows evolution metrics per iteration: generation, island,
+        test_pass_rate, population_size. EVOLUTION CONTEXT section visible in injected
+        prompts'
+    tests:
+      quantitative:
+        command: npx bats tests/bash/evo-stop-hook.bats
+      qualitative:
+        criteria:
+        - Stop-hook injects EVOLUTION CONTEXT section into next iteration prompt
+        - Population grows across iterations visible in debug log
+        - Best approach score improves or stays stable across iterations
+    must_haves:
+      truths:
+      - After failed verification, stop-hook evaluates attempt via evo_eval.py
+      - Evaluation results stored in population via evo_db.py --add
+      - Next iteration prompt includes evolution context from evo_prompt.py --build
+      - Population database persisted at .planning/evolution/{task_id}/
+      - 'Graceful degradation: if evo scripts missing, falls back to basic retry'
+      - First iteration with empty population works without evolution context
+      artifacts:
+      - tests/bash/evo-stop-hook.bats
+      key_links:
+      - 'hooks/stop-hook.sh lines 126-200: current learnings injection'
+    prompt_file: tasks/task-2.1.md
+    file_scope:
+      owns:
+      - hooks/stop-hook.sh
+      - tests/bash/evo-stop-hook.bats
+      reads:
+      - scripts/evo_db.py
+      - scripts/evo_eval.py
+      - scripts/evo_prompt.py
+    wave: 3
+  - id: '2.2'
+    name: Executor parallel island support
+    status: completed
+    depends_on:
+    - '1.1'
+    - '1.3'
+    deliverables:
+      backend: Update agents/executor.md and references/tdd-opencode-workflow.md to
+        spawn 2-3 opencode agents per iteration, each with a different approach sampled
+        from a different island. Evaluate all candidates, store results in population,
+        use best for verification
+      frontend: 'Executor output shows candidate comparison: Candidate A (island 0,
+        score 0.8), Candidate B (island 1, score 0.6). Best candidate selected for
+        verification'
+    tests:
+      quantitative:
+        command: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/python/test_evo_executor.py
+          -v
+      qualitative:
+        criteria:
+        - Executor spawns multiple candidates with different approaches
+        - All candidate results stored in population database
+        - Best candidate by test_pass_rate selected for verifier
+    must_haves:
+      truths:
+      - Executor reads population from .planning/evolution/{task_id}/
+      - Samples 2-3 approaches from different islands via evo_db.py
+      - Each opencode agent gets task prompt plus unique approach addendum
+      - All candidate metrics stored back in population after evaluation
+      - Best candidate with highest test_pass_rate used for full test suite and verifier
+      - First iteration with empty population spawns agents without evolution context
+      artifacts:
+      - agents/executor.md
+      - references/tdd-opencode-workflow.md
+      - tests/python/test_evo_executor.py
+      key_links:
+      - 'OpenEvolve process_parallel.py: parallel candidate evaluation'
+    prompt_file: tasks/task-2.2.md
+    file_scope:
+      owns:
+      - agents/executor.md
+      - references/tdd-opencode-workflow.md
+      - tests/python/test_evo_executor.py
+      reads:
+      - scripts/evo_db.py
+      - scripts/evo_prompt.py
+    wave: 3
+  - id: '2.3'
+    name: Cross-task approach pollination
+    status: completed
+    depends_on:
+    - '1.1'
+    deliverables:
+      backend: scripts/evo_pollinator.py that migrates successful approaches from
+        completed tasks to new tasks with similar file_scope or task_type. Similarity
+        scoring based on file pattern overlap and task description keywords
+      frontend: 'CLI: --pollinate TARGET_DB SOURCE_PATTERN [--threshold 0.3]. Outputs
+        JSON showing migrated approaches with similarity scores'
+    tests:
+      quantitative:
+        command: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/python/test_evo_pollinator.py
+          -v
+      qualitative:
+        criteria:
+        - Pollinator finds similar completed tasks by file_scope overlap
+        - Top approaches from similar tasks imported with similarity scores
+        - Imported approaches placed on separate island to avoid contamination
+    must_haves:
+      truths:
+      - Similarity scored by file_scope overlap (+3 exact path, +1 shared directory)
+        and task_type match (+2)
+      - Only approaches with test_pass_rate >= 0.5 are eligible for migration
+      - Migrated approaches placed on a designated inspiration island
+      - Empty or no similar tasks returns gracefully with empty migration
+      - Pollination called by stop-hook.sh on first iteration of a new task
+      artifacts:
+      - scripts/evo_pollinator.py
+      - tests/python/test_evo_pollinator.py
+      key_links:
+      - 'OpenEvolve database.py migrate_between_islands: ring topology migration'
+      - 'scripts/learnings.py get_relevant_learnings: existing similarity scoring'
+    prompt_file: tasks/task-2.3.md
+    file_scope:
+      owns:
+      - scripts/evo_pollinator.py
+      - tests/python/test_evo_pollinator.py
+      reads:
+      - scripts/evo_db.py
+    wave: 3
+- id: 3
+  name: Migration and End-to-End Verification
+  goal: Remove static heuristic scripts, update all references, and verify the full
+    evolution pipeline end-to-end
+  integration_check: true
+  must_haves:
+    truths:
+    - No static heuristic scripts remain
+    - All references updated to use evolution engine
+    - E2E test verifies population growth and approach improvement across VGL iterations
+    artifacts:
+    - tests/bash/evo-migration.bats
+    - tests/e2e/evo-smoke-test.bats
+    - tests/fixtures/evo-project/
+    key_links:
+    - 'tests/e2e/smoke-test.bats: existing E2E pattern'
+  tasks:
+  - id: '3.1'
+    name: Remove static heuristics and update references
+    status: completed
+    depends_on:
+    - '2.1'
+    - '2.2'
+    - '2.3'
+    deliverables:
+      backend: Delete scripts/wave_sizer.py, task_router.py, failure_classifier.py,
+        budget_scheduler.py, auto_fixer.py, dep_resolver.py, progress_advisor.py and
+        their test files. Update all agent prompts, commands, and references that
+        mention the old scripts
+      frontend: README.md updated to describe evolution engine instead of static heuristics.
+        help.md reflects new architecture
+    tests:
+      quantitative:
+        command: npx bats tests/bash/evo-migration.bats
+      qualitative:
+        criteria:
+        - No references to deleted scripts in any active code
+        - README describes evolutionary approach to task execution
+    must_haves:
+      truths:
+      - grep for wave_sizer, task_router, failure_classifier, budget_scheduler, auto_fixer,
+        dep_resolver, progress_advisor in scripts/ hooks/ agents/ returns no matches
+      - All imports and CLI calls to deleted scripts are removed
+      - stop-hook.sh uses evo_prompt.py instead of learnings.py for prompt injection
+      - Agent prompts reference evolution engine, not static heuristics
+      artifacts:
+      - tests/bash/evo-migration.bats
+      key_links:
+      - 'scripts/ directory: files to remove'
+      - 'hooks/stop-hook.sh: primary integration point'
+    prompt_file: tasks/task-3.1.md
+    file_scope:
+      owns:
+      - scripts/wave_sizer.py
+      - scripts/task_router.py
+      - scripts/failure_classifier.py
+      - scripts/budget_scheduler.py
+      - scripts/auto_fixer.py
+      - scripts/dep_resolver.py
+      - scripts/progress_advisor.py
+      - tests/python/test_wave_sizer.py
+      - tests/python/test_failure_classifier.py
+      - tests/python/test_task_router.py
+      - tests/python/test_budget_scheduler.py
+      - tests/python/test_auto_fixer.py
+      - tests/python/test_dep_resolver.py
+      - tests/python/test_progress_advisor.py
+      - README.md
+      - commands/help.md
+      - tests/bash/evo-migration.bats
+      reads:
+      - hooks/stop-hook.sh
+      - agents/executor.md
+    wave: 4
+  - id: '3.2'
+    name: End-to-end evolution smoke test
+    status: completed
+    depends_on:
+    - '3.1'
+    deliverables:
+      backend: 'tests/e2e/evo-smoke-test.bats that verifies the full evolution pipeline:
+        population creation, approach storage, sampling, prompt building, cascade
+        evaluation, and cross-task pollination using a fixture project'
+      frontend: Test output shows each pipeline stage with PASS/FAIL and summary of
+        population growth
+    tests:
+      quantitative:
+        command: npx bats tests/e2e/evo-smoke-test.bats
+      qualitative:
+        criteria:
+        - E2E test creates population, stores approaches, samples, and builds prompts
+        - Cascade evaluation produces multi-dimensional metrics
+        - Cross-task pollination transfers approaches between similar tasks
+    must_haves:
+      truths:
+      - Fixture project in tests/fixtures/evo-project/ has valid plan.yaml with 2
+        tasks
+      - Population grows from 0 to 3+ approaches across simulated iterations
+      - Best approach score improves or stays stable
+      - Cascade evaluator correctly stages evaluation
+      - Cross-pollination imports approaches from completed task to new task
+      artifacts:
+      - tests/e2e/evo-smoke-test.bats
+      - tests/fixtures/evo-project/
+      key_links:
+      - 'tests/e2e/smoke-test.bats: existing E2E pattern'
+      - 'tests/fixtures/sample-project/: existing fixture pattern'
+    prompt_file: tasks/task-3.2.md
+    file_scope:
+      owns:
+      - tests/e2e/evo-smoke-test.bats
+      - tests/fixtures/evo-project/
+      reads:
+      - scripts/evo_db.py
+      - scripts/evo_eval.py
+      - scripts/evo_prompt.py
+      - scripts/evo_pollinator.py
+    wave: 5

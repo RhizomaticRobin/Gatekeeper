@@ -1,101 +1,112 @@
-# Directory Structure
+# Structure
 
+## Top-Level Layout
 ```
 gsd-vgl/
-├── .claude-plugin/
-│   ├── plugin.json              Plugin manifest + MCP server declaration
-│   └── marketplace.json         Self-contained marketplace definition
-├── .gitmodules                  Submodule: Better-OpenCodeMCP
-├── package.json                 npm config (v1.0.0, bin: gsd-vgl → install.js)
-├── README.md
-│
-├── Better-OpenCodeMCP/          Submodule — opencode MCP server (TypeScript)
-│
-├── agents/                      9 agent definitions
-│   ├── executor.md              TDD-first execution + opencode concurrency
-│   ├── verifier.md              Independent verification + cryptographic token
-│   ├── planner.md               Plan generation with must_haves
-│   ├── plan-checker.md          Pre-execution plan quality gate
-│   ├── integration-checker.md   Cross-phase wiring verification
-│   ├── project-researcher.md    Domain research
-│   ├── phase-researcher.md      Phase-specific technical deep dives
-│   ├── codebase-mapper.md       Brownfield codebase analysis
-│   └── debugger.md              Scientific method debugging
-│
-├── bin/
-│   ├── install.js               npx installer (legacy fallback)
-│   ├── opencode-mcp.sh          MCP server launcher (auto-builds)
-│   ├── ralph.sh                 Autopilot outer loop
-│   └── lib/                     Shell libraries (state, budget, display, ...)
-│
-├── commands/                    14 slash commands
-│   ├── quest.md                 Plan generation (6-phase discovery)
-│   ├── cross-team.md            Task execution (single or team)
-│   ├── bridge.md                Standalone VGL for ad-hoc tasks
-│   ├── autopilot.md             Launch Ralph outer loop
-│   ├── new-project.md           Project initialization
-│   ├── research.md              Domain research
-│   ├── map-codebase.md          Codebase analysis
-│   ├── progress.md              Status dashboard
-│   ├── verify-milestone.md      Integration verification
-│   ├── debug.md                 Systematic debugging
-│   ├── settings.md              Configuration
-│   ├── run-away.md              Cancel VGL loop
-│   ├── help.md                  Command reference
-│   └── cross.md                 [DEPRECATED]
-│
-├── hooks/
-│   ├── hooks.json               Event registration (Stop, PreToolUse, PostToolUse)
-│   ├── stop-hook.sh             VGL loop control + auto-transition
-│   ├── guard-skills.sh          Block commands during active VGL
-│   ├── post-cross.sh            Pipeline progress after /cross-team
-│   └── intel-index.js           Codebase intelligence (dependency graph)
-│
-├── scripts/
-│   ├── plan_utils.py            Shared plan utilities (load, save, find, sort)
-│   ├── validate-plan.py         Plan structure validation
-│   ├── next-task.py             Find next unblocked task
-│   ├── get-unblocked-tasks.py   All unblocked tasks
-│   ├── check-file-conflicts.py  File scope conflict detection
-│   ├── parse-args.py            Argument parser for /bridge
-│   ├── build-hooks.js           esbuild bundler for hooks
-│   ├── cross-team-setup.sh      Orchestration setup
-│   ├── setup-verifier-loop.sh   Initialize VGL state + token
-│   ├── generate-verifier-prompt.sh  Build immutable verifier prompt
-│   ├── fetch-completion-token.sh    Independent test execution for token
-│   ├── transition-task.sh       Mark complete + find next task
-│   └── team-orchestrator-prompt.md  Lead orchestrator template
-│
-├── templates/
-│   ├── opencode.json            gsd-builder agent config
-│   ├── config.json              Default project configuration
-│   ├── project.md               .planning/project.md template
-│   ├── requirements.md          .planning/requirements.md template
-│   ├── roadmap.md               .planning/roadmap.md template
-│   ├── state.md                 .planning/state.md template
-│   ├── task-prompt.md           task-{id}.md template
-│   ├── plan-summary.md          Plan summary template
-│   └── codebase/                7-dimension analysis templates
-│
-├── references/
-│   ├── tdd-opencode-workflow.md TDD + concurrent execution reference
-│   ├── verification-patterns.md Artifact verification strategies
-│   ├── model-profiles.md        Model selection & routing
-│   └── git-integration.md       Git commit strategy
-│
-└── workflows/
-    ├── discovery-phase.md       Discovery phase workflow
-    ├── execute-phase.md         Execution phase workflow
-    └── verify-phase.md          Verification phase workflow
+├── .claude-plugin/           Plugin manifest (Claude Code plugin system)
+│   ├── plugin.json           Name, version, MCP server declaration
+│   └── marketplace.json      Self-contained marketplace definition
+├── .claude/                  Active plan state (per-project, git-tracked)
+│   └── plan/
+│       ├── plan.yaml         Current plan with phases/tasks/statuses
+│       └── tasks/            Per-task prompt files (task-{id}.md)
+├── .planning/                Project management state
+│   ├── PROJECT.md            Vision, problem, success criteria
+│   ├── STATE.md              Execution progress tracker
+│   ├── config.json           Project config (model_profile, workflow settings)
+│   ├── codebase/             7-dimension codebase analysis output
+│   ├── milestones/           Phase milestone records
+│   ├── phases/               Phase-level planning artifacts
+│   ├── evolution/            Per-task evolutionary population DBs
+│   ├── history/              Task execution history (runs.jsonl)
+│   └── learnings.jsonl       Extracted learnings from verifier feedback
+├── agents/                   9 agent definitions (.md with YAML frontmatter)
+├── bin/                      Entry points and runtime scripts
+│   ├── install.js            CLI installer (npx gsd-vgl)
+│   ├── install-lib.js        Extracted testable functions from install.js
+│   ├── opencode-mcp.sh       MCP server launcher (auto-builds submodule)
+│   ├── ralph.sh              Autopilot outer loop (~550 lines)
+│   └── lib/                  Shell libraries for ralph.sh
+│       ├── state.sh           State machine management (~875 lines)
+│       ├── learnings.sh       Learnings integration for autopilot
+│       ├── budget.sh          Budget tracking and caps
+│       ├── checkpoint.sh      Git checkpoint commits
+│       ├── display.sh         Terminal output formatting
+│       ├── exit.sh            Exit handling and cleanup
+│       ├── failfast.sh        Failure detection
+│       ├── invoke.sh          Claude CLI invocation
+│       ├── mode.sh            Operating mode selection
+│       ├── parse.sh           Output parsing
+│       ├── path-resolve.sh    Path resolution utilities
+│       ├── planning.sh        Planning file management
+│       ├── recovery.sh        Error recovery
+│       ├── progress-watcher.js   Progress monitoring (Node.js)
+│       └── terminal-launcher.js  Terminal window management (Node.js)
+├── commands/                 15 slash commands (.md with frontmatter)
+├── hooks/                    4 hook scripts + hooks.json registration
+│   ├── hooks.json            Event->script mapping (Stop, PreToolUse, PostToolUse)
+│   ├── stop-hook.sh          VGL loop control + auto-transition (~400 lines)
+│   ├── guard-skills.sh       Skill blocker during VGL
+│   ├── post-cross.sh         Post-execution pipeline info
+│   └── intel-index.js        Codebase intelligence indexer (bundled with sql.js)
+├── scripts/                  Core orchestration scripts
+│   ├── setup-verifier-loop.sh     Initialize VGL state + token
+│   ├── generate-verifier-prompt.sh Build immutable verifier prompt
+│   ├── fetch-completion-token.sh  Independent test execution for token grant
+│   ├── transition-task.sh         Mark complete + find next task
+│   ├── cross-team-setup.sh        Plan validation + task dispatch setup
+│   ├── single-task-setup.sh       Single-task VGL initialization
+│   ├── validate-plan.py           Plan.yaml structural validation
+│   ├── plan_utils.py              Shared plan utilities (load, save, find, sort, lock)
+│   ├── next-task.py               Find next unblocked task
+│   ├── get-unblocked-tasks.py     Find all unblocked tasks
+│   ├── check-file-conflicts.py    Detect file scope overlaps for safe parallelism
+│   ├── parse-args.py              Argument parser for /bridge
+│   ├── evo_db.py                  MAP-Elites population database
+│   ├── evo_eval.py                Cascade evaluation (3-stage: collect, partial, full)
+│   ├── evo_prompt.py              Evolution prompt builder (5-section markdown)
+│   ├── evo_pollinator.py          Cross-task strategy pollination
+│   ├── run_history.py             JSONL-based run history database
+│   ├── learnings.py               Learnings extract/store/query/strategy
+│   ├── onboarding.sh              First-run welcome message
+│   ├── build-hooks.js             esbuild bundler for hook scripts
+│   └── team-orchestrator-prompt.md Lead orchestrator template
+├── templates/                Template files for project initialization
+│   ├── opencode.json         gsd-builder agent config (deployed to project root)
+│   ├── task-prompt.md        task-{id}.md template
+│   ├── plan-summary.md       Plan summary template
+│   ├── project.md            .planning/PROJECT.md template
+│   ├── requirements.md       .planning/requirements.md template
+│   ├── roadmap.md            .planning/roadmap.md template
+│   ├── state.md              .planning/STATE.md template
+│   ├── config.json           Default .planning/config.json
+│   └── codebase/             7-dimension analysis templates
+├── references/               Reference docs for agents
+│   ├── tdd-opencode-workflow.md    TDD + concurrent execution patterns
+│   ├── verification-patterns.md   Artifact verification strategies
+│   ├── model-profiles.md          Model selection per agent per profile
+│   └── git-integration.md         Git commit strategy
+├── workflows/                Workflow phase documentation
+│   ├── discovery-phase.md    6-phase discovery process
+│   ├── execute-phase.md      Execution workflow details
+│   └── verify-phase.md       Verification workflow details
+├── Better-OpenCodeMCP/       Git submodule — opencode MCP server
+├── tests/                    Test suite (385 tests across 3 frameworks)
+└── package.json              npm config, scripts, dependencies
 ```
 
-## File Naming Conventions
+## Key Entry Points
+- **Plugin registration:** `.claude-plugin/plugin.json` (loaded by Claude Code)
+- **User commands:** `commands/*.md` (registered as slash commands)
+- **Agent definitions:** `agents/*.md` (agent profiles with tool restrictions)
+- **Hook dispatch:** `hooks/hooks.json` -> hook scripts
+- **Autopilot:** `bin/ralph.sh` (standalone outer loop)
+- **MCP server:** `bin/opencode-mcp.sh` -> `Better-OpenCodeMCP/dist/index.js`
+- **Installer:** `bin/install.js` (npx entry point)
 
-| Type | Convention | Example |
-|------|-----------|---------|
-| Commands | kebab-case.md | cross-team.md |
-| Agents | kebab-case.md | integration-checker.md |
-| Shell scripts | kebab-case.sh | transition-task.sh |
-| Python scripts | snake_case.py or kebab-case.py | plan_utils.py |
-| Config files | lowercase.json | opencode.json |
-| Planning docs | UPPERCASE.md | PROJECT.md, STATE.md |
+## File Naming Conventions
+- Agent definitions: `{role-name}.md` (kebab-case)
+- Commands: `{command-name}.md` (kebab-case)
+- Shell scripts: `{verb-noun}.sh` (kebab-case)
+- Python scripts: `{module_name}.py` (snake_case)
+- Task prompts: `task-{phase.task}.md` (e.g., task-1.1.md)

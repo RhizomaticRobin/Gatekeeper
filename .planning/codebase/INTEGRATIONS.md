@@ -1,50 +1,43 @@
-# External Integrations
+# Integrations
 
-## Claude Code Plugin System
+## Claude Code CLI
+- **Usage:** `claude` command invoked by `bin/ralph.sh` (autopilot) for spawning fresh Claude Code instances per task.
+- **Plugin system:** `.claude-plugin/plugin.json` registers commands, agents, hooks, MCP servers with Claude Code.
+- **Task() API:** Executor agents spawn sub-agents (verifier, integration-checker) via `Task(subagent_type=..., model=..., prompt=...)`.
+- **Hook API:** Hooks receive JSON on stdin with `transcript_path`, `tool_input`, etc. Return JSON with `decision`, `reason`, `systemMessage`.
 
-| Integration Point | Mechanism | Files |
-|-------------------|-----------|-------|
-| Commands (skills) | `/gsd-vgl:command` → `commands/*.md` | 14 command files |
-| Agents | `Task(subagent_type='agent-name')` | 9 agent files |
-| Hooks | `hooks.json` event registration | stop-hook.sh, guard-skills.sh, post-cross.sh, intel-index.js |
-| MCP servers | `plugin.json` → `mcpServers` | opencode-mcp via bin/opencode-mcp.sh |
-| Plugin root | `${CLAUDE_PLUGIN_ROOT}` variable | Used in hooks.json, plugin.json |
+## Opencode MCP Server (Better-OpenCodeMCP)
+- **Source:** Git submodule at `Better-OpenCodeMCP/`, GitHub: `RhizomaticRobin/Better-OpenCodeMCP`.
+- **Launch:** `bin/opencode-mcp.sh` auto-clones, installs, builds on first run. Declared in plugin.json as `opencode-mcp`.
+- **Tools exposed:** `launch_opencode(task, sessionId?)`, `wait_for_completion()`, `opencode_sessions`.
+- **Agent profile:** All spawned agents use `gsd-builder` profile (hardcoded server-side). Config deployed from `templates/opencode.json`.
+- **Model:** `zai-coding-plan/glm-4.7` for gsd-builder agents.
 
-## OpenCode MCP Server
-
-**Interface:** 3 tools exposed to Claude Code
-
-| Tool | Purpose | Used By |
-|------|---------|---------|
-| `launch_opencode(task, sessionId?, model?)` | Spawn or continue gsd-builder agent | Executor |
-| `wait_for_completion(taskIds?)` | Wait for agents to finish (10min timeout) | Executor |
-| `opencode_sessions(status?)` | List active/completed sessions | Executor |
-
-**Agent profile:** gsd-builder (hardcoded server-side)
-- No web access, temp 1.0, no step limit
-- Bash (ask), Edit/Write (allow)
-
-**Question handling:** Agent sends `input_required` status → executor answers via `launch_opencode(sessionId=..., task="answer")`
+## Playwright (Visual Verification)
+- **Usage:** Verifier agent uses Playwright browser tools for qualitative verification.
+- **Tools:** `browser_navigate`, `browser_snapshot`, `browser_take_screenshot`, `browser_click`, `browser_type`, `browser_fill_form`, `browser_console_messages`.
+- **Integration:** Referenced in `generate-verifier-prompt.sh` output. Verifier navigates to `dev_server_url` + `playwright_url` from task config.
 
 ## Git
+- **Checkpoint commits:** `bin/lib/checkpoint.sh` creates `checkpoint(task-{id}): {summary}` commits during autopilot.
+- **Submodule:** `Better-OpenCodeMCP` tracked via `.gitmodules`.
 
-- Checkpoint commits via Ralph autopilot: `checkpoint(task-{id}): {summary}`
-- Submodule: Better-OpenCodeMCP tracked via `.gitmodules`
-- Not yet: automated commits per task completion
+## File System State
+- **Plan lock:** `plan.yaml.lock` — flock for mutual exclusion between Python (`fcntl.flock`) and Bash (`flock -x`).
+- **Evolution DB:** `.planning/evolution/{task_id}/approaches.jsonl` + `metadata.json` — per-task population.
+- **Run history:** `.planning/history/runs.jsonl` — JSONL append-only log.
+- **Learnings:** `.planning/learnings.jsonl` — Extracted patterns from verifier feedback.
 
-## Playwright (Verifier)
+## Environment Variables
+| Variable | Purpose | Set By |
+|----------|---------|--------|
+| `CLAUDE_PLUGIN_ROOT` | Plugin installation directory | Claude Code runtime |
+| `GSD_VGL_PLAN_LOCKED` | Skip Python flock when parent Bash holds lock | `transition-task.sh` |
+| `PROJECT_DIR` | Override project directory for onboarding | User/script |
+| `LOG_FILE` | Ralph log file path (default: `.planning/ralph.log`) | User/ralph.sh |
+| `PAUSE_FILE` | Pause marker for ralph (default: `.planning/.pause`) | User/ralph.sh |
 
-- Visual verification of qualitative criteria
-- Navigate to `dev_server_url` from plan.yaml metadata
-- Take screenshots, interact with UI, check console
-- Verifier decides pass/fail based on visual assessment
-
-## File System State (.claude/ directory)
-
-All VGL state managed via files — no database, no external service:
-- `plan.yaml` — master plan
-- `task-{id}.md` — task specs
-- `verifier-loop.local.md` — VGL iteration state
-- `verifier-token.secret` — cryptographic token (chmod 600)
-- `verifier-prompt.local.md` — immutable verifier prompt
-- `vgl-team-active` — team mode flag
+## No External API Calls
+The plugin itself makes zero network requests at runtime. All intelligence comes from Claude models via the Claude Code runtime. The only network activity is:
+- Git clone of Better-OpenCodeMCP submodule (first run only)
+- npm install for MCP server dependencies (first run only)

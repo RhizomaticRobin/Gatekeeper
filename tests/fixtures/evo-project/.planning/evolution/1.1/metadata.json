@@ -1,0 +1,12 @@
+{
+    "num_islands": 3,
+    "feature_dimensions": ["test_pass_rate", "complexity"],
+    "feature_bins": 10,
+    "exploration_ratio": 0.2,
+    "exploitation_ratio": 0.7,
+    "island_feature_maps": [{"0,0": "a1", "9,2": "a3"}, {"3,1": "a2"}, {}],
+    "best_per_island": ["a3", "a2", null],
+    "global_best_id": "a3",
+    "feature_min": {"test_pass_rate": 0.33, "complexity": 10},
+    "feature_max": {"test_pass_rate": 1.0, "complexity": 20}
+}

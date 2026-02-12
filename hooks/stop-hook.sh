@@ -182,52 +182,22 @@ If the integration check reports NEEDS_FIXES with CRITICAL issues, fix them befo
 
       RAW_NEXT_TASK_PROMPT="$NEXT_TASK_PROMPT"
 
-      # Query learnings from previous runs (graceful degradation if missing/empty)
-      LEARNINGS_PREFIX=""
-      LEARNINGS_SCRIPT="${PLUGIN_ROOT}/scripts/learnings.py"
-      LEARNINGS_STORAGE=".planning/learnings.jsonl"
-      if [[ -f "$LEARNINGS_SCRIPT" ]] && [[ -f "$LEARNINGS_STORAGE" ]]; then
-        # Build task context JSON from next task info
-        TASK_CONTEXT=$(echo "$NEXT_JSON" | python3 -c "
-import sys, json
-task = json.load(sys.stdin)
-# Extract file patterns from deliverables and prompt file
-file_patterns = []
-prompt_file = task.get('prompt_file', '')
-if prompt_file:
-    file_patterns.append(prompt_file)
-# Infer task_type from deliverables
-deliverables = task.get('deliverables', {})
-task_type = 'general'
-if deliverables.get('backend') and not deliverables.get('frontend'):
-    task_type = 'backend'
-elif deliverables.get('frontend') and not deliverables.get('backend'):
-    task_type = 'frontend'
-elif deliverables.get('backend') and deliverables.get('frontend'):
-    task_type = 'backend'
-print(json.dumps({'file_patterns': file_patterns, 'task_type': task_type}))
-" 2>/dev/null || echo '{}')
-
-        if [[ -n "$TASK_CONTEXT" ]] && [[ "$TASK_CONTEXT" != "{}" ]]; then
-          LEARNINGS_OUTPUT=$(python3 "$LEARNINGS_SCRIPT" --relevant "$TASK_CONTEXT" --storage "$LEARNINGS_STORAGE" 2>/dev/null || echo '{"learnings":[],"formatted":""}')
-          LEARNINGS_TEXT=$(echo "$LEARNINGS_OUTPUT" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-formatted = data.get('formatted', '')
-if formatted:
-    print(formatted)
-" 2>/dev/null || echo "")
-
-          if [[ -n "$LEARNINGS_TEXT" ]]; then
-            LEARNINGS_PREFIX="LEARNINGS FROM PREVIOUS RUNS:
-${LEARNINGS_TEXT}
+      # Build evolution context for next task (replaces LEARNINGS_PREFIX)
+      EVOLUTION_PREFIX=""
+      NEXT_TASK_ID=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null || echo "")
+      NEXT_EVO_DB_PATH=".planning/evolution/${NEXT_TASK_ID}/"
+      EVO_PROMPT_SCRIPT="${PLUGIN_ROOT}/scripts/evo_prompt.py"
+      if [[ -f "$EVO_PROMPT_SCRIPT" ]] && [[ -d "$NEXT_EVO_DB_PATH" ]] && [[ -n "$NEXT_TASK_ID" ]]; then
+        EVO_CONTEXT=$(python3 "$EVO_PROMPT_SCRIPT" --build "$NEXT_EVO_DB_PATH" "$NEXT_TASK_ID" 2>/dev/null || echo "")
+        if [[ -n "$EVO_CONTEXT" ]]; then
+          EVOLUTION_PREFIX="EVOLUTION CONTEXT:
+${EVO_CONTEXT}
 
 "
-          fi
         fi
       fi
 
-      NEXT_TASK_PROMPT="${LEARNINGS_PREFIX}${INTEGRATION_PREFIX}CRITICAL RULES — VIOLATION WILL BREAK THE LOOP:
+      NEXT_TASK_PROMPT="${EVOLUTION_PREFIX}${INTEGRATION_PREFIX}CRITICAL RULES — VIOLATION WILL BREAK THE LOOP:
 - Do NOT modify .claude/plan/plan.yaml or any .claude/ state files
 - Do NOT mark tasks as done or completed — the system handles all transitions
 - Do NOT edit .claude/verifier-loop.local.md or .claude/verifier-token.secret
@@ -324,6 +294,74 @@ if [[ -n "$EXTRACTED_TOKEN" ]]; then
   echo "VGL: INVALID TOKEN - forgery attempt or corruption" >&2
 fi
 
+# --- Evolution: evaluate this iteration's attempt ---
+PLUGIN_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
+TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/' || echo "")
+EVO_DB_PATH=".planning/evolution/${TASK_ID}/"
+TEST_COMMAND=$(echo "$FRONTMATTER" | grep '^test_command:' | sed 's/test_command: *//' | sed 's/^"\(.*\)"$/\1/' || echo "")
+
+# Create population dir on first iteration
+if [[ ! -d "$EVO_DB_PATH" ]]; then
+  mkdir -p "$EVO_DB_PATH"
+  debug "VGL: Created population directory $EVO_DB_PATH"
+fi
+
+# Evaluate current attempt
+EVO_EVAL_SCRIPT="${PLUGIN_ROOT}/scripts/evo_eval.py"
+EVAL_METRICS="{}"
+if [[ -f "$EVO_EVAL_SCRIPT" ]] && [[ -n "$TEST_COMMAND" ]]; then
+  debug "VGL: Evaluating iteration attempt"
+  echo "VGL: Evaluating iteration attempt" >&2
+  EVAL_METRICS=$(python3 "$EVO_EVAL_SCRIPT" --evaluate "$TEST_COMMAND" 2>/dev/null || echo '{}')
+  debug "VGL: Eval metrics: $EVAL_METRICS"
+
+  # Store in population — restructure flat eval metrics into Approach format
+  EVO_DB_SCRIPT="${PLUGIN_ROOT}/scripts/evo_db.py"
+  if [[ -f "$EVO_DB_SCRIPT" ]] && [[ "$EVAL_METRICS" != "{}" ]]; then
+    debug "VGL: Storing evaluation in population"
+    echo "VGL: Stored in population" >&2
+    APPROACH_JSON=$(python3 -c "
+import json, sys
+metrics = json.loads(sys.argv[1])
+artifacts = metrics.pop('artifacts', {})
+stage = metrics.pop('stage', 0)
+print(json.dumps({
+    'metrics': metrics,
+    'artifacts': artifacts,
+    'task_id': sys.argv[2],
+    'iteration': int(sys.argv[3]),
+}))
+" "$EVAL_METRICS" "$TASK_ID" "$ITERATION" 2>/dev/null || echo '{}')
+    if [[ "$APPROACH_JSON" != "{}" ]]; then
+      python3 "$EVO_DB_SCRIPT" --db-path "$EVO_DB_PATH" --add "$APPROACH_JSON" 2>/dev/null || true
+    fi
+  fi
+fi
+
+# Pollinate on first iteration
+if [[ "$ITERATION" == "1" ]] || [[ "$ITERATION" == "0" ]]; then
+  EVO_POLLINATOR="${PLUGIN_ROOT}/scripts/evo_pollinator.py"
+  PLAN_FILE=".claude/plan/plan.yaml"
+  if [[ -f "$EVO_POLLINATOR" ]] && [[ -f "$PLAN_FILE" ]] && [[ -n "$TASK_ID" ]]; then
+    debug "VGL: Pollinating from similar tasks"
+    echo "VGL: Pollinating from similar tasks" >&2
+    python3 "$EVO_POLLINATOR" --pollinate "$EVO_DB_PATH" "$PLAN_FILE" "$TASK_ID" 2>/dev/null || true
+  fi
+fi
+
+# Build evolution context for next iteration (replaces LEARNINGS_PREFIX)
+EVOLUTION_PREFIX=""
+EVO_PROMPT_SCRIPT="${PLUGIN_ROOT}/scripts/evo_prompt.py"
+if [[ -f "$EVO_PROMPT_SCRIPT" ]] && [[ -d "$EVO_DB_PATH" ]] && [[ -n "$TASK_ID" ]]; then
+  EVO_CONTEXT=$(python3 "$EVO_PROMPT_SCRIPT" --build "$EVO_DB_PATH" "$TASK_ID" 2>/dev/null || echo "")
+  if [[ -n "$EVO_CONTEXT" ]]; then
+    EVOLUTION_PREFIX="EVOLUTION CONTEXT:
+${EVO_CONTEXT}
+
+"
+  fi
+fi
+
 # Not complete — continue loop with SAME PROMPT
 NEXT_ITERATION=$((ITERATION + 1))
 
@@ -335,6 +373,9 @@ if [[ -z "$PROMPT_TEXT" ]]; then
   exit 0
 fi
 
+# Prepend evolution context to prompt
+PROMPT_TEXT="${EVOLUTION_PREFIX}${PROMPT_TEXT}"
+
 # Update iteration in frontmatter
 TEMP_FILE="${STATE_FILE}.tmp.$$"
 sed "s/^iteration: .*/iteration: $NEXT_ITERATION/" "$STATE_FILE" > "$TEMP_FILE"
@@ -342,9 +383,9 @@ mv "$TEMP_FILE" "$STATE_FILE"
 
 # Build system message
 if [[ $MAX_ITERATIONS -gt 0 ]]; then
-  SYSTEM_MSG="VGL iteration $NEXT_ITERATION/$MAX_ITERATIONS | TDD-first: write tests, spawn opencode, then verify | Token has 128-bit entropy"
+  SYSTEM_MSG="VGL iteration $NEXT_ITERATION/$MAX_ITERATIONS | Evolution-guided | TDD-first: write tests, spawn opencode, then verify | Token has 128-bit entropy"
 else
-  SYSTEM_MSG="VGL iteration $NEXT_ITERATION | TDD-first: write tests, spawn opencode, then verify | Token has 128-bit entropy"
+  SYSTEM_MSG="VGL iteration $NEXT_ITERATION | Evolution-guided | TDD-first: write tests, spawn opencode, then verify | Token has 128-bit entropy"
 fi
 
 echo "VGL: Continuing loop (iteration $NEXT_ITERATION)." >&2

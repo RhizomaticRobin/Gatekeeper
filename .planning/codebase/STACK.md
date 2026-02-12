@@ -1,49 +1,39 @@
-# Technology Stack
+# Stack
 
 ## Languages
+- **Bash** — Primary scripting language for hooks, VGL scripts, autopilot (ralph.sh), and bin/ utilities. ~6,000 LOC across scripts/, hooks/, bin/.
+- **Python 3** — Plan utilities, validation, evolutionary intelligence, history, learnings. ~3,500 LOC in scripts/*.py. Requires PyYAML.
+- **JavaScript/Node.js** (>=16.7.0) — Installer (bin/install.js), hook bundler (build-hooks.js), intel-index.js, progress-watcher, terminal-launcher. ~2,500 LOC.
+- **Markdown** — Agent definitions (9 .md files with YAML frontmatter), slash commands (15 .md files), workflow docs, reference docs, templates. These are executable prompts, not documentation.
+- **TypeScript** — Better-OpenCodeMCP submodule (MCP server). Built to dist/index.js.
 
-| Language | Version | Usage |
-|----------|---------|-------|
-| Bash | POSIX sh, `set -euo pipefail` | Core scripting — VGL loop, hooks, task transitions, orchestration |
-| Python 3 | 3.6+ (PyYAML required) | Plan utilities, validation, task queries, topological sort |
-| JavaScript/Node.js | 16.7.0+ | Installer, hook bundling, codebase intelligence indexer |
-| TypeScript | (submodule) | Better-OpenCodeMCP MCP server |
-| Markdown | CommonMark + YAML frontmatter | Agent prompts, command definitions, documentation |
+## Frameworks & Major Dependencies
+- **Claude Code Plugin System** — Plugin manifest at `.claude-plugin/plugin.json`. Hooks, commands, agents, MCP servers declared via plugin JSON.
+- **Better-OpenCodeMCP** — Git submodule providing the opencode MCP server. Exposes `launch_opencode`, `wait_for_completion`, `opencode_sessions` tools. Auto-builds on first run.
+- **PyYAML** — Required for plan.yaml parsing/writing in Python scripts.
+- **sql.js** (devDep) — SQLite WASM for intel-index.js hook (codebase intelligence indexer).
+- **esbuild** (devDep) — Bundles intel-index.js with sql.js WASM inlined.
 
-## Frameworks & Libraries
+## Test Frameworks
+- **pytest** — Python tests in `tests/python/`. Config in `pytest.ini`.
+- **bats-core** (v1.13) — Bash tests in `tests/bash/` and `tests/e2e/`. Uses bats-assert, bats-support, bats-file.
+- **vitest** (v4.0) — Node.js tests in `tests/node/`. Config in `vitest.config.js`.
 
-### npm (package.json)
+## Runtime Requirements
+- **Claude Code CLI** (`claude` command) — Required for autopilot (ralph.sh) and agent spawning.
+- **Node.js** >= 16.7.0 — MCP server, installer, hook bundling.
+- **Python 3** — Plan utilities, validation, evolutionary intelligence.
+- **jq** — JSON parsing in shell scripts (hooks, setup scripts).
+- **openssl** — 128-bit token generation (`openssl rand -hex 16`).
+- **flock** — File locking for concurrent plan.yaml access.
+- **Playwright** — Visual verification in the verifier agent (browser tools).
+- **Git** — Checkpoint commits in autopilot mode.
 
-| Package | Version | Type | Purpose |
-|---------|---------|------|---------|
-| `command-exists` | ^1.2.9 | Runtime | Check if CLI tools exist on PATH |
-| `esbuild` | ^0.24.0 | Dev | Bundle hooks (intel-index.js + sql.js) |
-| `sql.js` | ^1.12.0 | Dev (bundled) | SQLite in JS for dependency graph indexing |
+## Build Configuration
+- `npm run build:hooks` — esbuild bundles intel-index.js to hooks/dist/.
+- `npm run prepublishOnly` — Runs build:hooks before npm publish.
+- MCP server auto-builds on first launch via `bin/opencode-mcp.sh`.
 
-### Python (implicit)
-
-| Package | Required | Purpose |
-|---------|----------|---------|
-| `PyYAML` | Yes | YAML parsing/writing for plan.yaml |
-
-### External Tools (required at runtime)
-
-| Tool | Used By | Purpose |
-|------|---------|---------|
-| `jq` | stop-hook.sh, scripts | JSON parsing |
-| `base64` | fetch-completion-token.sh | Test command encoding |
-| `sha256sum` | fetch-completion-token.sh | Integrity verification |
-| `git` | Autopilot, checkpoint commits | Version control |
-| `claude` | installer, MCP registration | Claude Code CLI |
-
-## Build Tools
-
-- `npm run build:hooks` — Bundles intel-index.js with sql.js via esbuild
-- Better-OpenCodeMCP: `npm run build` (TypeScript → JavaScript via tsc)
-
-## MCP Server
-
-Declared in `plugin.json`, launched by `bin/opencode-mcp.sh`:
-- Auto-clones Better-OpenCodeMCP submodule if missing
-- Auto-installs deps and builds on first run
-- Hardcoded agent: `gsd-builder` (temp 1.0, no web, no step limit)
+## Distribution
+- **npm package** (`evogatekeeper` v1.0.0) — `npx gsd-vgl` for legacy install.
+- **Claude Code Marketplace** — `plugin marketplace add RhizomaticRobin/gsd-vgl`.

@@ -1,66 +1,67 @@
-# Architecture Overview
+# Architecture
 
-## Pattern: Verifier-Gated Loop (VGL)
+## System Purpose
+EvoGatekeeper is a Claude Code plugin that orchestrates software projects through spec-driven development with cryptographic verification. No task can be marked complete without passing independent verification by a Verifier agent in a fresh context.
 
-No task can be marked complete without independent cryptographic verification. The executor cannot self-complete — only the verifier can issue a 128-bit token, and only when all checks pass.
-
-## Execution Flow
-
+## Core Pipeline (5 Stages)
 ```
-/cross-team
-  ↓
-cross-team-setup.sh → validate plan, find unblocked tasks
-  ↓
-┌─────────── Single Task ───────────┐  ┌────── Multi-Task (Team) ──────┐
-│ Executor (model: opus)            │  │ Lead Orchestrator (no code)   │
-│  1. Read task-{id}.md             │  │  ├─ Executor A (Task subagent)│
-│  2. Write ALL tests (TDD Red)     │  │  ├─ Executor B (Task subagent)│
-│  3. Parse Test Dependency Graph   │  │  └─ Executor C (Task subagent)│
-│  4. Wave 1: fresh opencode agents │  │  Each executor runs full VGL  │
-│  5. Wave 2+: session continuations│  │  Lead validates tokens, marks │
-│  6. Run full test suite (Green)   │  │  complete, dispatches next    │
-│  7. Spawn Verifier                │  │  Integration checks at phase  │
-└───────────────────────────────────┘  │  boundaries                   │
-  ↓                                    └───────────────────────────────┘
-Verifier (fresh context, read-only, model: opus)
-  1. Load immutable verifier-prompt.local.md
-  2. Run tests via fetch-completion-token.sh
-  3. Check must_haves (truths, artifacts, key_links)
-  4. Playwright visual verification
-  5. PASS → VGL_COMPLETE_{32-hex} token
-  ↓
-Stop Hook
-  1. Extract token from transcript
-  2. Validate against verifier-token.secret
-  3. Match → transition-task.sh → next task (loop)
-  4. No match → re-inject prompt → executor retries
+Plan (/quest) -> Execute (/cross-team) -> Verify (Verifier agent) -> Transition (stop-hook) -> Autopilot (ralph.sh)
 ```
 
-## Component Hierarchy
+## The Verifier-Gated Loop (VGL)
+The central abstraction. The executor cannot self-certify completion. Only the verifier can, and it operates in a fresh context with an infrastructure-generated prompt.
 
+**Security chain:**
+1. `setup-verifier-loop.sh` generates a 128-bit token, stores in `verifier-token.secret` (chmod 600)
+2. `generate-verifier-prompt.sh` builds an immutable verifier prompt (executor cannot modify it)
+3. Verifier runs tests via `fetch-completion-token.sh` (independent subprocess, SHA-256 integrity check on test command)
+4. Token only revealed if tests pass AND no TODO/FIXME/stubs detected
+5. `stop-hook.sh` extracts token from transcript, validates against secret file
+6. On match: transition to next task. On mismatch: re-inject prompt, loop continues.
+
+## Agent Hierarchy
 ```
-Commands (user entry points)
-  → Agents (orchestration roles)
-    → Scripts (utilities)
-      → Hooks (event handlers)
-        → State files (.claude/ directory)
+User
+ └─ /cross-team
+     ├─ Single task -> Executor (model: opus)
+     │    ├─ Writes all tests (TDD Red)
+     │    ├─ Dispatches gsd-builder opencode agents (1 per test, wave-based)
+     │    ├─ Runs full test suite (TDD Green)
+     │    └─ Spawns Verifier (model: opus, read-only) -> PASS/FAIL
+     │
+     └─ Multiple tasks -> Lead Orchestrator (no code)
+          ├─ Spawns Executor sub-orchestrators (concurrent)
+          ├─ Validates completion tokens
+          ├─ Runs integration-checker at phase boundaries
+          └─ Dispatches newly unblocked tasks
 ```
 
-## State Files
+## State Management
+- **Plan state:** `.claude/plan/plan.yaml` — YAML file with phases, tasks, statuses. Protected by flock for concurrent access.
+- **VGL state:** `.claude/verifier-loop.local.md` — Markdown with YAML frontmatter (iteration, session_id, token ref, prompt). Created per VGL session.
+- **Token state:** `.claude/verifier-token.secret` — Token + base64-encoded test command + SHA-256 hash. chmod 600.
+- **Team state:** `.claude/vgl-team-active` — Marker file for parallel execution mode. `.claude/vgl-sessions/task-{id}/` per-task session dirs.
+- **Project state:** `.planning/STATE.md`, `.planning/config.json` — Project-level tracking.
+- **Evolution state:** `.planning/evolution/{task_id}/` — Per-task population database (approaches.jsonl + metadata.json).
+- **History state:** `.planning/history/runs.jsonl` — Task execution outcomes.
+- **Learnings state:** `.planning/learnings.jsonl` — Extracted learnings from verifier feedback.
 
-| File | Purpose | Written By | Read By |
-|------|---------|-----------|---------|
-| `.claude/plan/plan.yaml` | Master task list | planner, transition-task.sh | all |
-| `.claude/plan/task-{id}.md` | Task specification | planner | executor, verifier |
-| `.claude/verifier-loop.local.md` | VGL state (iteration, session) | setup-verifier-loop.sh | stop-hook.sh |
-| `.claude/verifier-token.secret` | 128-bit token + SHA-256 hash | setup-verifier-loop.sh | fetch-completion-token.sh |
-| `.claude/verifier-prompt.local.md` | Immutable verifier prompt | generate-verifier-prompt.sh | verifier agent |
-| `.claude/vgl-team-active` | Team mode flag | team orchestrator | guard-skills.sh |
+## Data Flow Patterns
+- **Plan -> Tasks:** plan.yaml contains task definitions; `prompt_file` references task-{id}.md files.
+- **Task -> Agents:** Executor reads task prompt, writes tests, dispatches opencode agents with per-test guidance.
+- **Agent -> Verifier:** After tests pass, executor spawns verifier via Task() with the generated prompt.
+- **Verifier -> Hook:** Verifier outputs token in transcript; stop-hook extracts and validates it.
+- **Hook -> Next Task:** On valid token, stop-hook calls transition-task.sh, sets up next VGL, blocks exit with new prompt.
+- **Hook -> Evolution:** On failed iteration, stop-hook evaluates via evo_eval.py, stores in evo_db.py, builds evolution context via evo_prompt.py.
 
-## Key Design Decisions
+## Evolutionary Intelligence Layer
+- **evo_db.py** — MAP-Elites population with island-based evolution. Approaches stored as JSONL. 3 islands, 2 feature dimensions (test_pass_rate, complexity), 10 bins per dimension.
+- **evo_eval.py** — 3-stage cascade evaluator (collect-only -> partial -> full). Extracts test metrics, code metrics, artifacts.
+- **evo_prompt.py** — Builds 5-section markdown prompts from population (context, parent, failures, inspirations, directive).
+- **evo_pollinator.py** — Cross-task strategy migration based on file_scope similarity scoring.
 
-1. **Executor/Verifier separation** — Verifier runs in fresh context, can't be influenced
-2. **Cryptographic token + SHA-256** — Prevents forgery and test command tampering
-3. **Wave-based dispatch** — Independent tests parallel, dependent tests continue sessions
-4. **Stop hook as loop controller** — Returns `decision: "block"` to keep session alive
-5. **Guard skills hook** — Blocks conflicting commands during active VGL
+## Hook Architecture (Claude Code Plugin Hooks)
+- **Stop:** `stop-hook.sh` — VGL loop control. Validates tokens, auto-transitions tasks, injects evolution context.
+- **PreToolUse (Skill):** `guard-skills.sh` — Blocks plan-modifying commands during active VGL.
+- **PostToolUse (Skill):** `post-cross.sh` — Shows pipeline progress after /cross-team.
+- **PostToolUse (Write|Edit):** `intel-index.js` — Indexes file exports/imports for codebase intelligence.

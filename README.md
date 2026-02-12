@@ -99,6 +99,18 @@ Verification checks three levels derived from the project goal:
 
 Phases in plan.yaml can set `integration_check: true`. When the last task in such a phase completes, an integration-checker agent is spawned before the next phase begins. It verifies cross-phase wiring: APIs consumed, data flows end-to-end, type contracts, no dead endpoints.
 
+### Evolutionary Intelligence
+
+EvoGatekeeper uses an evolutionary approach to improve execution strategies across iterations and tasks:
+
+- **MAP-Elites Population Database** (`evo_db.py`) — Stores diverse approaches in a multi-dimensional grid indexed by island and behavioral descriptors. Each cell holds the best-performing strategy for that niche, preserving diversity rather than converging on a single optimum.
+- **Island-Based Parallel Exploration** — On retry iterations with sufficient population (>= 3 approaches), the executor samples strategies from different islands and spawns parallel opencode agents, each following a distinct approach. This explores the solution space broadly before committing.
+- **Cascade Evaluation** (`evo_eval.py`) — Each attempt is evaluated on multiple dimensions (test pass rate, duration, complexity) and stored back into the population. Failed approaches inform future exploration; successful ones are refined.
+- **Evolutionary Prompt Construction** (`evo_prompt.py`) — Builds context-aware prompts from the population, surfacing the best strategies and common failure patterns from prior iterations to guide the next attempt.
+- **Cross-Task Pollination** (`evo_pollinator.py`) — When a new task begins, successful strategies from similar completed tasks are migrated into its population, giving it a head start based on what worked elsewhere in the project.
+
+This replaces static heuristics with a system that learns and adapts from actual execution outcomes.
+
 ### Plan Format
 
 ```yaml
@@ -226,6 +238,10 @@ gsd-vgl/
 │   ├── check-file-conflicts.py      Detect file scope overlaps
 │   ├── parse-args.py                Argument parser for /bridge
 │   ├── build-hooks.js               esbuild bundler for hook scripts
+│   ├── evo_db.py                    MAP-Elites population database
+│   ├── evo_eval.py                  Cascade evaluation (test pass rate, duration, complexity)
+│   ├── evo_prompt.py                Evolutionary prompt construction from population
+│   ├── evo_pollinator.py            Cross-task strategy pollination
 │   └── team-orchestrator-prompt.md  Lead orchestrator template
 ├── templates/
 │   ├── opencode.json                gsd-builder agent config

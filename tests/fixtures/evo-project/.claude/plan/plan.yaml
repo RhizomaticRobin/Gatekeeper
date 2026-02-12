@@ -1,0 +1,57 @@
+metadata:
+  project: "evo-test-project"
+  dev_server_command: "echo ok"
+  dev_server_url: "http://localhost:3000"
+  model_profile: "default"
+phases:
+  - id: 1
+    name: "Core"
+    goal: "Build core modules"
+    integration_check: false
+    must_haves:
+      truths: ["Functions work correctly"]
+      artifacts: ["src/index.py"]
+      key_links: []
+    tasks:
+      - id: "1.1"
+        name: "Index Module"
+        status: "completed"
+        depends_on: []
+        file_scope:
+          owns: ["src/index.py", "tests/test_index.py"]
+          reads: []
+        deliverables:
+          backend: "src/index.py"
+          frontend: ""
+        tests:
+          quantitative:
+            command: "pytest tests/test_index.py -v"
+          qualitative:
+            criteria: ["Function works correctly"]
+        must_haves:
+          truths: ["add and multiply work"]
+          artifacts: ["src/index.py"]
+          key_links: []
+        prompt_file: "tasks/task-1.1.md"
+        wave: 1
+      - id: "1.2"
+        name: "Helper Module"
+        status: "pending"
+        depends_on: ["1.1"]
+        file_scope:
+          owns: ["src/helper.py", "tests/test_helper.py"]
+          reads: ["src/index.py"]
+        deliverables:
+          backend: "src/helper.py"
+          frontend: ""
+        tests:
+          quantitative:
+            command: "pytest tests/test_helper.py -v"
+          qualitative:
+            criteria: ["Helper functions work"]
+        must_haves:
+          truths: ["helpers work"]
+          artifacts: ["src/helper.py"]
+          key_links: []
+        prompt_file: "tasks/task-1.2.md"
+        wave: 2

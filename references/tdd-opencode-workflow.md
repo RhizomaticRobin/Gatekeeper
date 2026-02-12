@@ -60,18 +60,38 @@ Each task-{id}.md includes a test dependency graph:
 The planner (/quest) generates this graph. The executor follows it exactly.
 
 ## opencode MCP API
+
+**IMPORTANT:** Always use these MCP tools. The `opencode` CLI binary is NOT on PATH — calling it from bash will fail. All agent dispatch MUST go through the MCP tools below.
+
 ```
 # Fresh agent (wave 1 tests, no dependencies)
 launch_opencode(task="Make test pass: {file}\n\nGUIDANCE:\n{guidance}")
   -> Returns: { taskId, sessionId, status: "working" }
 
+# Batch launch (multiple independent tests in one call — preferred for Wave 1)
+launch_opencode(tasks=[
+  {type: "new", task: "Make test pass: tests/auth.test.ts\n\nGUIDANCE:\n..."},
+  {type: "new", task: "Make test pass: tests/db.test.ts\n\nGUIDANCE:\n..."},
+])
+  -> Returns: { results: [{taskId, sessionId, status}], count: N }
+
 # Continue session (wave 2+ tests, has dependencies)
 launch_opencode(sessionId="{prior_sessionId}", task="Now make this next test pass: {file}\n\nGUIDANCE:\n{guidance}")
   -> Returns: { taskId, sessionId, status: "working" }
 
+# Wait for all agents in a wave
 wait_for_completion(taskIds=[...])
   -> Returns: results per task (10 minute timeout)
+
+# Check running agents
+opencode_sessions(status="active")
+  -> Returns: { sessions: [...], total: N }
 ```
+
+### Maximizing Concurrency
+- Use `launch_opencode(tasks=[...])` for Wave 1 to batch-launch all independent tests in a single call
+- Never launch agents one-at-a-time with waits between them when they have no dependencies
+- Call `wait_for_completion()` once per wave, not once per agent
 
 ## Agent Questions During Execution
 
@@ -115,7 +135,71 @@ project root at setup time.
 Restrictions vs default build agent:
 - No web access (websearch/webfetch disabled)
 - Can ask questions (question tool enabled)
-- Model: zai-coding-plan/glm-4.7
+- Model: zai-coding-plan/glm-5
+
+## Evolution-Guided Approach Selection (Step 2.5)
+
+Between test writing (Phase 1) and implementation dispatch (Phase 2), the executor
+checks for an evolution population at `.planning/evolution/{task_id}/`. This population
+is built by the stop-hook across VGL iterations (see task 2.1).
+
+### When Parallel Island Exploration Activates
+
+Parallel island exploration only activates when the population has **>= 3 approaches**.
+With fewer approaches, there is insufficient diversity for meaningful parallel exploration.
+
+### Flow
+
+1. **Check stats:**
+   ```bash
+   python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --stats
+   ```
+   The JSON output includes `population_size`, `num_islands`, and `per_island` breakdowns.
+
+2. **If >= 3 approaches, sample from each island:**
+   ```bash
+   python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --sample 0
+   python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --sample 1
+   python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --sample 2
+   ```
+   Each `--sample` returns `{parent: Approach, inspirations: [Approach]}`. The
+   executor uses `parent.prompt_addendum` as the approach strategy for that candidate.
+
+3. **Spawn parallel candidates:** Each island's sampled approach becomes a separate
+   opencode agent, receiving the task prompt plus `APPROACH STRATEGY: {prompt_addendum}`.
+
+4. **Evaluate candidates:** After all complete, run `evo_eval.py --evaluate` to get
+   metrics for each candidate.
+
+5. **Store results:** All candidate metrics are stored back via `evo_db.py --add`.
+
+6. **Select best:** The candidate with the highest `test_pass_rate` is selected.
+   Its approach's `prompt_addendum` is then included in all subsequent TDD agent prompts.
+
+### Evolution Context in TDD Agent Prompts
+
+When a winning approach exists from Step 2.5, every TDD agent prompt includes:
+
+```
+APPROACH STRATEGY (from evolution):
+{best_approach.prompt_addendum}
+
+Make the following test pass: {test_file}
+
+GUIDANCE:
+{guidance from test dependency graph}
+```
+
+This is **additive** -- the approach strategy provides high-level direction while the
+guidance provides file-level specifics. Neither replaces the other.
+
+### Skip Conditions
+
+- **Empty population:** No `.planning/evolution/{task_id}/` directory, or `population_size == 0`.
+- **< 3 approaches:** Insufficient diversity for parallel exploration.
+- **All candidates score 0.0:** Fall back to normal TDD without evolution context.
+
+In all skip cases, the executor proceeds directly to standard Phase 2 dispatch.
 
 ## Error Handling
 - If an opencode agent fails, retry once

@@ -27,6 +27,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 // Use ASM.js version for bundling (no WASM file dependency)
+// Use ASM.js version for bundling (no WASM file dependency)
 const initSqlJs = require('sql.js/dist/sql-asm.js');
 
 // Graph database schema (simple-graph pattern)
