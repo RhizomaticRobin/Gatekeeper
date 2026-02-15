@@ -116,7 +116,7 @@ Each worker Task returns a result string. Parse it for:
 1. Read the token file at `.claude/vgl-sessions/task-{task_id}/verifier-token.secret`
 2. Extract line 1 (the expected token)
 3. Compare the reported token to the expected token
-4. If match: mark task completed via `python3 {{PLUGIN_SCRIPTS}}/plan_utils.py {{PLAN_FILE}} --complete-task {task_id}`
+4. If match: mark task completed via `python3 {{PLUGIN_SCRIPTS}}/plan_utils.py {{PLAN_FILE}} --complete-task {task_id} --token {token}`
 5. If mismatch: re-spawn the executor for that task
 
 **On `TASK_FAILED:{task_id}:{reason}`:**

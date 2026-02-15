@@ -58,9 +58,23 @@ flock -x 9
 # so they skip their own flock (avoiding deadlock on same lock file)
 export GSD_VGL_PLAN_LOCKED=1
 
-# Mark current task as completed
+# Read completion token — required for completing a task
+TOKEN_FILE=".claude/verifier-token.secret"
+# Try task-specific session dir first, then fall back to .claude/
+TASK_SESSION_DIR=".claude/vgl-sessions/task-${CURRENT_TASK_ID}"
+if [[ -f "${TASK_SESSION_DIR}/verifier-token.secret" ]]; then
+  TOKEN_FILE="${TASK_SESSION_DIR}/verifier-token.secret"
+fi
+
+if [[ ! -f "$TOKEN_FILE" ]]; then
+  echo "Error: Token file not found at $TOKEN_FILE — cannot complete task without VGL token" >&2
+  exit 1
+fi
+COMPLETION_TOKEN=$(head -1 "$TOKEN_FILE" | tr -d '\n')
+
+# Mark current task as completed (requires valid VGL token)
 echo "Completing task: $CURRENT_TASK_ID" >&2
-python3 "${SCRIPTS_DIR}/plan_utils.py" "$PLAN_FILE" --complete-task "$CURRENT_TASK_ID" >/dev/null
+python3 "${SCRIPTS_DIR}/plan_utils.py" "$PLAN_FILE" --complete-task "$CURRENT_TASK_ID" --token "$COMPLETION_TOKEN" >/dev/null
 
 # Git checkpoint: commit plan.yaml status change
 create_checkpoint() {

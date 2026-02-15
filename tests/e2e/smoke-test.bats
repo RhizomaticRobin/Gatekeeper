@@ -38,6 +38,10 @@ setup() {
     # Create a temp copy of the fixture for this test
     TEST_DIR="$(mktemp -d)"
     cp -r "$FIXTURE_DIR/." "$TEST_DIR/"
+
+    # Test token for VGL completion gating
+    TEST_TOKEN="VGL_COMPLETE_00000000000000000000000000000000"
+    echo "$TEST_TOKEN" > "$TEST_DIR/.claude/verifier-token.secret"
 }
 
 teardown() {

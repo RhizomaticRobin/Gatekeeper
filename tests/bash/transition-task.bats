@@ -6,6 +6,10 @@ setup() {
     TEST_DIR=$(mktemp -d)
     mkdir -p "$TEST_DIR/.claude/plan/tasks"
 
+    # Test token for VGL completion gating
+    TEST_TOKEN="VGL_COMPLETE_00000000000000000000000000000000"
+    echo "$TEST_TOKEN" > "$TEST_DIR/.claude/verifier-token.secret"
+
     # Create a plan with task 1.1 pending and 1.2 pending
     cat > "$TEST_DIR/.claude/plan/plan.yaml" <<'YAML'
 metadata:
@@ -279,7 +283,7 @@ EOF
     # This test verifies that when git add finds no diff, it reports "no changes"
     # Actually, completing a task always modifies plan.yaml, so we need a different approach.
     # Let's pre-stage and commit the "completed" version of plan.yaml
-    python3 "$SCRIPTS_DIR/plan_utils.py" "$TEST_DIR/.claude/plan/plan.yaml" --complete-task "1.2" >/dev/null
+    python3 "$SCRIPTS_DIR/plan_utils.py" "$TEST_DIR/.claude/plan/plan.yaml" --complete-task "1.2" --token "$TEST_TOKEN" >/dev/null
     git add -A
     git commit -m "pre-complete 1.2" >/dev/null 2>&1
 

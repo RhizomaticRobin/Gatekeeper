@@ -15,7 +15,7 @@ Functions:
   get_model_profile(plan) — get model_profile from metadata
 
 Also usable as CLI:
-  python3 plan_utils.py <plan.yaml> --complete-task <task_id>
+  python3 plan_utils.py <plan.yaml> --complete-task <task_id> --token <VGL_TOKEN>
   python3 plan_utils.py <plan.yaml> --start-task <task_id>
   python3 plan_utils.py <plan.yaml> --next-task
   python3 plan_utils.py <plan.yaml> --unblocked-tasks
@@ -28,6 +28,7 @@ import json
 import re
 import fcntl
 import tempfile
+import hashlib
 from contextlib import contextmanager
 from collections import deque
 
@@ -255,6 +256,68 @@ def get_model_profile(plan):
     return plan.get("metadata", {}).get("model_profile", "default")
 
 
+def validate_completion_token(plan_file, task_id, provided_token):
+    """Validate the VGL completion token before allowing task completion.
+
+    Looks for verifier-token.secret in:
+      1. <project>/.claude/vgl-sessions/task-{id}/verifier-token.secret
+      2. <project>/.claude/verifier-token.secret
+
+    Returns (True, None) on success or (False, error_message) on failure.
+    """
+    if not provided_token:
+        return False, "No token provided. --token is required with --complete-task"
+
+    # Validate token format: VGL_COMPLETE_<32 hex chars>
+    if not re.match(r'^VGL_COMPLETE_[a-f0-9]{32}$', provided_token):
+        return False, f"Invalid token format: {provided_token[:20]}..."
+
+    # Derive project root from plan file path
+    plan_dir = os.path.dirname(os.path.abspath(plan_file))
+    project_root = os.path.normpath(os.path.join(plan_dir, "..", ".."))
+
+    # Search for token file
+    candidates = [
+        os.path.join(project_root, ".claude", "vgl-sessions", f"task-{task_id}", "verifier-token.secret"),
+        os.path.join(project_root, ".claude", "verifier-token.secret"),
+    ]
+
+    token_file = None
+    for path in candidates:
+        if os.path.isfile(path):
+            token_file = path
+            break
+
+    if token_file is None:
+        return False, f"Token file not found. Tried: {', '.join(candidates)}"
+
+    # Read expected token (line 1 of the secret file)
+    try:
+        with open(token_file, "r") as f:
+            expected_token = f.readline().strip()
+    except (IOError, OSError) as e:
+        return False, f"Failed to read token file: {e}"
+
+    if not expected_token:
+        return False, "Token file is empty"
+
+    # Constant-time comparison to prevent timing attacks
+    if not hmac_compare(provided_token, expected_token):
+        return False, "Token mismatch — provided token does not match verifier-token.secret"
+
+    return True, None
+
+
+def hmac_compare(a, b):
+    """Constant-time string comparison."""
+    if len(a) != len(b):
+        return False
+    result = 0
+    for x, y in zip(a.encode(), b.encode()):
+        result |= x ^ y
+    return result == 0
+
+
 def task_to_json(task):
     """Convert task dict to JSON-serializable form."""
     if task is None:
@@ -279,9 +342,11 @@ def main():
     parser.add_argument("plan_file", help="Path to plan.yaml")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--complete-task", metavar="TASK_ID",
-                       help="Mark task as completed")
+                       help="Mark task as completed (requires --token)")
     group.add_argument("--start-task", metavar="TASK_ID",
                        help="Mark task as in_progress")
+    parser.add_argument("--token", metavar="VGL_TOKEN",
+                       help="VGL completion token (required with --complete-task)")
     group.add_argument("--next-task", action="store_true",
                        help="Output next unblocked task as JSON")
     group.add_argument("--all-ids", action="store_true",
@@ -298,6 +363,13 @@ def main():
     args = parser.parse_args()
 
     if args.complete_task:
+        # Token is mandatory for completing a task
+        valid, err = validate_completion_token(args.plan_file, args.complete_task, args.token)
+        if not valid:
+            print(json.dumps({"error": err, "task_id": args.complete_task}),
+                  file=sys.stderr)
+            sys.exit(1)
+
         ok = update_task_status(args.plan_file, args.complete_task, "completed")
         if ok:
             print(json.dumps({"status": "completed", "task_id": args.complete_task}))

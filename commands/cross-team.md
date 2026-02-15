@@ -87,7 +87,7 @@ The per-task flow is: **Tester** (writes tests) → **Executor** (implements to 
 
 6. **Mark tasks completed** via:
    ```bash
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id}
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id} --token {token}
    ```
 
 7. **Check for integration checkpoints** after marking a task complete:
