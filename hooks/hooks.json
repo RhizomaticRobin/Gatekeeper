@@ -31,6 +31,15 @@
         ]
       },
       {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-plan.sh"
+          }
+        ]
+      },
+      {
         "matcher": "Read|Bash|Grep|Glob",
         "hooks": [
           {

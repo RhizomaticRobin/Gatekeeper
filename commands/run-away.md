@@ -51,6 +51,13 @@ if [[ -f ".claude/vgl-team-active" ]]; then
   echo "  - .claude/vgl-team-active"
   echo "  - .claude/vgl-sessions/"
 fi
+
+# Unlock plan files
+if [[ -f ".claude/plan-locked" ]]; then
+  rm -f ".claude/plan-locked"
+  echo ""
+  echo "Plan unlocked — plan.yaml and task files are editable again."
+fi
 ```
 
 Report the cancellation status to the user.

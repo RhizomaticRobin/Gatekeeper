@@ -110,6 +110,9 @@ $MUST_HAVES
 YOUR TASK:
 $TASK_PROMPT"
 
+# Lock plan files — no agent can Write|Edit them during execution
+date -u +%Y-%m-%dT%H:%M:%SZ > .claude/plan-locked
+
 # Mark task as in_progress
 python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$TASK_ID" 2>&1 || true
 

@@ -115,6 +115,7 @@ The per-task flow is: **Tester** (writes tests) → **Executor** (implements to 
    - All executor Tasks have returned
    - Remove `.claude/vgl-team-active`
    - Remove `.claude/vgl-sessions/`
+   - Remove `.claude/plan-locked`
    - Report final status
 
 ### Critical Rules

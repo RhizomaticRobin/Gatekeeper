@@ -277,6 +277,7 @@ PYEOF
     elif [[ $TRANSITION_EXIT -eq 2 ]]; then
       echo "VGL: ALL PLAN TASKS COMPLETE" >&2
       rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
+      rm -f ".claude/plan-locked"
       exit 0
     else
       echo "VGL: Transition error (exit=$TRANSITION_EXIT)" >&2

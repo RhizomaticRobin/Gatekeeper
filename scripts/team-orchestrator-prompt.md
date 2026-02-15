@@ -183,7 +183,8 @@ When no pending tasks remain in plan.yaml:
 1. Send `requestShutdown` to all remaining workers
 2. Remove `.claude/vgl-team-active` marker
 3. Remove `.claude/vgl-sessions/` directory
-4. Report final status: which tasks completed, which failed, total time
+4. Remove `.claude/plan-locked` marker
+5. Report final status: which tasks completed, which failed, total time
 
 ## Important Constraints
 

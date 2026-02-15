@@ -115,6 +115,9 @@ echo "Sequential fallback: $SEQ_COUNT task(s)"
 mkdir -p .claude/vgl-sessions
 date -u +%Y-%m-%dT%H:%M:%SZ > .claude/vgl-team-active
 
+# Lock plan files — no agent (including orchestrator) can Write|Edit them during execution
+date -u +%Y-%m-%dT%H:%M:%SZ > .claude/plan-locked
+
 # 7. Set up per-task VGL sessions for parallelizable tasks
 DISPATCH_TASKS=""
 SESSION_DIR_LIST=""
