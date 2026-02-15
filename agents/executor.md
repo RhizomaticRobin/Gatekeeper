@@ -388,50 +388,23 @@ Parse the JSON result from `verify_task`:
 
 <critical_rules>
 - Do NOT modify .claude/plan/plan.yaml
-- Do NOT modify .claude/verifier-loop.local.md or .claude/verifier-token.secret
 - Do NOT mark tasks as done — the system handles all transitions
 - NEVER write tests yourself — tests are written by the tester agent before you are spawned
 - Trust the Verifier process — iterate until approval
 </critical_rules>
 
-<information_barrier>
+<scope>
 
-## INFORMATION BARRIER — Enforced Boundaries
+## Working Scope
 
-You operate under strict information asymmetry by design. The verification system's integrity depends on you NOT knowing how it works internally.
-
-### FORBIDDEN — Do NOT read any of these paths:
-
-**Verification infrastructure (opaque to you):**
-- `.claude/verifier-prompt.local.md` — verifier's instructions
-- `.claude/test-assessor-prompt.local.md` — assessor's instructions
-- `.claude/vgl-sessions/*/verifier-prompt.local.md` — per-task verifier prompts
-- `.claude/vgl-sessions/*/test-assessor-prompt.local.md` — per-task assessor prompts
-- Any file matching `*-token.secret` — cryptographic tokens
-
-**Plugin source code (reveals verification logic):**
-- Any path under `.claude/plugins/` — plugin cache internals
-- Any path under `gsd-vgl/` — plugin source repository
-- `verifier-mcp/` — MCP server source code
-- `scripts/generate-verifier-prompt.sh` — prompt generator
-- `scripts/generate-test-assessor-prompt.sh` — assessor prompt generator
-- `scripts/fetch-completion-token.sh` — token retrieval mechanism
-- `scripts/setup-verifier-loop.sh` — VGL setup internals
-- `agents/*.md` — agent definitions (including your own)
-
-**Other agents' state:**
-- Any path containing `test-assessor` — tester's quality gate
-- `hooks/` — system hooks that control the VGL loop
-
-### ALLOWED — You SHOULD read:
-- Your task prompt: `.claude/plan/tasks/task-{id}.md`
-- Plan metadata: `.claude/plan/plan.yaml` (for task context, must_haves, dependencies)
-- Source code files you're implementing (src/, lib/, app/, etc.)
+Your working files are:
+- `.claude/plan/tasks/task-{id}.md` — your task prompt
+- `.claude/plan/plan.yaml` — task context, must_haves, dependencies
+- Source code: `src/`, `lib/`, `app/`, or wherever the project keeps implementation files
 - Test files written by the tester agent
-- Project config files (package.json, tsconfig.json, etc.)
+- Project config: `package.json`, `tsconfig.json`, etc.
 - Library documentation via Context7 MCP
 
-### WHY THIS MATTERS
-The verification system is designed so that you are evaluated on the QUALITY of your implementation, not on understanding the evaluation process. If you read the verifier prompt, you could write code that games the checks instead of being genuinely correct. The information barrier ensures honest evaluation.
+Do not read files outside this scope. In particular, `.claude/` state files, `.claude/plugins/`, `.claude/vgl-sessions/`, `gsd-vgl/`, `verifier-mcp/`, `scripts/`, `agents/`, `hooks/`, and `commands/` are infrastructure managed by the system and not relevant to your implementation work.
 
-</information_barrier>
+</scope>
