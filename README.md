@@ -6,35 +6,128 @@ A Claude Code plugin for spec-driven development with cryptographic verifier loo
 
 EvoGatekeeper orchestrates software projects through a structured pipeline where no task can be marked complete without passing independent verification:
 
-1. **Plan** (`/quest`) — Deep discovery + plan.yaml with phases, tasks, must_haves, TDD test specs, and per-task prompt files
-2. **Execute** (`/cross-team`) — TDD-first implementation with parallel opencode agents, wave-based dispatch, and session continuations
-3. **Verify** — Independent verifier in a fresh context checks tests, inspects code, and runs Playwright visual verification. A 128-bit cryptographic token is issued only on full pass
-4. **Transition** — Stop hook validates the token, marks the task complete, and auto-transitions to the next task
-5. **Iterate** — Failed verifications loop back through execution with evolutionary intelligence informing retry strategies
+1. **Plan** (`/quest`) -- Deep discovery + plan.yaml with phases, tasks, must_haves, TDD test specs, and per-task prompt files
+2. **Test** -- Tester agent researches the domain (WebSearch + Context7), writes comprehensive tests, passes `assess_tests` quality gate
+3. **Execute** (`/cross-team`) -- TDD-first implementation with parallel opencode agents, wave-based dispatch, and session continuations
+4. **Verify** -- Independent verifier in a fresh context checks tests, inspects code, and runs Playwright visual verification. A 128-bit cryptographic token is issued only on full pass
+5. **Transition** -- Stop hook validates the token, marks the task complete, and auto-transitions to the next task
+6. **Iterate** -- Failed verifications loop back through execution with evolutionary intelligence informing retry strategies
+
+## Prerequisites
+
+| Dependency | Minimum Version | Purpose |
+|------------|----------------|---------|
+| **Node.js** | >= 18.0.0 | MCP servers, hook scripts, installer |
+| **npm** | (bundled with Node) | Package management |
+| **Python 3** | >= 3.8 | Plan utilities, evolution engine, validation |
+| **git** | any recent | Cloning, submodules |
+| **jq** | any recent | JSON parsing in hook scripts |
+| **Claude Code** | latest | The CLI tool that runs the plugin |
+| **OpenCode** | latest | Agent dispatch for gsd-builder agents |
+
+### Check prerequisites
+
+```bash
+node --version    # >= 18.0.0
+python3 --version # >= 3.8
+git --version
+jq --version
+claude --version  # Claude Code CLI
+opencode version  # OpenCode CLI
+```
 
 ## Installation
 
-### From GitHub
-
-Add the marketplace and install the plugin:
+### Quick Install (automated)
 
 ```bash
-# Inside Claude Code
-/plugin marketplace add RhizomaticRobin/gsd-vgl
-/plugin install evogatekeeper@gsd-vgl
+git clone --recurse-submodules https://github.com/RhizomaticRobin/gsd-vgl.git
+cd gsd-vgl
+bash scripts/bootstrap.sh
 ```
 
-Or via the CLI outside of Claude Code:
+The bootstrap script checks prerequisites, builds both MCP servers, installs the plugin to Claude Code, and verifies the installation.
+
+### Manual Install (step by step)
+
+#### 1. Install Claude Code
+
+If Claude Code is not installed:
 
 ```bash
-claude plugin marketplace add RhizomaticRobin/gsd-vgl
-claude plugin install evogatekeeper@gsd-vgl --scope user
+# Via npm (recommended)
+npm install -g @anthropic-ai/claude-code
+
+# Verify
+claude --version
 ```
 
-### From a local directory
+See [Claude Code docs](https://docs.anthropic.com/en/docs/claude-code) for alternative installation methods.
+
+#### 2. Install OpenCode
+
+If OpenCode is not installed:
 
 ```bash
-# Inside Claude Code
+# Via the official installer
+curl -fsSL https://opencode.ai/install | bash
+
+# Verify
+opencode version
+```
+
+OpenCode installs to `~/.opencode/bin/`. Make sure it's on your PATH.
+
+#### 3. Clone the repository
+
+```bash
+git clone --recurse-submodules https://github.com/RhizomaticRobin/gsd-vgl.git
+cd gsd-vgl
+```
+
+If you already cloned without `--recurse-submodules`:
+
+```bash
+git submodule update --init --recursive
+```
+
+#### 4. Build the OpenCode MCP server
+
+```bash
+cd Better-OpenCodeMCP
+npm install --production=false
+npm run build
+cd ..
+```
+
+Verify: `ls Better-OpenCodeMCP/dist/index.js` should exist.
+
+#### 5. Build the Verifier MCP server
+
+```bash
+cd verifier-mcp
+npm install --production=false
+npm run build
+cd ..
+```
+
+Verify: `ls verifier-mcp/dist/index.js` should exist.
+
+#### 6. Build hook scripts
+
+```bash
+npm install
+npm run build:hooks
+```
+
+Verify: `ls hooks/dist/intel-index.js` should exist.
+
+#### 7. Install the plugin into Claude Code
+
+**Option A: Via the plugin system (recommended)**
+
+```bash
+# From inside Claude Code
 /plugin marketplace add /path/to/gsd-vgl
 /plugin install evogatekeeper@gsd-vgl
 ```
@@ -46,20 +139,57 @@ claude plugin marketplace add /path/to/gsd-vgl
 claude plugin install evogatekeeper@gsd-vgl --scope user
 ```
 
-Use `--scope project` to install for a specific project, or `--scope local` for project-local (gitignored).
+Use `--scope project` for a single project, or `--scope local` for project-local (gitignored).
 
-### Verify installation
+**Option B: Via the legacy npx installer**
 
-Restart Claude Code, then run `/mcp` to confirm both MCP servers are loaded:
+```bash
+# From the gsd-vgl directory
+node bin/install.js --global
+```
 
-- `plugin:evogatekeeper:opencode-mcp` — agent dispatch (`launch_opencode`, `wait_for_completion`, `opencode_sessions`)
-- `plugin:evogatekeeper:verifier-mcp` — verification (`verify_task`)
+This copies the plugin to `~/.claude/plugins/gsd-vgl/`, builds MCP servers, and makes scripts executable.
+
+**Option C: Via npm (from any directory)**
+
+```bash
+npx gsd-vgl --global
+```
+
+#### 8. Verify the installation
+
+Restart Claude Code (or start a new session), then:
+
+```bash
+# Check MCP servers are loaded
+/mcp
+```
+
+You should see:
+- `plugin:evogatekeeper:opencode-mcp` -- tools: `launch_opencode`, `wait_for_completion`, `opencode_sessions`
+- `plugin:evogatekeeper:verifier-mcp` -- tools: `verify_task`, `assess_tests`
+
+```bash
+# Check commands are available
+/gsd-vgl:help
+```
 
 ### Updating
 
-After making changes to the plugin source:
+After pulling new changes:
 
 ```bash
+cd gsd-vgl
+git pull --recurse-submodules
+
+# Rebuild MCP servers if source changed
+cd Better-OpenCodeMCP && npm install && npm run build && cd ..
+cd verifier-mcp && npm install && npm run build && cd ..
+
+# Rebuild hooks if changed
+npm run build:hooks
+
+# Update the installed plugin
 claude plugin update evogatekeeper@gsd-vgl
 ```
 
@@ -82,29 +212,34 @@ claude plugin disable evogatekeeper@gsd-vgl
 claude plugin enable evogatekeeper@gsd-vgl
 ```
 
-Both MCP servers (opencode-mcp and verifier-mcp) auto-install dependencies and auto-build on first launch — no manual setup needed.
-
 ## Architecture
 
 ```
 User
- └─ /cross-team → Lead Orchestrator (never writes code)
-      ├─ Spawns 1..N Executor agents (concurrent where file_scope allows)
-      │    └─ Each Executor (model: sonnet):
-      │         ├─ Writes all tests (TDD Red)
+ └─ /cross-team -> Lead Orchestrator (never writes code)
+      ├─ Phase 1: Spawn Tester agents (per task, concurrent)
+      │    └─ Each Tester (model: sonnet, HAS web access):
+      │         ├─ Researches domain via WebSearch + Context7
+      │         ├─ Writes comprehensive tests (TDD Red)
+      │         └─ Calls assess_tests(task_id) quality gate
+      │              └─ Test assessor agent (opus, read-only)
+      │                   └─ PASS -> TESTS_READY
+      │
+      ├─ Phase 2: Spawn Executor agents (per task with ready tests)
+      │    └─ Each Executor (model: sonnet, no web access):
+      │         ├─ Reads pre-written test files
       │         ├─ Dispatches gsd-builder opencode agents (1 per test, wave-based)
       │         │    ├─ Wave 1: fresh agents for independent tests (concurrent)
       │         │    └─ Wave 2+: session continuations for dependent tests
       │         ├─ Runs full test suite (TDD Green)
       │         └─ Calls verify_task(task_id) via verifier-mcp
-      │              └─ Verifier MCP internally loads prompt, spawns Claude Code
-      │                   └─ PASS → token → orchestrator validates → next task
+      │              └─ Verifier agent (opus, Playwright + tests)
+      │                   └─ PASS -> token -> orchestrator validates -> next task
+      │
       ├─ Validates completion tokens against .secret files
       ├─ Runs integration-checker at phase boundaries
       └─ Dispatches newly unblocked tasks
 ```
-
-All opencode agents use the **gsd-builder** agent profile — hardcoded server-side in the MCP server. No web access, no destructive operations, temperature 1.0, no step limit.
 
 ## Core Concepts
 
@@ -120,9 +255,21 @@ The executor cannot complete a task. Only the verifier can, and it operates in a
 
 The stop hook extracts the token from the transcript and validates it against `verifier-token.secret`. No match = loop continues.
 
+### Test Quality Gate (assess_tests)
+
+Before implementation begins, the tester agent's tests must pass an independent assessment:
+
+- Are tests internally consistent (no contradictions)?
+- Do they cover happy paths, error paths, edge cases, and boundaries?
+- Is every must_have represented by test assertions?
+- Are assertions meaningful (not trivial `expect(true)`)?
+- Is test data realistic (not "foo", "bar")?
+
+The assessor returns PASS/FAIL with specific issues. Tests are iteratively fixed until they pass.
+
 ### TDD-First with Wave Dispatch
 
-Every task follows: write tests first, then implement, then verify.
+Every task follows: write tests first (tester), then implement (executor), then verify.
 
 Implementation uses a **Test Dependency Graph** from the task prompt:
 
@@ -143,9 +290,20 @@ Implementation uses a **Test Dependency Graph** from the task prompt:
 
 Verification checks three levels derived from the project goal:
 
-- **Truths** — User-observable behaviors that must work ("User can log in and see dashboard")
-- **Artifacts** — Files with real implementation, not stubs ("src/auth/route.ts exports POST handler")
-- **Key Links** — Critical connections between components ("Login form POST /api/auth -> session cookie -> dashboard reads session")
+- **Truths** -- User-observable behaviors that must work ("User can log in and see dashboard")
+- **Artifacts** -- Files with real implementation, not stubs ("src/auth/route.ts exports POST handler")
+- **Key Links** -- Critical connections between components ("Login form POST /api/auth -> session cookie -> dashboard reads session")
+
+### Security Model
+
+Agent access is restricted through multiple layers:
+
+- **Scope guards** (`guard-scope.sh`) -- PreToolUse hook blocks Read/Bash/Grep/Glob access to infrastructure files (tokens, prompts, plugin source, agent definitions) during VGL execution
+- **Plan lock** (`guard-plan.sh`) -- PreToolUse hook blocks Write/Edit to plan.yaml and task files once execution starts. Unlocked on completion or `/run-away`
+- **Orchestrator guard** (`guard-orchestrator.sh`) -- Blocks Write/Edit/WebFetch/WebSearch for the lead orchestrator during team mode
+- **Token-at-call-time** -- Cryptographic tokens are generated inside the MCP tool handler at invocation, not at setup. Agents cannot pre-read secret files
+- **Token validation** -- `plan_utils.py --complete-task` requires a valid token to mark tasks done
+- **Prompt opacity** -- Verifier/assessor prompts are loaded by MCP tools internally; calling agents never see them
 
 ### Integration Checkpoints
 
@@ -155,13 +313,11 @@ Phases in plan.yaml can set `integration_check: true`. When the last task in suc
 
 EvoGatekeeper uses an evolutionary approach to improve execution strategies across iterations and tasks:
 
-- **MAP-Elites Population Database** (`evo_db.py`) — Stores diverse approaches in a multi-dimensional grid indexed by island and behavioral descriptors. Each cell holds the best-performing strategy for that niche, preserving diversity rather than converging on a single optimum.
-- **Island-Based Parallel Exploration** — On retry iterations with sufficient population (>= 3 approaches), the executor samples strategies from different islands and spawns parallel opencode agents, each following a distinct approach. This explores the solution space broadly before committing.
-- **Cascade Evaluation** (`evo_eval.py`) — Each attempt is evaluated on multiple dimensions (test pass rate, duration, complexity) and stored back into the population. Failed approaches inform future exploration; successful ones are refined.
-- **Evolutionary Prompt Construction** (`evo_prompt.py`) — Builds context-aware prompts from the population, surfacing the best strategies and common failure patterns from prior iterations to guide the next attempt.
-- **Cross-Task Pollination** (`evo_pollinator.py`) — When a new task begins, successful strategies from similar completed tasks are migrated into its population, giving it a head start based on what worked elsewhere in the project.
-
-This replaces static heuristics with a system that learns and adapts from actual execution outcomes.
+- **MAP-Elites Population Database** (`evo_db.py`) -- Stores diverse approaches in a multi-dimensional grid indexed by island and behavioral descriptors
+- **Island-Based Parallel Exploration** -- On retry iterations with sufficient population (>= 3 approaches), the executor samples strategies from different islands and spawns parallel agents
+- **Cascade Evaluation** (`evo_eval.py`) -- Each attempt is evaluated on multiple dimensions (test pass rate, duration, complexity)
+- **Evolutionary Prompt Construction** (`evo_prompt.py`) -- Builds context-aware prompts from the population, surfacing best strategies and common failure patterns
+- **Cross-Task Pollination** (`evo_pollinator.py`) -- Successful strategies from similar completed tasks are migrated into new task populations
 
 ### Plan Format
 
@@ -205,7 +361,7 @@ phases:
 
 | Command | Description |
 |---------|-------------|
-| `/quest` | Plan a project — 6-phase discovery that generates plan.yaml + task prompt files |
+| `/quest` | Plan a project -- 6-phase discovery that generates plan.yaml + task prompt files |
 | `/cross-team` | Execute tasks with TDD + VGL (single-task or parallel team orchestration) |
 | `/bridge` | Standalone VGL for ad-hoc tasks outside a plan |
 | `/research` | Domain research before planning (parallel researcher agents) |
@@ -219,149 +375,182 @@ phases:
 
 ## Agents
 
-All agents run on model: sonnet with restricted tool access.
-
-| Agent | Role | Disallowed Tools |
-|-------|------|------------------|
-| `planner` | Creates plan.yaml + task-{id}.md with must_haves, wave assignments, TDD specs | Edit, WebSearch, Task |
-| `executor` | TDD-first execution: writes tests, dispatches opencode agents, runs suite, spawns verifier | WebFetch, WebSearch |
-| `verifier` | Independent verification with cryptographic token — tests, code inspection, Playwright | Write, Edit, WebFetch, WebSearch, Task |
-| `plan-checker` | Pre-execution plan quality gate (6 verification dimensions) | Write, Edit, WebFetch, WebSearch, Task |
-| `integration-checker` | Cross-phase wiring verification at phase boundaries | Write, Edit, WebFetch, WebSearch, Task |
-| `project-researcher` | Domain research — tech stacks, patterns, pitfalls | Write, Edit, Task |
-| `phase-researcher` | Phase-specific technical deep dives — APIs, libraries, integration points | Write, Edit, Task |
-| `codebase-mapper` | Brownfield codebase analysis (7 dimensions) | Write, Edit, WebFetch, WebSearch, Task |
-| `debugger` | Scientific method debugging with persistent state | WebFetch, WebSearch, Task |
+| Agent | Role | Model | Key Tools |
+|-------|------|-------|-----------|
+| `tester` | Writes comprehensive tests, calls `assess_tests` quality gate | sonnet | WebSearch, WebFetch, Context7 |
+| `executor` | TDD-first execution: dispatches opencode agents, runs suite, calls `verify_task` | sonnet | opencode MCP, Context7 |
+| `verifier` | Independent verification with cryptographic token -- tests, code inspection, Playwright | opus | Playwright, Bash (read-only) |
+| `planner` | Creates plan.yaml + task-{id}.md with must_haves, wave assignments, TDD specs | sonnet | Read, Write, Bash |
+| `plan-checker` | Pre-execution plan quality gate (6 verification dimensions) | sonnet | Read, Bash, Grep, Glob |
+| `integration-checker` | Cross-phase wiring verification at phase boundaries | sonnet | Read, Bash, Grep, Glob |
+| `project-researcher` | Domain research -- tech stacks, patterns, pitfalls | sonnet | WebSearch, WebFetch |
+| `phase-researcher` | Phase-specific technical deep dives -- APIs, libraries, integration points | sonnet | WebSearch, WebFetch |
+| `codebase-mapper` | Brownfield codebase analysis (7 dimensions) | sonnet | Read, Bash, Grep, Glob |
+| `debugger` | Scientific method debugging with persistent state | sonnet | Read, Write, Edit, Bash |
 
 ### gsd-builder (opencode agent)
 
-The opencode MCP server hardcodes all spawned agents to use the `gsd-builder` profile defined in `templates/opencode.json`:
+The opencode MCP server spawns agents using the `gsd-builder` profile defined in `templates/opencode.json`:
 
 - No web access (websearch/webfetch disabled)
-- **Context7 MCP server** for library documentation research (see below)
-- Research-first `prompt` — agents must look up APIs via Context7 before implementing
+- **Context7 MCP server** for library documentation research
+- Research-first prompt -- agents must look up APIs via Context7 before implementing
 - Bash (ask permission), Edit/Write (allowed)
 - Temperature 1.0, no step limit
-- 10-minute timeout per `wait_for_completion()` call
 
 #### How Context7 MCP gets to opencode agents
 
 ```
 templates/opencode.json          Canonical config (checked into gsd-vgl repo)
-       │
-       ▼ (copied at setup time by cross-team-setup.sh / setup-verifier-loop.sh)
+       |
+       v (copied at setup time by cross-team-setup.sh / setup-verifier-loop.sh)
 <project>/opencode.json          Deployed to project root
-       │
-       ▼ (opencode reads from cwd on spawn)
-opencode run --agent gsd-builder  Spawned by Better-OpenCodeMCP (opencode.tool.ts)
-       │
-       ▼ (opencode loads "mcp" section from opencode.json)
+       |
+       v (opencode reads from cwd on spawn)
+opencode run --agent gsd-builder  Spawned by Better-OpenCodeMCP
+       |
+       v (opencode loads "mcp" section from opencode.json)
 Context7 MCP server started       npx -y @upstash/context7-mcp
-       │
-       ▼ (tools available to agent)
+       |
+       v (tools available to agent)
 resolve-library-id, query-docs    Agent can research any library docs
 ```
-
-**Deployment flow:**
-
-1. `templates/opencode.json` defines both the `gsd-builder` agent profile and the `mcp.context7` server
-2. During VGL setup (`cross-team-setup.sh` or `setup-verifier-loop.sh`), the template is copied to the project root as `opencode.json` — but only if one doesn't already exist with a `gsd-builder` agent
-3. When the executor spawns an opencode agent via `launch_opencode()`, the Better-OpenCodeMCP server calls `opencode run --format json -m <model> --agent gsd-builder "<prompt>"`
-4. OpenCode reads `opencode.json` from its working directory (the project root), loads the `mcp` section, and starts the Context7 MCP server as a subprocess
-5. The agent's `prompt` field instructs it to use `resolve-library-id` then `query-docs` before implementing
-
-**Key files:**
-
-| File | Role |
-|------|------|
-| `templates/opencode.json` | Canonical source — edit this, not deployed copies |
-| `scripts/cross-team-setup.sh` (L40-48) | Deploys template to project root |
-| `scripts/setup-verifier-loop.sh` (L18-27) | Same deployment for single-task mode |
-| `Better-OpenCodeMCP/src/tools/opencode.tool.ts` (L68-100) | Spawns `opencode run` from project cwd |
-| `Better-OpenCodeMCP/src/constants.ts` (L58) | OpenCode binary path |
 
 ## Hooks
 
 | Hook | Event | Purpose |
 |------|-------|---------|
-| `stop-hook.sh` | Stop | Prevents exit during VGL. Validates token, auto-transitions to next task, injects integration check instructions at phase boundaries |
-| `guard-skills.sh` | PreToolUse/Skill | Blocks plan-modifying commands during active VGL |
-| `post-cross.sh` | PostToolUse/Skill | Shows next task in pipeline after /cross-team |
-| `intel-index.js` | PostToolUse/Write,Edit | Indexes file exports/imports for codebase intelligence (bundled with sql.js) |
+| `stop-hook.sh` | Stop | Prevents exit during VGL. Validates token, auto-transitions to next task |
+| `guard-scope.sh` | PreToolUse: Read, Bash, Grep, Glob | Blocks agent access to infrastructure files during VGL |
+| `guard-plan.sh` | PreToolUse: Write, Edit | Locks plan.yaml and task files during execution |
+| `guard-orchestrator.sh` | PreToolUse: Write, Edit, WebFetch, WebSearch | Blocks code-writing by the lead orchestrator in team mode |
+| `guard-skills.sh` | PreToolUse: Skill | Blocks plan-modifying commands during active VGL |
+| `post-cross.sh` | PostToolUse: Skill | Shows next task in pipeline after /cross-team |
+| `intel-index.js` | PostToolUse: Write, Edit | Indexes file exports/imports for codebase intelligence |
+
+## MCP Servers
+
+### opencode-mcp (`plugin:evogatekeeper:opencode-mcp`)
+
+Agent dispatch via the OpenCode CLI. Source: `Better-OpenCodeMCP/`.
+
+| Tool | Purpose |
+|------|---------|
+| `launch_opencode(task="...")` | Spawn a fresh gsd-builder agent |
+| `launch_opencode(sessionId="...", task="...")` | Continue an existing agent's session |
+| `launch_opencode(tasks=[...])` | Batch-launch multiple agents |
+| `wait_for_completion(taskIds=[...])` | Block until agents finish |
+| `opencode_sessions(status="active")` | Check running agents |
+
+### verifier-mcp (`plugin:evogatekeeper:verifier-mcp`)
+
+Verification and test assessment. Source: `verifier-mcp/`.
+
+| Tool | Purpose |
+|------|---------|
+| `verify_task(task_id)` | Spawn independent verifier agent, returns PASS/FAIL with token |
+| `assess_tests(task_id)` | Spawn independent test assessor, returns PASS/FAIL with issues |
+
+Both MCP servers auto-install dependencies and auto-build on first launch via their launcher scripts in `bin/`.
 
 ## Project Structure
 
 ```
 gsd-vgl/
 ├── .claude-plugin/
-│   ├── plugin.json                  Plugin manifest + MCP server declaration
+│   ├── plugin.json                  Plugin manifest + MCP server declarations
 │   └── marketplace.json             Self-contained marketplace definition
 ├── .gitmodules                      Submodule reference
 ├── package.json                     npm package config (v1.0.0)
-├── Better-OpenCodeMCP/              Submodule — opencode MCP server
+├── Better-OpenCodeMCP/              Submodule -- opencode MCP server
 │   └── dist/index.js                Built MCP entry point
-├── verifier-mcp/                    Verifier MCP server (verify_task only)
+├── verifier-mcp/                    Verifier MCP server (verify_task + assess_tests)
 │   ├── src/
-│   │   ├── server.ts                Single-tool MCP server (verify_task)
+│   │   ├── server.ts                Two-tool MCP server
 │   │   ├── index.ts                 Entry point with stdio transport
-│   │   └── tools/verify-task.ts     Task verification via Claude Agent SDK
+│   │   └── tools/
+│   │       ├── verify-task.ts       Task verification via Claude Agent SDK
+│   │       └── assess-tests.ts      Test quality assessment via Claude Agent SDK
 │   └── dist/index.js                Built MCP entry point
-├── agents/                          9 agent definitions (.md with frontmatter)
+├── agents/                          10 agent definitions (.md with frontmatter)
 ├── bin/
-│   ├── install.js                   Legacy installer (npx fallback)
-│   ├── opencode-mcp.sh              OpenCode MCP launcher (auto-builds)
-│   └── verifier-mcp.sh              Verifier MCP launcher (auto-builds)
-├── commands/                        14 slash commands
+│   ├── install.js                   Plugin installer (npx gsd-vgl)
+│   ├── install-lib.js               Installer library (copy, verify, setup)
+│   ├── opencode-mcp.sh              OpenCode MCP launcher (auto-clone/build)
+│   └── verifier-mcp.sh              Verifier MCP launcher (auto-build)
+├── commands/                        11 slash commands
 ├── hooks/
 │   ├── hooks.json                   Hook event registration
 │   ├── stop-hook.sh                 VGL loop control + auto-transition
+│   ├── guard-scope.sh               File access restriction during VGL
+│   ├── guard-plan.sh                Plan file lock during execution
+│   ├── guard-orchestrator.sh        Orchestrator write restriction
 │   ├── guard-skills.sh              Skill blocker during VGL
 │   ├── post-cross.sh                Post-execution info
-│   └── intel-index.js               Codebase intelligence indexer
+│   ├── intel-index.js               Codebase intelligence indexer (source)
+│   └── dist/intel-index.js          Bundled indexer (built via esbuild)
 ├── scripts/
-│   ├── setup-verifier-loop.sh       Initialize VGL state + token
+│   ├── bootstrap.sh                 Full installation script
+│   ├── setup-verifier-loop.sh       Initialize VGL state
 │   ├── generate-verifier-prompt.sh  Build immutable verifier prompt
+│   ├── generate-test-assessor-prompt.sh  Build test assessor prompt
 │   ├── fetch-completion-token.sh    Independent test execution for token
 │   ├── transition-task.sh           Mark complete + find next task
 │   ├── cross-team-setup.sh          Plan validation + task dispatch setup
+│   ├── single-task-setup.sh         Single-task VGL setup
 │   ├── validate-plan.py             Plan.yaml structural validation
 │   ├── plan_utils.py                Shared plan utilities (load, save, find, sort)
-│   ├── next-task.py                 Find next unblocked task
 │   ├── get-unblocked-tasks.py       Find all unblocked tasks
 │   ├── check-file-conflicts.py      Detect file scope overlaps
+│   ├── next-task.py                 Find next unblocked task
 │   ├── parse-args.py                Argument parser for /bridge
 │   ├── build-hooks.js               esbuild bundler for hook scripts
 │   ├── evo_db.py                    MAP-Elites population database
-│   ├── evo_eval.py                  Cascade evaluation (test pass rate, duration, complexity)
-│   ├── evo_prompt.py                Evolutionary prompt construction from population
+│   ├── evo_eval.py                  Cascade evaluation
+│   ├── evo_prompt.py                Evolutionary prompt construction
 │   ├── evo_pollinator.py            Cross-task strategy pollination
+│   ├── resilience.py                Circuit breaker / stuck detection
+│   ├── run_history.py               Execution history tracking
+│   ├── onboarding.sh                First-run onboarding
 │   └── team-orchestrator-prompt.md  Lead orchestrator template
 ├── templates/
 │   ├── opencode.json                gsd-builder agent + Context7 MCP config
 │   ├── task-prompt.md               task-{id}.md template
 │   ├── plan-summary.md              Plan summary template
 │   └── codebase/                    7-dimension codebase analysis templates
-├── references/
-│   ├── tdd-opencode-workflow.md     TDD + concurrent execution reference
-│   ├── verification-patterns.md     Artifact verification strategies
-│   ├── model-profiles.md            Model selection & routing
-│   └── git-integration.md           Git commit strategy
-└── workflows/
-    ├── discovery-phase.md           Discovery phase workflow
-    ├── execute-phase.md             Execution phase workflow
-    └── verify-phase.md              Verification phase workflow
+├── references/                      Workflow reference docs
+└── workflows/                       Phase workflow definitions
 ```
 
-## Verification Immutability
+## Troubleshooting
 
-The verifier cannot be tricked or bypassed:
+### MCP servers not showing in `/mcp`
 
-1. **128-bit token** in `verifier-token.secret` (chmod 600) — executor never sees it
-2. **SHA-256 integrity** — test command is base64-encoded with hash; tampering is detected
-3. **Guard hook** — blocks plan-modifying commands during active VGL
-4. **Prompt opacity** — verifier spawned via `verify_task()` MCP tool; executor never sees or touches the verifier prompt
-5. **Independent execution** — `fetch-completion-token.sh` runs tests in a fresh subprocess
-6. **Stub detection** — grep for TODO/FIXME/placeholder patterns in implementation files
+1. Restart Claude Code after installing the plugin
+2. Check that both MCP server launchers are executable: `chmod +x bin/opencode-mcp.sh bin/verifier-mcp.sh`
+3. Check that `plugin.json` declares both servers under `mcpServers`
+4. Run the launchers manually to check for errors: `bash bin/verifier-mcp.sh`
+
+### opencode agents fail to spawn
+
+1. Verify opencode is installed: `opencode version`
+2. Check that `opencode.json` exists in your project root (deployed automatically by cross-team setup)
+3. Check the opencode binary path in `Better-OpenCodeMCP/src/constants.ts`
+
+### Hook errors
+
+1. Hooks require `jq` for JSON parsing: `jq --version`
+2. All `.sh` files must be executable: `find . -name "*.sh" -exec chmod +x {} \;`
+3. Check hook debug log: `cat /tmp/gsd-vgl-stop-hook.debug.log`
+
+### Build failures
+
+```bash
+# Rebuild everything from scratch
+cd Better-OpenCodeMCP && rm -rf node_modules dist && npm install && npm run build && cd ..
+cd verifier-mcp && rm -rf node_modules dist && npm install && npm run build && cd ..
+npm install && npm run build:hooks
+```
 
 ## License
 
