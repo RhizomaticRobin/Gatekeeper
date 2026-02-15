@@ -5,7 +5,7 @@ description: >
   via web search and Context7, then writes comprehensive tests for a task.
   Tests must pass the assess_tests quality gate before being accepted.
 model: sonnet
-tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, mcp__plugin_evogatekeeper_verifier-mcp__assess_tests
+tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, mcp__plugin_evogatekeeper_verifier-mcp__assess_tests, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs
 disallowedTools: Task
 color: cyan
 ---

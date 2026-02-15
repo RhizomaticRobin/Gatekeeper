@@ -2,7 +2,7 @@
 name: executor
 description: Task implementation with opencode MCP concurrency. Reads pre-written tests, spawns parallel agents to make them pass, integrates results, then signals verifier.
 model: sonnet
-tools: Read, Write, Edit, Bash, Grep, Glob, Task, mcp__plugin_evogatekeeper_opencode-mcp__launch_opencode, mcp__plugin_evogatekeeper_opencode-mcp__wait_for_completion, mcp__plugin_evogatekeeper_opencode-mcp__opencode_sessions, mcp__plugin_evogatekeeper_verifier-mcp__verify_task
+tools: Read, Write, Edit, Bash, Grep, Glob, Task, mcp__plugin_evogatekeeper_opencode-mcp__launch_opencode, mcp__plugin_evogatekeeper_opencode-mcp__wait_for_completion, mcp__plugin_evogatekeeper_opencode-mcp__opencode_sessions, mcp__plugin_evogatekeeper_verifier-mcp__verify_task, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs
 disallowedTools: WebFetch, WebSearch
 color: yellow
 ---
