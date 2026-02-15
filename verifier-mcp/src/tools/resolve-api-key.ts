@@ -1,14 +1,17 @@
 /**
- * Resolve an Anthropic API key for the Agent SDK's query() function.
+ * Build the env object for query() options.
  *
- * Priority:
- * 1. ANTHROPIC_API_KEY env var (explicit API key)
- * 2. CONTAINER_API_KEY env var (container/managed environments)
- * 3. OAuth access token from ~/.claude/.credentials.json (subscription users on bare metal)
+ * The Agent SDK's query() spawns a separate Claude Code subprocess.
+ * The subprocess needs its own API authentication — it can't inherit the
+ * parent's managed/subscription auth in container environments.
  *
- * The Claude Agent SDK's query() spawns a separate Claude Code subprocess
- * that needs an API key to authenticate. Subscription (OAuth) auth doesn't
- * automatically propagate to these subprocesses.
+ * Auth resolution chain:
+ *   1. ANTHROPIC_API_KEY already in env → use as-is
+ *   2. ~/.claude/.credentials.json OAuth token → inject as ANTHROPIC_API_KEY
+ *   3. Fall through — subprocess handles auth on its own
+ *
+ * The credentials file is created by the cc-setup installer with an OAuth
+ * token (sk-ant-oat01-...) that works as both a Bearer token and API key.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -22,107 +25,52 @@ interface ClaudeCredentials {
   };
 }
 
-export interface ResolvedApiKey {
-  key: string;
-  source: "env" | "container" | "oauth";
-}
-
-// Diagnostic info collected during resolution (for error messages)
-let lastDiag = "";
-
 /**
- * Attempt to resolve an API key from env, container key, or OAuth credentials.
- * Returns the key and its source, or null if no key could be found.
- */
-export function resolveApiKey(): ResolvedApiKey | null {
-  const diag: string[] = [];
-
-  // 1. ANTHROPIC_API_KEY env var (explicit)
-  if (process.env.ANTHROPIC_API_KEY) {
-    return { key: process.env.ANTHROPIC_API_KEY, source: "env" };
-  }
-  diag.push("ANTHROPIC_API_KEY: not set");
-
-  // 2. CONTAINER_API_KEY (container/managed environments like Claude.ai sandbox)
-  if (process.env.CONTAINER_API_KEY) {
-    return { key: process.env.CONTAINER_API_KEY, source: "container" };
-  }
-  diag.push("CONTAINER_API_KEY: not set");
-
-  // 3. OAuth credentials from Claude Code's credential store (bare metal)
-  const home = os.homedir();
-  const credPath = path.join(home, ".claude", ".credentials.json");
-
-  try {
-    if (!fs.existsSync(credPath)) {
-      diag.push(`${credPath}: not found`);
-      lastDiag = diag.join("\n");
-      return null;
-    }
-
-    const raw = fs.readFileSync(credPath, "utf-8");
-    const creds: ClaudeCredentials = JSON.parse(raw);
-    const oauth = creds.claudeAiOauth;
-
-    if (!oauth?.accessToken) {
-      diag.push(`${credPath}: no accessToken`);
-      lastDiag = diag.join("\n");
-      return null;
-    }
-
-    // Check if token is expired (with 60s buffer)
-    if (oauth.expiresAt) {
-      const nowMs = Date.now();
-      if (oauth.expiresAt < nowMs + 60_000) {
-        diag.push(`${credPath}: token expired`);
-        lastDiag = diag.join("\n");
-        return null;
-      }
-    }
-
-    return { key: oauth.accessToken, source: "oauth" };
-  } catch (err: unknown) {
-    diag.push(`${credPath}: ${err instanceof Error ? err.message : String(err)}`);
-    lastDiag = diag.join("\n");
-    return null;
-  }
-}
-
-/**
- * Build the env object for query() options.
- * Injects ANTHROPIC_API_KEY if not already set.
+ * Build env for the query() subprocess.
+ * Tries multiple auth strategies in order of preference.
  */
 export function buildQueryEnv(): Record<string, string | undefined> {
   const env = { ...process.env };
 
-  if (!env.ANTHROPIC_API_KEY) {
-    const resolved = resolveApiKey();
-    if (resolved) {
-      env.ANTHROPIC_API_KEY = resolved.key;
-    }
+  // Remove CLAUDECODE to prevent "nested session" detection.
+  // The Agent SDK spawns `claude` as a subprocess — if CLAUDECODE=1 is inherited,
+  // the subprocess refuses to start ("cannot be launched inside another session").
+  delete env.CLAUDECODE;
+
+  // Strategy 1: ANTHROPIC_API_KEY already set → use as-is
+  if (env.ANTHROPIC_API_KEY) {
+    return env;
   }
 
-  return env;
-}
+  // Strategy 2: OAuth token from credentials file
+  // Written by cc-setup/install.sh or `claude /login`
+  try {
+    const credPath = path.join(os.homedir(), ".claude", ".credentials.json");
+    if (fs.existsSync(credPath)) {
+      const raw = fs.readFileSync(credPath, "utf-8");
+      const creds: ClaudeCredentials = JSON.parse(raw);
+      const oauth = creds.claudeAiOauth;
 
-/**
- * Format an error message when no API key could be resolved.
- */
-export function noApiKeyError(): string {
-  return [
-    "No Anthropic API key available. The Agent SDK needs authentication to spawn",
-    "independent verification agents.",
-    "",
-    "Tried:",
-    "  1. ANTHROPIC_API_KEY env var — not set",
-    "  2. CONTAINER_API_KEY env var — not set",
-    "  3. ~/.claude/.credentials.json — no valid OAuth token found",
-    "",
-    "Diagnostics:",
-    lastDiag || "  (none)",
-    "",
-    "To fix (pick one):",
-    "  • Set ANTHROPIC_API_KEY=sk-ant-... before starting Claude Code",
-    "  • Log in to Claude Code (OAuth token read automatically on bare metal)",
-  ].join("\n");
+      if (oauth?.accessToken) {
+        // Check expiry if present (skip check if no expiresAt)
+        if (oauth.expiresAt) {
+          const nowMs = Date.now();
+          if (oauth.expiresAt <= nowMs + 60_000) {
+            // Token expired — fall through
+            return env;
+          }
+        }
+        // Inject OAuth token AND route through model-proxy
+        // The proxy will handle opus → Anthropic, non-opus → CCR → z.ai
+        env.ANTHROPIC_API_KEY = oauth.accessToken;
+        env.ANTHROPIC_BASE_URL = "http://127.0.0.1:3457";
+        return env;
+      }
+    }
+  } catch {
+    // Can't read credentials — fall through
+  }
+
+  // Strategy 3: Fall through — subprocess handles auth on its own
+  return env;
 }

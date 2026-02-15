@@ -13,7 +13,7 @@ import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { resolveApiKey, buildQueryEnv, noApiKeyError } from "./resolve-api-key.js";
+import { buildQueryEnv } from "./resolve-api-key.js";
 
 export interface VerifyTaskInput {
   task_id: string;
@@ -33,18 +33,6 @@ export async function executeVerifyTask(
   serverCwd: string
 ): Promise<VerifyTaskResult> {
   const startTime = Date.now();
-
-  // Pre-flight: Resolve API key from env or OAuth credentials.
-  // The Agent SDK's query() needs a key to spawn Claude Code subprocesses.
-  const apiKey = resolveApiKey();
-  if (!apiKey) {
-    return {
-      task_id: input.task_id,
-      status: "ERROR",
-      details: noApiKeyError(),
-      durationMs: Date.now() - startTime,
-    };
-  }
 
   const planFile = input.plan_file
     ? path.resolve(serverCwd, input.plan_file)
@@ -184,7 +172,9 @@ export async function executeVerifyTask(
         args: ["@playwright/mcp"],
       },
     } as Options["mcpServers"],
-    settingSources: [],
+    // Let subprocess load user-level settings (including auth/login state).
+    // Empty array would block auth in managed environments.
+    settingSources: ["user"],
   };
 
   let resultText = "";
