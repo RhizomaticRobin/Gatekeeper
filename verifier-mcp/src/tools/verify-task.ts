@@ -1,11 +1,16 @@
 /**
  * verify_task tool - Spawn a verifier agent for a specific task
  *
- * Security: The executor never sees or touches the verifier prompt.
- * It just calls verify_task(task_id) and the MCP server handles everything.
+ * Security model:
+ * - Token is generated at call time (NOT at setup time)
+ * - Token file is written just before spawning the verifier (fetch-completion-token.sh needs it)
+ * - Token file did NOT exist before this MCP tool was called
+ * - This prevents executor agents from reading the secret file before calling verify_task
+ * - The executor never sees or touches the verifier prompt.
  */
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -99,7 +104,44 @@ export async function executeVerifyTask(
     };
   }
 
-  // 4. Spawn Claude Code via query() with locked-down config
+  // 4. Generate one-time token and write token file just before spawning
+  // Token file did NOT exist before this call — agents can't pre-read it
+  const token = `VGL_COMPLETE_${crypto.randomBytes(16).toString("hex")}`;
+  const tokenFilePath = path.join(sessionDir, "verifier-token.secret");
+
+  // Read existing test command data if present (from setup), otherwise create minimal file
+  let testCmdB64 = "";
+  let testCmdHash = "";
+  if (fs.existsSync(tokenFilePath)) {
+    // If file exists from a previous verify_task call, read test command data
+    try {
+      const existing = fs.readFileSync(tokenFilePath, "utf-8");
+      const b64Line = existing.split("\n").find(l => l.startsWith("TEST_CMD_B64:"));
+      const hashLine = existing.split("\n").find(l => l.startsWith("TEST_CMD_HASH:"));
+      if (b64Line) testCmdB64 = b64Line.replace("TEST_CMD_B64:", "");
+      if (hashLine) testCmdHash = hashLine.replace("TEST_CMD_HASH:", "");
+    } catch {
+      // ignore read errors
+    }
+  }
+
+  // Write fresh token file (fetch-completion-token.sh reads this)
+  try {
+    let tokenFileContent = token + "\n";
+    if (testCmdB64 && testCmdHash) {
+      tokenFileContent += `TEST_CMD_B64:${testCmdB64}\nTEST_CMD_HASH:${testCmdHash}\n`;
+    }
+    fs.writeFileSync(tokenFilePath, tokenFileContent, { mode: 0o600 });
+  } catch (err: unknown) {
+    return {
+      task_id: input.task_id,
+      status: "ERROR",
+      details: `Failed to write token file: ${err instanceof Error ? err.message : String(err)}`,
+      durationMs: Date.now() - startTime,
+    };
+  }
+
+  // 5. Spawn Claude Code via query() with locked-down config
   const options: Partial<Options> = {
     cwd: projectRoot,
     allowedTools: [
@@ -151,6 +193,8 @@ export async function executeVerifyTask(
       }
     }
   } catch (err: unknown) {
+    // Clean up token file on crash
+    try { fs.unlinkSync(tokenFilePath); } catch { /* ignore */ }
     return {
       task_id: input.task_id,
       status: "ERROR",
@@ -160,6 +204,8 @@ export async function executeVerifyTask(
   }
 
   if (isError || !resultText) {
+    // Clean up token file on FAIL — must not be readable after failure
+    try { fs.unlinkSync(tokenFilePath); } catch { /* ignore */ }
     return {
       task_id: input.task_id,
       status: "FAIL",
@@ -168,20 +214,22 @@ export async function executeVerifyTask(
     };
   }
 
-  // 5. Parse result for PASS/FAIL + token
-  // Token format: VGL_COMPLETE_<32 hex chars> (128-bit entropy)
-  const passMatch = resultText.match(
-    /VGL_COMPLETE_([a-f0-9]{32})/
-  );
+  // 6. Parse result for PASS/FAIL + validate token
+  // The verifier gets the token via fetch-completion-token.sh (which reads the file we wrote)
+  const passMatch = resultText.includes(token);
   if (passMatch) {
+    // Token file stays on PASS — orchestrator reads it to validate
     return {
       task_id: input.task_id,
       status: "PASS",
-      token: passMatch[0], // Full token including VGL_COMPLETE_ prefix
+      token,
       details: resultText,
       durationMs: Date.now() - startTime,
     };
   }
+
+  // Not PASS — clean up token file so agents can't read it
+  try { fs.unlinkSync(tokenFilePath); } catch { /* ignore */ }
 
   // Check for explicit FAIL/denial markers
   const failMatch = resultText.match(/VERIFICATION_FAILED|TOKEN.DENIED|TESTS_FAILED|<verification-complete>\s*FAIL/i);

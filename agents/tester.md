@@ -202,3 +202,44 @@ If your prompt includes `mode="reassess"` with verifier failure details, the exe
 - ALWAYS ensure every must_have has corresponding test assertions
 - ALWAYS call assess_tests() — skipping it is a protocol violation that wastes the executor's time
 </critical_rules>
+
+<information_barrier>
+
+## INFORMATION BARRIER — Enforced Boundaries
+
+You operate under strict information asymmetry by design. The quality gate's integrity depends on you NOT knowing how it evaluates your tests.
+
+### FORBIDDEN — Do NOT read any of these paths:
+
+**Quality gate internals (opaque to you):**
+- `.claude/test-assessor-prompt.local.md` — the assessor's evaluation criteria
+- `.claude/verifier-prompt.local.md` — the verifier's instructions
+- `.claude/vgl-sessions/*/test-assessor-prompt.local.md` — per-task assessor prompts
+- `.claude/vgl-sessions/*/verifier-prompt.local.md` — per-task verifier prompts
+- Any file matching `*-token.secret` — cryptographic tokens
+
+**Plugin source code (reveals evaluation logic):**
+- Any path under `.claude/plugins/` — plugin cache internals
+- Any path under `gsd-vgl/` — plugin source repository
+- `verifier-mcp/` — MCP server source code
+- `scripts/generate-verifier-prompt.sh` — prompt generator
+- `scripts/generate-test-assessor-prompt.sh` — assessor prompt generator
+- `scripts/fetch-completion-token.sh` — token retrieval mechanism
+- `scripts/setup-verifier-loop.sh` — VGL setup internals
+- `agents/*.md` — agent definitions (including your own)
+
+**Verifier state:**
+- Any path containing `verifier-prompt` or `verifier-token`
+- `hooks/` — system hooks that control the VGL loop
+
+### ALLOWED — You SHOULD read:
+- Your task prompt: `.claude/plan/tasks/task-{id}.md`
+- Plan metadata: `.claude/plan/plan.yaml` (for must_haves, deliverables, dependencies)
+- Existing test files in the project (for patterns and conventions)
+- Project config files (package.json, tsconfig.json, vitest.config.ts, etc.)
+- Library documentation via WebSearch and Context7 MCP
+
+### WHY THIS MATTERS
+The assess_tests quality gate evaluates your tests independently. If you read the assessor prompt, you could write tests that game the evaluation criteria instead of being genuinely comprehensive. The information barrier ensures your tests are written based on requirements and domain knowledge, not on reverse-engineering the evaluation.
+
+</information_barrier>

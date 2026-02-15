@@ -1,14 +1,15 @@
 /**
  * assess_tests tool - Spawn a test quality assessor agent for a specific task
  *
- * Architecturally identical to verify_task but focused on test quality rather
- * than implementation quality. No cryptographic token — returns simple PASS/FAIL.
- *
- * Security: The tester agent never sees the assessment prompt directly.
- * It calls assess_tests(task_id) and the MCP server handles everything.
+ * Security model:
+ * - Token is generated at call time (NOT at setup time)
+ * - Token is injected into the prompt, never stored in a file before assessment
+ * - Token file is written ONLY after the assessor returns PASS
+ * - This prevents agents from reading the secret file before calling assess_tests
  */
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -106,7 +107,25 @@ export async function executeAssessTests(
     };
   }
 
-  // 4. Spawn Claude Code via query() with locked-down config
+  // 4. Generate one-time token and inject into prompt
+  // Token only exists in memory until PASS — no file for agents to read
+  const token = `TQG_PASS_${crypto.randomBytes(16).toString("hex")}`;
+  const tokenInjection = `\n\n===============================================================
+STEP 6: TOKEN (only on PASS)
+===============================================================
+
+If your verdict is PASS, you MUST include this exact token in your output:
+
+<test-assessment>
+PASS ${token}
+[Brief summary]
+</test-assessment>
+
+This token proves you completed the assessment. Do NOT modify it.`;
+
+  const fullPrompt = assessorPrompt + tokenInjection;
+
+  // 5. Spawn Claude Code via query() with locked-down config
   // Same read-only toolset as verifier, but NO Playwright MCP (no browser needed)
   const options: Partial<Options> = {
     cwd: projectRoot,
@@ -124,7 +143,7 @@ export async function executeAssessTests(
 
   try {
     for await (const message of query({
-      prompt: assessorPrompt,
+      prompt: fullPrompt,
       options,
     })) {
       if (message.type === "result") {
@@ -157,21 +176,42 @@ export async function executeAssessTests(
     };
   }
 
-  // 5. Parse result for PASS/FAIL + token
-  // Token format: TQG_PASS_<32 hex chars> (128-bit entropy)
+  // 6. Parse result for PASS/FAIL + validate token
   const passMatch = resultText.match(
     /<test-assessment>\s*PASS/i
   );
   if (passMatch) {
-    const tokenMatch = resultText.match(/TQG_PASS_([a-f0-9]{32})/);
+    // Validate the assessor echoed back the exact token we injected
+    const tokenMatch = resultText.includes(token);
+    if (tokenMatch) {
+      // Write token file NOW (after PASS) so orchestrator can validate later
+      const tokenFilePath = path.join(sessionDir, "test-assessor-token.secret");
+      try {
+        fs.writeFileSync(tokenFilePath, token + "\n", { mode: 0o600 });
+      } catch {
+        // Non-fatal: orchestrator can still use the token from the MCP response
+      }
+
+      return {
+        task_id: input.task_id,
+        status: "PASS",
+        token,
+        details: resultText,
+        durationMs: Date.now() - startTime,
+      };
+    }
+    // PASS but wrong/missing token — assessor may have hallucinated
     return {
       task_id: input.task_id,
-      status: "PASS",
-      token: tokenMatch ? tokenMatch[0] : undefined,
-      details: resultText,
+      status: "FAIL",
+      details: `Assessor said PASS but did not echo the correct token. Output: ${resultText}`,
       durationMs: Date.now() - startTime,
     };
   }
+
+  // Not PASS — clean up any stale token file so agents can't read it
+  const tokenFilePath = path.join(sessionDir, "test-assessor-token.secret");
+  try { fs.unlinkSync(tokenFilePath); } catch { /* ignore if doesn't exist */ }
 
   // Check for explicit FAIL markers
   const failMatch = resultText.match(

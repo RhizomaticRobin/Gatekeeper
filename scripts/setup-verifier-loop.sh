@@ -180,27 +180,25 @@ if [[ -z "$TEST_COMMAND" ]]; then
   echo "Auto-detected test command: $TEST_COMMAND"
 fi
 
-# Generate cryptographic completion token (128-bit)
-COMPLETION_TOKEN="VGL_COMPLETE_$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')"
+# Session ID for tracking
 SESSION_ID="vgl_$(date +%s)_$(openssl rand -hex 4 2>/dev/null || head -c 8 /dev/urandom | xxd -p | tr -d '\n')"
 
 # Create state directory
 mkdir -p "$SESSION_DIR"
 
-# Store token AND test command in SECRET FILE (tamper-proof)
+# Store test command data for fetch-completion-token.sh (integrity check)
+# NOTE: Token is NO LONGER generated here — it's generated at call time by the
+# verify_task MCP tool (verify-task.ts). This prevents agents from reading the
+# secret file before calling verify_task. The test-assessor-token.secret is also
+# generated at call time by assess_tests MCP tool (assess-tests.ts).
 TEST_CMD_B64=$(echo -n "$TEST_COMMAND" | base64 -w0)
 TEST_CMD_HASH=$(echo -n "$TEST_COMMAND" | sha256sum | cut -d' ' -f1)
 cat > "${SESSION_DIR}/verifier-token.secret" <<SECRETEOF
-$COMPLETION_TOKEN
+PLACEHOLDER_TOKEN_GENERATED_AT_CALL_TIME
 TEST_CMD_B64:$TEST_CMD_B64
 TEST_CMD_HASH:$TEST_CMD_HASH
 SECRETEOF
 chmod 600 "${SESSION_DIR}/verifier-token.secret" 2>/dev/null || true
-
-# Generate test assessor token (separate from verifier token)
-TQG_TOKEN="TQG_PASS_$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')"
-echo "$TQG_TOKEN" > "${SESSION_DIR}/test-assessor-token.secret"
-chmod 600 "${SESSION_DIR}/test-assessor-token.secret" 2>/dev/null || true
 
 # Create state file
 PLAN_MODE_FRONTMATTER=""
