@@ -32,6 +32,26 @@ export async function executeAssessTests(
   serverCwd: string
 ): Promise<AssessTestsResult> {
   const startTime = Date.now();
+
+  // Pre-flight: Agent SDK requires ANTHROPIC_API_KEY for spawning Claude Code subprocesses.
+  // Subscription (OAuth) auth does not propagate to query()-spawned processes.
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return {
+      task_id: input.task_id,
+      status: "ERROR",
+      details: [
+        "ANTHROPIC_API_KEY not set. The assess_tests tool uses the Claude Agent SDK to spawn",
+        "an independent assessor agent, which requires API key authentication.",
+        "",
+        "Subscription (OAuth) auth does not propagate to SDK-spawned subprocesses.",
+        "",
+        "To fix: export ANTHROPIC_API_KEY=sk-ant-... before starting Claude Code.",
+        "Get your key at: https://console.anthropic.com/settings/keys",
+      ].join("\n"),
+      durationMs: Date.now() - startTime,
+    };
+  }
+
   const planFile = input.plan_file
     ? path.resolve(serverCwd, input.plan_file)
     : path.join(serverCwd, ".claude", "plan", "plan.yaml");
@@ -129,6 +149,7 @@ This token proves you completed the assessment. Do NOT modify it.`;
   // Same read-only toolset as verifier, but NO Playwright MCP (no browser needed)
   const options: Partial<Options> = {
     cwd: projectRoot,
+    env: { ...process.env },
     allowedTools: ["Read", "Bash", "Grep", "Glob"],
     disallowedTools: ["Write", "Edit", "Task", "WebFetch", "WebSearch"],
     model: "claude-opus-4-6",

@@ -24,6 +24,23 @@ EvoGatekeeper orchestrates software projects through a structured pipeline where
 | **jq** | any recent | JSON parsing in hook scripts |
 | **Claude Code** | latest | The CLI tool that runs the plugin |
 | **OpenCode** | latest | Agent dispatch for gsd-builder agents |
+| **ANTHROPIC_API_KEY** | -- | Required for verifier + test assessor agents (see below) |
+
+### API Key Requirement
+
+The `verify_task` and `assess_tests` MCP tools use the Claude Agent SDK to spawn independent Claude Code subprocesses for verification and test quality assessment. The Agent SDK requires an `ANTHROPIC_API_KEY` environment variable -- subscription (OAuth) auth does **not** propagate to SDK-spawned subprocesses.
+
+```bash
+# Set before starting Claude Code
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Or add to your shell profile (~/.bashrc, ~/.zshrc)
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Get your key at: https://console.anthropic.com/settings/keys
+
+You can use Claude Code itself with a subscription, but the verification agents need an API key.
 
 ### Check prerequisites
 
@@ -34,6 +51,7 @@ git --version
 jq --version
 claude --version  # Claude Code CLI
 opencode version  # OpenCode CLI
+echo $ANTHROPIC_API_KEY  # Should show sk-ant-...
 ```
 
 ## Installation
