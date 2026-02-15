@@ -3,14 +3,12 @@
  *
  * Priority:
  * 1. ANTHROPIC_API_KEY env var (explicit API key)
- * 2. OAuth access token from ~/.claude/.credentials.json (subscription users)
+ * 2. CONTAINER_API_KEY env var (container/managed environments)
+ * 3. OAuth access token from ~/.claude/.credentials.json (subscription users on bare metal)
  *
  * The Claude Agent SDK's query() spawns a separate Claude Code subprocess
  * that needs an API key to authenticate. Subscription (OAuth) auth doesn't
- * automatically propagate to these subprocesses, but the OAuth access token
- * (sk-ant-oat01-...) can be used directly as a bearer token.
- *
- * Inspired by OpenClaw's credential sync approach.
+ * automatically propagate to these subprocesses.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -26,48 +24,73 @@ interface ClaudeCredentials {
 
 export interface ResolvedApiKey {
   key: string;
-  source: "env" | "oauth";
+  source: "env" | "container" | "oauth";
 }
 
+// Diagnostic info collected during resolution (for error messages)
+let lastDiag = "";
+
 /**
- * Attempt to resolve an API key from env or OAuth credentials.
+ * Attempt to resolve an API key from env, container key, or OAuth credentials.
  * Returns the key and its source, or null if no key could be found.
  */
 export function resolveApiKey(): ResolvedApiKey | null {
-  // 1. Check ANTHROPIC_API_KEY env var first
+  const diag: string[] = [];
+
+  // 1. ANTHROPIC_API_KEY env var (explicit)
   if (process.env.ANTHROPIC_API_KEY) {
     return { key: process.env.ANTHROPIC_API_KEY, source: "env" };
   }
+  diag.push("ANTHROPIC_API_KEY: not set");
 
-  // 2. Try reading OAuth credentials from Claude Code's credential store
-  const credPath = path.join(os.homedir(), ".claude", ".credentials.json");
+  // 2. CONTAINER_API_KEY (container/managed environments like Claude.ai sandbox)
+  if (process.env.CONTAINER_API_KEY) {
+    return { key: process.env.CONTAINER_API_KEY, source: "container" };
+  }
+  diag.push("CONTAINER_API_KEY: not set");
+
+  // 3. OAuth credentials from Claude Code's credential store (bare metal)
+  const home = os.homedir();
+  const credPath = path.join(home, ".claude", ".credentials.json");
+
   try {
-    if (!fs.existsSync(credPath)) return null;
+    if (!fs.existsSync(credPath)) {
+      diag.push(`${credPath}: not found`);
+      lastDiag = diag.join("\n");
+      return null;
+    }
 
     const raw = fs.readFileSync(credPath, "utf-8");
     const creds: ClaudeCredentials = JSON.parse(raw);
     const oauth = creds.claudeAiOauth;
-    if (!oauth?.accessToken) return null;
+
+    if (!oauth?.accessToken) {
+      diag.push(`${credPath}: no accessToken`);
+      lastDiag = diag.join("\n");
+      return null;
+    }
 
     // Check if token is expired (with 60s buffer)
     if (oauth.expiresAt) {
       const nowMs = Date.now();
       if (oauth.expiresAt < nowMs + 60_000) {
-        // Token expired or about to expire — can't use it
+        diag.push(`${credPath}: token expired`);
+        lastDiag = diag.join("\n");
         return null;
       }
     }
 
     return { key: oauth.accessToken, source: "oauth" };
-  } catch {
-    // Can't read or parse credentials — fall through
+  } catch (err: unknown) {
+    diag.push(`${credPath}: ${err instanceof Error ? err.message : String(err)}`);
+    lastDiag = diag.join("\n");
     return null;
   }
 }
 
 /**
  * Build the env object for query() options.
- * Injects ANTHROPIC_API_KEY from OAuth credentials if not already set.
+ * Injects ANTHROPIC_API_KEY if not already set.
  */
 export function buildQueryEnv(): Record<string, string | undefined> {
   const env = { ...process.env };
@@ -92,10 +115,14 @@ export function noApiKeyError(): string {
     "",
     "Tried:",
     "  1. ANTHROPIC_API_KEY env var — not set",
-    "  2. ~/.claude/.credentials.json — no valid OAuth token found",
+    "  2. CONTAINER_API_KEY env var — not set",
+    "  3. ~/.claude/.credentials.json — no valid OAuth token found",
+    "",
+    "Diagnostics:",
+    lastDiag || "  (none)",
     "",
     "To fix (pick one):",
-    "  • Set ANTHROPIC_API_KEY=sk-ant-... (get one at https://console.anthropic.com/settings/keys)",
-    "  • Log in to Claude Code (the OAuth token will be read automatically)",
+    "  • Set ANTHROPIC_API_KEY=sk-ant-... before starting Claude Code",
+    "  • Log in to Claude Code (OAuth token read automatically on bare metal)",
   ].join("\n");
 }
