@@ -102,7 +102,20 @@ export async function executeVerifyTask(
   // 4. Spawn Claude Code via query() with locked-down config
   const options: Partial<Options> = {
     cwd: projectRoot,
-    allowedTools: ["Read", "Bash", "Grep", "Glob"],
+    allowedTools: [
+      "Read", "Bash", "Grep", "Glob",
+      // Playwright MCP tools for visual verification
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_fill_form",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_close",
+    ],
     disallowedTools: ["Write", "Edit", "Task", "WebFetch", "WebSearch"],
     model: "claude-opus-4-6",
     permissionMode: "dontAsk",
