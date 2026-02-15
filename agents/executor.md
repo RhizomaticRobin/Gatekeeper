@@ -174,6 +174,12 @@ Read the **Test Dependency Graph** from the task prompt. This graph tells you:
    test, do NOT spawn a fresh agent — continue the session of the agent that
    completed the dependency. That agent already has context about the code it
    wrote.
+5. **Agents have Context7 MCP.** Each gsd-builder agent has access to the
+   Context7 MCP server for looking up library documentation. Tell agents to
+   research the relevant libraries/APIs via Context7 before implementing.
+   Include this in every agent prompt: "Before implementing, use Context7
+   (resolve-library-id then query-docs) to look up the APIs and patterns
+   for the libraries involved."
 
 ### Session Tracking
 
@@ -192,6 +198,10 @@ For each test with no dependencies, launch a new agent:
 ```
 launch_opencode(task="""
 Make the following test pass: {test_file}
+
+RESEARCH FIRST:
+Before implementing, use Context7 (resolve-library-id then query-docs) to look up
+the APIs and patterns for the libraries involved in this test.
 
 GUIDANCE:
 {guidance from test dependency graph}
