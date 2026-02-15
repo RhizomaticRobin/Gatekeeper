@@ -112,7 +112,7 @@ export async function executeAssessTests(
     cwd: projectRoot,
     allowedTools: ["Read", "Bash", "Grep", "Glob"],
     disallowedTools: ["Write", "Edit", "Task", "WebFetch", "WebSearch"],
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-opus-4-6",
     permissionMode: "dontAsk",
     maxTurns: 30,
     persistSession: false,
