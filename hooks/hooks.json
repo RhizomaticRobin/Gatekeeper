@@ -29,6 +29,15 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-orchestrator.sh"
           }
         ]
+      },
+      {
+        "matcher": "Read|Bash|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-scope.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
