@@ -17,14 +17,62 @@ The plan validator is: `${CLAUDE_PLUGIN_ROOT}/scripts/validate-plan.py`
 
 The user provided: `$ARGUMENTS`
 
-If `$ARGUMENTS` is non-empty, use it as the project description and proceed to Phase 1.
+If `$ARGUMENTS` is non-empty, use it as the project description and proceed to Phase 1. No discovery needed.
 
-If `$ARGUMENTS` is empty, ask the user:
-> What are you building? Give me a 1-3 sentence description of the project.
+If `$ARGUMENTS` is empty, offer the user a choice using `AskUserQuestion`:
 
-Wait for their response before proceeding.
+**Question**: "How would you like to describe your project?"
+**Options**:
+1. **Quick** — "Just a 1-3 sentence description" (fastest)
+2. **Deep Discovery** — "Guided interview for comprehensive project understanding"
 
-Store the project description for use in later phases.
+### If Quick:
+Ask: "What are you building? Give me a 1-3 sentence description."
+Store the response as the project description. Proceed to Phase 1.
+
+### If Deep Discovery:
+Run a 4-group interview. Use `AskUserQuestion` for each question. After each group, summarize what you captured back to the user before continuing.
+
+**Group A — Vision & Purpose**
+1. What are you building? (elevator pitch in 1-2 sentences)
+2. Who is the primary user? (persona, role, or audience)
+3. What problem does this solve? (pain point or opportunity)
+4. What does success look like? (measurable outcome)
+
+**Group B — Scope & Features**
+5. What are the 3-5 core features for v1?
+6. What is explicitly out of scope?
+7. Any future features to plan for but not build yet?
+
+**Group C — Technical Context**
+8. Greenfield or brownfield? (new repo vs. existing codebase)
+9. Technology constraints or preferences? (language, framework, infra)
+10. Required integrations? (APIs, databases, auth providers)
+11. Deployment target? (local, cloud, edge, etc.)
+
+**Group D — Workflow Preferences**
+12. Quality preference? (quality / balanced / budget — affects model routing)
+
+After all groups complete, assemble a `project_context` dict from the answers:
+```
+project_context:
+  vision: "..."
+  primary_user: "..."
+  problem: "..."
+  success_criteria: "..."
+  core_features: ["..."]
+  out_of_scope: ["..."]
+  future_features: ["..."]
+  greenfield: true/false
+  tech_constraints: "..."
+  integrations: ["..."]
+  deploy_target: "..."
+  quality_preference: "quality|balanced|budget"
+```
+
+Use the `vision` field as the project description for subsequent phases. Store `project_context` for inclusion in plan.yaml metadata during Phase 5.
+
+Present a summary of the captured project context before proceeding to Phase 1.
 
 ---
 
@@ -47,6 +95,35 @@ Before asking ANY questions, investigate the current project directory **silentl
 Use `Glob`, `Grep`, `Read`, and `Bash(ls ...)` to do this quickly. Read multiple files in parallel.
 
 **Do NOT output anything to the user during this phase** except a brief "Scanning codebase..." message at the start. Collect all findings internally for Phase 2.
+
+### Brownfield Detection — Auto-Spawn Codebase Mapper
+
+After the initial scan, determine if this is a **brownfield project** (existing source code with meaningful implementation). A project is brownfield if ANY of these are true:
+- 10+ source files exist in `src/`, `app/`, `lib/`, or similar directories
+- A project manifest (`package.json`, `pyproject.toml`, etc.) exists with 5+ dependencies
+- Database schema or migration files exist
+- Existing test files exist
+
+If brownfield is detected, **immediately spawn a `codebase-mapper` agent** to perform a deep 7-dimension analysis:
+
+```python
+Task(
+    subagent_type='evogatekeeper:codebase-mapper',
+    prompt="""Analyze the codebase at the current directory and produce comprehensive documentation.
+
+    Project type: {detected type from manifest}
+
+    Perform full analysis: Technology Stack, Architecture, Directory Structure,
+    Code Conventions, Testing, Integrations, and Concerns/Tech Debt.
+
+    Write each analysis to .planning/codebase/ directory (STACK.md, ARCHITECTURE.md,
+    STRUCTURE.md, CONVENTIONS.md, TESTING.md, INTEGRATIONS.md, CONCERNS.md).
+
+    Return a summary of key findings."""
+)
+```
+
+Wait for the mapper to complete. Its findings will inform Phase 2 questioning (you'll know what already exists and won't ask about it) and Phase 4 task design (you'll build on existing architecture rather than reinventing it).
 
 ---
 
@@ -85,26 +162,52 @@ Wait for all answers before proceeding.
 
 ---
 
-## Phase 3: Investigate Unknown Unknowns (RESEARCH, then report)
+## Phase 3: Parallel Research — Investigate Unknown Unknowns
 
-After receiving user decisions, dig deeper — the user might not know what they don't know.
+After receiving user decisions, spawn parallel research agents to dig deeper — the user might not know what they don't know.
 
-Investigate:
+### Identify Research Topics
 
-1. **Reinventing the wheel**: For each planned feature, check if there's an npm/pip/cargo package or existing utility in the codebase that already does it. If the project uses a meta-framework (Next.js, Rails, Laravel), check if it has built-in support for planned features.
+From the project description, user answers, and codebase recon, identify 2-5 research topics. Topics should cover:
 
-2. **Framework constraints**: Will the planned architecture actually work?
-   - If Next.js app router: Can the auth strategy work with server components? Does the state management plan make sense?
-   - If FastAPI: Does the ORM choice have async support?
-   - Check for known incompatibilities between chosen tools
+1. **Reinventing the wheel**: Are there existing packages or framework built-ins for planned features?
+2. **Framework constraints**: Will the planned architecture actually work with the chosen tools?
+3. **Integration patterns**: How do the chosen technologies connect (auth + framework, ORM + database, etc.)?
+4. **Infrastructure gaps**: What's needed but not mentioned (migrations, env vars, external services)?
 
-3. **Infrastructure gaps**: What's needed but not mentioned?
-   - Database migrations tooling
-   - Environment variables needed
-   - External services (email, storage, payments)
-   - Build/deploy considerations
+### Spawn Research Agents
 
-**Output**: Only report findings if they're significant. Format as:
+For each topic, spawn a `project-researcher` agent in parallel:
+
+```python
+Task(
+    subagent_type='evogatekeeper:project-researcher',
+    prompt="""You are a project-researcher investigating: {topic}
+
+    Project context:
+    - Description: {project description}
+    - Framework: {detected or chosen framework}
+    - Key technologies: {list from recon + user answers}
+
+    Research this topic thoroughly using WebSearch and WebFetch:
+    1. Official documentation and guides
+    2. Best practices and common patterns
+    3. Known gotchas, limitations, and pitfalls
+    4. Alternative approaches with trade-offs
+
+    Return a structured summary with:
+    - Key findings (bullet points)
+    - Recommended approach
+    - Gotchas to avoid
+    - Relevant documentation URLs"""
+)
+```
+
+Spawn all agents in parallel (multiple Task calls in one message). Wait for all to complete.
+
+### Synthesize Findings
+
+After all researchers return, present a unified **Pre-flight Check** to the user:
 
 ```
 ## Pre-flight Check
@@ -115,6 +218,8 @@ Investigate:
 ```
 
 If nothing significant, just say "Pre-flight check passed, no issues found." and move on.
+
+Feed all research findings into Phase 4 task design — they inform architecture decisions, package choices, and gotcha avoidance.
 
 ---
 
@@ -208,6 +313,19 @@ metadata:
   test_framework: "vitest"
   model_profile: "opus"
   created_at: "YYYY-MM-DD"
+  project_context:       # Only include if Deep Discovery was used in Phase 0
+    vision: "..."
+    primary_user: "..."
+    problem: "..."
+    success_criteria: "..."
+    core_features: ["..."]
+    out_of_scope: ["..."]
+    future_features: ["..."]
+    greenfield: true
+    tech_constraints: "..."
+    integrations: ["..."]
+    deploy_target: "..."
+    quality_preference: "quality"
 
 phases:
   - id: 1

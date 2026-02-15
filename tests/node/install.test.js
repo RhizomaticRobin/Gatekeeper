@@ -130,9 +130,8 @@ describe('install.js', () => {
       expect(failures).toContain('hooks/hooks.json');
       expect(failures).toContain('commands/help.md');
       expect(failures).toContain('agents/verifier.md');
-      expect(failures).toContain('bin/ralph.sh');
       expect(failures).toContain('templates/opencode.json');
-      expect(failures.length).toBe(6);
+      expect(failures.length).toBe(5);
     });
   });
 

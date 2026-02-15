@@ -16,6 +16,14 @@ if [[ ! -f "$PLAN_FILE" ]]; then
   exit 0
 fi
 
+# Git state check (warning only, not blocking)
+if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+  if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+    echo "Warning: Working tree has uncommitted changes" >&2
+    echo "  Consider committing before starting VGL session" >&2
+  fi
+fi
+
 # 2. Validate plan
 echo "Validating plan..."
 VALIDATE_EXIT=0
@@ -172,17 +180,7 @@ YOUR TASK:
 $TASK_PROMPT"
 
   # Mark task as in_progress
-  python3 -c "
-import sys
-sys.path.insert(0, '${PLUGIN_ROOT}/scripts')
-from plan_utils import load_plan, save_plan
-plan = load_plan('$PLAN_FILE')
-for phase in plan.get('phases', []):
-    for task in phase.get('tasks', []):
-        if str(task['id']) == '$TASK_ID':
-            task['status'] = 'in_progress'
-save_plan('$PLAN_FILE', plan)
-" 2>/dev/null || true
+  python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$TASK_ID" 2>/dev/null || true
 
   export _VGL_TASK_PROMPT="$TASK_PROMPT"
   export _VGL_RAW_TASK_PROMPT="$RAW_TASK_PROMPT"

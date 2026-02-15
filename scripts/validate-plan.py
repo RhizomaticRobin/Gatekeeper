@@ -19,6 +19,24 @@ VALID_STATUSES = {"pending", "in_progress", "completed"}
 
 REQUIRED_METADATA = ["project", "dev_server_command", "dev_server_url"]
 
+OPTIONAL_METADATA = [
+    "max_vgl_iterations", "timeout_hours", "stuck_threshold",
+    "circuit_breaker_threshold", "model_profile", "test_framework",
+    "project_context",
+]
+
+METADATA_DEFAULTS = {
+    "max_vgl_iterations": 50,
+    "timeout_hours": 8,
+    "stuck_threshold": 3,
+    "circuit_breaker_threshold": 5,
+}
+
+POSITIVE_INT_METADATA = [
+    "max_vgl_iterations", "timeout_hours",
+    "stuck_threshold", "circuit_breaker_threshold",
+]
+
 REQUIRED_TASK_FIELDS = ["id", "name", "status", "depends_on"]
 
 
@@ -50,6 +68,18 @@ def validate(path):
             warnings.append("metadata.model_profile not set (will use 'default')")
         if not metadata.get("test_framework"):
             warnings.append("metadata.test_framework not set")
+
+        # Validate optional metadata types when present
+        for field in POSITIVE_INT_METADATA:
+            val = metadata.get(field)
+            if val is not None:
+                if not isinstance(val, int) or isinstance(val, bool) or val < 1:
+                    errors.append(f"metadata.{field} must be a positive integer")
+
+        # project_context must be a dict if present
+        pc = metadata.get("project_context")
+        if pc is not None and not isinstance(pc, dict):
+            errors.append("metadata.project_context must be a mapping")
 
     # 3. Phases exist
     phases = plan.get("phases", [])
@@ -129,7 +159,7 @@ def validate(path):
             if not deliverables.get("backend"):
                 errors.append(f"{prefix}: deliverables.backend is required")
             if not deliverables.get("frontend"):
-                errors.append(f"{prefix}: deliverables.frontend is required")
+                warnings.append(f"{prefix}: deliverables.frontend is not set")
 
         # Tests
         tests = task.get("tests", {})

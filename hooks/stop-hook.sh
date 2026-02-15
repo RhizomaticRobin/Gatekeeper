@@ -133,6 +133,16 @@ if [[ -n "$EXTRACTED_TOKEN" ]] && [[ "$EXTRACTED_TOKEN" = "$COMPLETION_TOKEN" ]]
   echo "VGL: Verification complete. Token validated." >&2
   echo "   Session: $SESSION_ID | Iterations: $ITERATION" >&2
 
+  # Reset resilience state on success
+  RESILIENCE_PLUGIN_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
+  RESILIENCE_SCRIPT="${RESILIENCE_PLUGIN_ROOT}/scripts/resilience.py"
+  RESILIENCE_STATE=".claude/vgl-resilience.json"
+  RESILIENCE_TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/' || echo "")
+  if [[ -f "$RESILIENCE_SCRIPT" ]]; then
+    python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" --record-success "$RESILIENCE_TASK_ID" 2>/dev/null || true
+    python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" --reset 2>/dev/null || true
+  fi
+
   # Plan mode: auto-transition to next task
   PLAN_MODE=$(echo "$FRONTMATTER" | grep '^plan_mode:' | sed 's/plan_mode: *//' || echo "false")
   PLAN_FILE=".claude/plan/plan.yaml"
@@ -216,17 +226,7 @@ TDD-FIRST WORKFLOW:
 YOUR TASK:
 $NEXT_TASK_PROMPT"
 
-      python3 -c "
-import sys
-sys.path.insert(0, '${PLUGIN_ROOT}/scripts')
-from plan_utils import load_plan, save_plan
-plan = load_plan('$PLAN_FILE')
-for phase in plan.get('phases', []):
-    for task in phase.get('tasks', []):
-        if str(task['id']) == '$NEXT_ID':
-            task['status'] = 'in_progress'
-save_plan('$PLAN_FILE', plan)
-" 2>/dev/null || true
+      python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$NEXT_ID" 2>/dev/null || true
 
       rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
 
@@ -297,6 +297,8 @@ fi
 # --- Evolution: evaluate this iteration's attempt ---
 PLUGIN_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
 TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/' || echo "")
+PLAN_FILE=".claude/plan/plan.yaml"
+SCRIPTS_DIR="${PLUGIN_ROOT}/scripts"
 EVO_DB_PATH=".planning/evolution/${TASK_ID}/"
 TEST_COMMAND=$(echo "$FRONTMATTER" | grep '^test_command:' | sed 's/test_command: *//' | sed 's/^"\(.*\)"$/\1/' || echo "")
 
@@ -360,6 +362,43 @@ ${EVO_CONTEXT}
 
 "
   fi
+fi
+
+# --- Resilience: check if we should stop ---
+RESILIENCE_SCRIPT="${PLUGIN_ROOT}/scripts/resilience.py"
+RESILIENCE_STATE=".claude/vgl-resilience.json"
+if [[ -f "$RESILIENCE_SCRIPT" ]]; then
+  # Record the failure
+  python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" \
+    --record-failure "$TASK_ID" 2>/dev/null || true
+
+  # Read resilience config from plan.yaml metadata
+  RESILIENCE_CONFIG=$(python3 -c "
+import sys, json
+sys.path.insert(0, '${SCRIPTS_DIR}')
+from plan_utils import load_plan
+plan = load_plan('$PLAN_FILE')
+meta = plan.get('metadata', {})
+print(json.dumps({
+    'stuck_threshold': meta.get('stuck_threshold', 3),
+    'circuit_breaker_threshold': meta.get('circuit_breaker_threshold', 5),
+    'max_vgl_iterations': meta.get('max_vgl_iterations', 50),
+    'timeout_hours': meta.get('timeout_hours', 8),
+}))
+" 2>/dev/null || echo '{}')
+
+  # Check all resilience conditions
+  RESILIENCE_CHECK_OUTPUT=""
+  RESILIENCE_CHECK_OUTPUT=$(python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" \
+    --check-all "$TASK_ID" --config "$RESILIENCE_CONFIG" 2>&1) || {
+    RESILIENCE_EXIT=$?
+    if [[ $RESILIENCE_EXIT -eq 1 ]]; then
+      echo "VGL: $RESILIENCE_CHECK_OUTPUT" >&2
+      echo "VGL: Stopping due to resilience check failure." >&2
+      rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
+      exit 0
+    fi
+  }
 fi
 
 # Not complete — continue loop with SAME PROMPT

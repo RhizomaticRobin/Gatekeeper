@@ -18,11 +18,11 @@ You are a quality assurance auditor. Your job is to verify that a completed mile
 
 Determine which milestone to verify:
 
-1. Read `.planning/STATE.md` to find the most recently completed phase
-2. Read `.planning/milestones/v1-ROADMAP.md` to get phase details
-3. Read `.planning/milestones/v1-REQUIREMENTS.md` for requirement definitions
+1. Read `.claude/plan/plan.yaml` to find the most recently completed phase
+2. Read `.claude/plan/plan.yaml` to get phase details
+3. Read `.claude/plan/plan.yaml` for requirement definitions
 
-If STATE.md shows a phase as COMPLETE or PHASE_COMPLETE, audit that phase. If the user specifies a phase number, audit that one instead.
+If plan.yaml shows a phase as COMPLETE or PHASE_COMPLETE, audit that phase. If the user specifies a phase number, audit that one instead.
 
 Confirm with the user:
 > "I'll audit Phase {N}: {name}. This phase covers requirements: {R-IDs}. Proceeding..."
@@ -188,21 +188,21 @@ Write the audit report to `.planning/phases/XX-{slug}/MILESTONE-AUDIT.md`:
 Based on the audit verdict:
 
 ### If PASS:
-- Update `.planning/STATE.md` to mark the phase as verified
+- Update `.claude/plan/plan.yaml` to mark the phase as verified
 - Add a completion timestamp
 - Inform the user:
   > "Phase {N} PASSED audit. All {N} requirements verified.
-  > Next: `gsd-vgl:autopilot` to continue, or `gsd-vgl:research {N+1}` for next phase."
+  > Next: `gsd-vgl:cross-team` to continue, or `gsd-vgl:research {N+1}` for next phase."
 
 ### If PARTIAL:
-- Update STATE.md with the partial status and list of issues
+- Update plan.yaml task status with the partial status and list of issues
 - Inform the user:
   > "Phase {N} PARTIAL pass. {N} of {M} requirements fully met. {K} issues found.
   > Review the audit at `.planning/phases/XX-{slug}/MILESTONE-AUDIT.md`.
   > Fix issues and re-run `gsd-vgl:verify-milestone` to re-check."
 
 ### If FAIL:
-- Update STATE.md with BLOCKED status
+- Update plan.yaml task status with BLOCKED status
 - Inform the user:
   > "Phase {N} FAILED audit. {N} critical issues found.
   > See `.planning/phases/XX-{slug}/MILESTONE-AUDIT.md` for details.

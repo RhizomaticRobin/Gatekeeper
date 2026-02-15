@@ -11,7 +11,7 @@
     {
       "name": "evogatekeeper",
       "source": "./",
-      "description": "Verifier-Gated Loop plugin: TDD-first execution, concurrent opencode agents, cryptographic verification, and autopilot.",
+      "description": "Verifier-Gated Loop plugin: TDD-first execution, concurrent opencode agents, and cryptographic verification.",
       "version": "1.0.0"
     }
   ]

@@ -27,7 +27,7 @@ After fixing, run `/gsd-vgl:cross-team` again.
 
 ---
 
-## If CROSS_TEAM_SINGLE_OK — Single-Task VGL Execution
+## If CROSS_TEAM_SINGLE_OK — Single-Task Execution
 
 Only 1 unblocked task was found. Extract the task ID from the `SINGLE_TASK_ID=...` line in the setup output above, then run this command (replacing the task ID):
 
@@ -35,73 +35,9 @@ Only 1 unblocked task was found. Extract the task ID from the `SINGLE_TASK_ID=..
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/single-task-setup.sh" "${CLAUDE_PLUGIN_ROOT}" "<task_id>"
 ```
 
-If the last line is **CROSS_TEAM_FAILED**, follow the recovery steps above. If it is **CROSS_OK**, proceed to the single-task workflow below.
+If the last line is **CROSS_TEAM_FAILED**, follow the recovery steps above. If it is **CROSS_OK**, proceed.
 
-### Single-Task Workflow (TDD-First + Opencode Concurrency)
-
-This is a **Plan-Mode Verifier-Gated Loop** with TDD-first execution and opencode MCP concurrent agents. Each task is verified with BOTH quantitative tests AND qualitative Playwright visual verification.
-
-Follow this workflow strictly in order:
-
-#### Step 1: Read the Task Prompt and must_haves
-Read the task prompt carefully. Identify:
-- Backend deliverables (API routes, models, logic)
-- Frontend deliverables (components, pages, interactions)
-- must_haves: truths (invariants), artifacts (files that must exist), key_links (references)
-
-#### Step 2: Write ALL Tests First (Red Phase — TDD)
-Before writing ANY implementation code:
-- Create test files for every deliverable
-- Write unit tests covering the contract, edge cases, error conditions
-- Write integration tests covering API endpoints
-- Write tests that validate must_haves truths are enforced
-- Tests MUST fail at this point (Red phase) — that is correct
-
-#### Step 3: Dispatch Opencode Agents (1 Test Per Agent)
-Read the **Test Dependency Graph** from the task prompt. Dispatch in waves:
-- Wave 1: launch fresh agents for all tests with no dependencies (concurrent)
-- Wave 2+: for dependent tests, **continue the session** of the agent that completed the dependency — it already has context about its implementation
-- If a test has multiple dependencies, continue the most significant dependency's agent and tell it to review the other dependencies' work first
-- Each agent gets exactly 1 test file + the guidance from the graph
-
-#### Step 4: Wait for Completion (Per Wave)
-Use `wait_for_completion` after each wave. Track `test → sessionId` for continuations.
-- Review each agent's output for errors or incomplete work
-- If any agent failed, address its issues before dispatching next wave
-- If any agent has status "input_required", answer via `launch_opencode(sessionId=<id>, task="<answer>")`, then call `wait_for_completion()` again
-- Verify the wave's tests pass before dispatching the next wave
-
-#### Step 5: Run Full Test Suite (Green Phase)
-Run the quantitative test command yourself:
-- Verify ALL tests pass
-- If any fail, fix the issues and re-run
-- Do NOT proceed until the full suite is green
-
-#### Step 6: Spawn the Verifier Subagent
-When all tests pass and implementation is complete:
-```
-Task(subagent_type='general-purpose', model='opus',
-     prompt=open('.claude/verifier-prompt.local.md').read())
-```
-
-The Verifier will:
-- Run quantitative tests independently
-- Perform Playwright visual verification of qualitative criteria
-- Navigate to pages, interact with UI, take screenshots
-- Choose its own test inputs (non-deterministic)
-- Validate must_haves truths hold and artifacts exist
-- Only grant the completion token if ALL checks pass
-
-On completion, the plan will automatically transition to the next task.
-
-#### Critical Rules (Single-Task)
-- You CANNOT complete the loop directly — the Verifier must approve
-- The Verifier uses Playwright to visually verify the UI works
-- Trust the process and iterate until the Verifier approves
-- Do NOT modify plan.yaml or any .claude/ state files
-- Do NOT set task status yourself — only the Verifier and system scripts control task lifecycle
-- Follow TDD order: tests FIRST, then implementation, then verification
-- Use opencode concurrency for implementation — do not implement serially what can be done in parallel
+**Single-task mode uses the same orchestration flow as multi-task mode** — you spawn 1 executor subagent and manage it identically. Follow the "Orchestrate the Team" section below with a single task.
 
 ---
 
@@ -117,43 +53,60 @@ prompt_template = open('${CLAUDE_PLUGIN_ROOT}/scripts/team-orchestrator-prompt.m
 
 ### Orchestration Workflow
 
-1. **Spawn executor sub-orchestrators** for each dispatched task:
-   - One `Task(subagent_type='executor')` per task (model: opus, no web access)
-   - Each executor gets: task prompt + VGL instructions + TDD-first workflow + session directory path
-   - Executors write ALL tests first, spawn gsd-builder opencode agents concurrently, wait for completion, run full test suite, then spawn their own Verifier subagents
-   - Executors return completion tokens or failure reasons in their Task output
+The per-task flow is: **Tester** (writes tests) → **Executor** (implements to pass tests) → verify.
 
-2. **Collect executor results** from each Task:
+1. **Phase 1 — Spawn tester agents** for each dispatched task:
+   - One `Task(subagent_type='evogatekeeper:tester')` per task (model: opus, HAS web access)
+   - Each tester gets: task prompt + session directory path
+   - Testers research the domain, write comprehensive tests, confirm TDD Red, then call `assess_tests` quality gate
+   - Testers return `TESTS_READY:{task_id}` or `TESTS_FAILED:{task_id}:{reason}`
+   - Testers for independent tasks (same wave, no file_scope overlap) can run in parallel
+
+2. **Phase 2 — Spawn executor agents** for each task with ready tests:
+   - One `Task(subagent_type='evogatekeeper:executor')` per task (model: opus, no web access)
+   - Each executor gets: task prompt + VGL instructions + session directory path
+   - Executors read pre-written tests, spawn gsd-builder opencode agents concurrently, run full test suite, then call `verify_task`
+   - Executors return `TASK_COMPLETE:{task_id}:{token}` or `TASK_FAILED:{task_id}:{reason}`
+
+3. **Collect executor results** from each Task:
    - `TASK_COMPLETE:{task_id}:{token}` — validate token, mark task completed
-   - `TASK_FAILED:{task_id}:{reason}` — log failure, decide retry or skip
+   - `TASK_FAILED:{task_id}:{reason}` — check if failure is test-related or implementation-related
 
-3. **Validate completion tokens**:
+4. **Handle verify failures (test problem suspected)**:
+   - If the verifier's failure details suggest test issues (impossible assertions, contradictory tests, missing coverage):
+     - Re-spawn Tester: `Task(subagent_type='evogatekeeper:tester', prompt="mode=reassess ...")`
+     - Include verifier failure details in the prompt
+     - Collect `TESTS_READY:{task_id}` (tests fixed) or `TESTS_OK:{task_id}:...` (tests are fine)
+     - If tests were fixed, re-spawn Executor
+   - If failure is clearly implementation-related, re-spawn Executor directly
+
+5. **Validate completion tokens**:
    - Read `.claude/vgl-sessions/task-{id}/verifier-token.secret` (line 1)
    - Compare with the token reported by the executor
    - Only mark complete if tokens match
 
-4. **Mark tasks completed** via:
+6. **Mark tasks completed** via:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id}
    ```
 
-5. **Check for integration checkpoints** after marking a task complete:
+7. **Check for integration checkpoints** after marking a task complete:
    - If the completed task was the last task in its phase, check if that phase has `integration_check: true`
    - If so, spawn an integration-checker before dispatching next-phase tasks:
      ```
-     Task(subagent_type='integration-checker',
+     Task(subagent_type='evogatekeeper:integration-checker',
           prompt='Verify integration between all completed phases. Check cross-phase links, data flows, type contracts, and dead endpoints. Report PASS or NEEDS_FIXES with details.')
      ```
    - If the checker reports NEEDS_FIXES with CRITICAL issues, fix them before spawning next-phase executors
    - WARNING-level issues can be noted and addressed later
 
-6. **Check for newly unblocked tasks** after each completion:
+8. **Check for newly unblocked tasks** after each completion:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/get-unblocked-tasks.py" .claude/plan/plan.yaml
    ```
-   - For each newly unblocked task, set up its VGL session and spawn a new executor sub-orchestrator
+   - For each newly unblocked task, set up its VGL session and spawn tester → executor for it
 
-7. **When all tasks are done**:
+9. **When all tasks are done**:
    - All executor Tasks have returned
    - Remove `.claude/vgl-team-active`
    - Remove `.claude/vgl-sessions/`
@@ -161,10 +114,11 @@ prompt_template = open('${CLAUDE_PLUGIN_ROOT}/scripts/team-orchestrator-prompt.m
 
 ### Critical Rules
 
-- You are the LEAD ORCHESTRATOR — never write implementation code
-- Only YOU update plan.yaml — executor sub-orchestrators must not touch it
+- You are the LEAD ORCHESTRATOR — never write implementation or test code
+- Only YOU update plan.yaml — tester and executor sub-orchestrators must not touch it
+- Always run tester BEFORE executor for each task (tester writes tests, executor implements)
 - Validate every token before marking a task complete
-- Executors with overlapping file scopes must NOT run simultaneously
+- Testers/executors with overlapping file scopes must NOT run simultaneously
 - If an executor fails 3 times, skip the task and note it for the user
-- Executors are sub-orchestrators: they spawn gsd-builder opencode agents, not implement directly
+- On verify failure, consider re-spawning tester in reassess mode before re-running executor
 - Verify must_haves (truths, artifacts, key_links) are satisfied before marking complete

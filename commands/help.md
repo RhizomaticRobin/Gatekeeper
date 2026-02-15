@@ -18,29 +18,23 @@ Display the following command reference to the user. Do NOT attempt to run any t
   COMMAND                      DESCRIPTION
   ─────────────────────────────────────────────────────────────────────────────
 
-  VGL Core Commands (Game-Theoretic Collaboration)
-  ────────────────────────────────────────────────
+  VGL Core Commands
+  ─────────────────
   gsd-vgl:quest                Structured task execution with verification
-                               gates. Define objectives, execute with
-                               checkpoints, verify completion criteria.
-
-  gsd-vgl:cross                [DEPRECATED] Use cross-team instead.
+                               gates. Supports optional deep discovery mode
+                               for comprehensive project understanding.
 
   gsd-vgl:cross-team           Execute tasks with TDD + VGL. Handles both
                                single-task and multi-task parallel execution.
 
-  gsd-vgl:bridge               Context bridging between sessions. Export
-                               and import state for session continuity.
+  gsd-vgl:bridge               Start a standalone Verifier-Gated Loop with
+                               TDD-first workflow for ad-hoc tasks.
 
   gsd-vgl:run-away             Emergency rollback. Safely revert changes
                                when execution goes off track.
 
-  GSD Project Commands (Plan-First Workflow)
-  ──────────────────────────────────────────
-  gsd-vgl:new-project          Initialize a new project with deep questioning.
-                               Creates PROJECT.md, REQUIREMENTS.md, ROADMAP.md,
-                               STATE.md, and config.json in .planning/.
-
+  Project Commands
+  ────────────────
   gsd-vgl:research <phase>     Research domain knowledge for a phase.
                                Spawns parallel researcher agents for thorough
                                investigation before implementation begins.
@@ -48,10 +42,6 @@ Display the following command reference to the user. Do NOT attempt to run any t
   gsd-vgl:map-codebase         Map an existing codebase for brownfield projects.
                                Produces STACK, ARCHITECTURE, STRUCTURE,
                                CONVENTIONS, TESTING, INTEGRATIONS, CONCERNS.
-
-  gsd-vgl:autopilot            Launch autonomous execution via ralph.sh outer
-                               loop. Configures settings, detects state,
-                               launches in a new terminal.
 
   gsd-vgl:progress             Show project status and progress dashboard.
                                Progress bars, task completion %, recent
@@ -80,63 +70,37 @@ Display the following command reference to the user. Do NOT attempt to run any t
 
 ## Quick Start
 
-### New Project (Plan-First Workflow)
+### Unified Workflow
 ```
-1. gsd-vgl:new-project          — Define your project through guided discovery
+1. gsd-vgl:quest                — Plan your project (quick or deep discovery)
 2. gsd-vgl:map-codebase         — (If brownfield) Analyze existing code
 3. gsd-vgl:research 1           — Research Phase 1 domain knowledge
-4. gsd-vgl:autopilot            — Launch autonomous execution
+4. gsd-vgl:cross-team           — Execute tasks with TDD + VGL
 5. gsd-vgl:progress             — Monitor progress at any time
 6. gsd-vgl:verify-milestone     — Audit completed milestones
+7. gsd-vgl:bridge               — Start a standalone VGL loop for ad-hoc tasks
+8. gsd-vgl:run-away             — Emergency rollback if needed
 ```
-
-### Ad-Hoc Tasks (Game-Theoretic Workflow)
-```
-1. gsd-vgl:quest                — Execute a focused task with verification
-2. gsd-vgl:cross-team           — Execute tasks with TDD + VGL
-3. gsd-vgl:bridge               — Preserve context between sessions
-4. gsd-vgl:run-away             — Emergency rollback if needed
-```
-
-### Combined Workflow
-The plan-first and ad-hoc workflows complement each other:
-- Use `gsd-vgl:new-project` + `gsd-vgl:autopilot` for the overall project arc
-- Use `gsd-vgl:quest` for individual tasks within a phase
-- Use `gsd-vgl:cross-team` for task execution within the autopilot flow
-- Use `gsd-vgl:cross-team` for phases requiring parallel workstreams
-- Use `gsd-vgl:debug` when issues arise during any workflow
 
 ---
 
-## Core Workflows
+## Core Workflow
 
-### Plan-First Workflow
-Best for: new features, large changes, multi-phase projects.
-
-```
-new-project --> research --> autopilot --> progress --> verify-milestone
-                   |                          |
-                   v                          v
-              map-codebase               debug (if issues)
-```
-
-The plan-first workflow creates structured artifacts in `.planning/` that guide
-autonomous execution. The autopilot reads the roadmap, generates task-level plans,
-and executes them with optional verification at each step.
-
-### Ad-Hoc Workflow
-Best for: bug fixes, small features, exploratory work.
+Best for: all project types, from bug fixes to multi-phase projects.
 
 ```
-quest --> cross-team (execute) --> bridge (if multi-session)
-  |
-  v
-run-away (if things go wrong)
+quest --> cross-team (execute) --> verify-milestone
+  |                                     |
+  v                                     v
+research / map-codebase           debug (if issues)
+                                        |
+                                        v
+                                  bridge (standalone VGL)
 ```
 
-The ad-hoc workflow uses game-theoretic verification to ensure quality without
-heavyweight planning. Quests define clear objectives and completion criteria.
-Cross-verification adds adversarial review for high-stakes changes.
+The workflow uses structured discovery via quest, then TDD-first execution via
+cross-team with verifier-gated loops. Bridge provides a standalone VGL loop for
+ad-hoc tasks outside the main plan. Run-away offers emergency rollback.
 
 ---
 
@@ -144,57 +108,40 @@ Cross-verification adds adversarial review for high-stakes changes.
 
 EvoGatekeeper commands operate within a defined security boundary:
 
-| Command           | File Access        | Network   | Git          |
-|-------------------|--------------------|-----------|--------------|
-| new-project       | .planning/ (write) | None      | None         |
-| research          | .planning/ (write) | WebSearch | None         |
-| map-codebase      | Full read          | None      | Read-only    |
-| autopilot         | .planning/ (read)  | None      | Via ralph.sh |
-| progress          | .planning/ (read)  | None      | None         |
-| settings          | config.json (r/w)  | None      | None         |
-| verify-milestone  | Full read          | None      | Read-only    |
-| debug             | Full read + debug/ | None      | Read-only    |
-| quest             | Per-quest scope    | None      | Per-quest    |
-| cross (deprecated)| Review scope       | None      | None         |
-| cross-team        | Team scope         | None      | Per-team     |
-| bridge            | .planning/ (r/w)   | None      | None         |
-| run-away          | Full access        | None      | Write        |
-| help              | None               | None      | None         |
+| Command           | File Access          | Network   | Git          |
+|-------------------|----------------------|-----------|--------------|
+| research          | .claude/plan/ (write)| WebSearch | None         |
+| map-codebase      | Full read            | None      | Read-only    |
+| progress          | .claude/plan/ (read) | None      | None         |
+| settings          | config.json (r/w)    | None      | None         |
+| verify-milestone  | Full read            | None      | Read-only    |
+| debug             | Full read + debug/   | None      | Read-only    |
+| quest             | Per-quest scope      | None      | Per-quest    |
+| cross-team        | Team scope           | None      | Per-team     |
+| bridge            | .claude/ (r/w)       | None      | None         |
+| run-away          | Full access          | None      | Write        |
+| help              | None                 | None      | None         |
 
 ---
 
 ## State Files
 
-EvoGatekeeper maintains state in the `.planning/` directory:
+EvoGatekeeper maintains state in the `.claude/plan/` directory:
 
 ```
-.planning/
-  PROJECT.md                          — Project definition and vision
-  STATE.md                            — Current execution state
-  config.json                         — Configuration and preferences
-  milestones/
-    v1-REQUIREMENTS.md                — Version 1 requirements
-    v1-ROADMAP.md                     — Version 1 phase roadmap
-    v2-REQUIREMENTS.md                — Future version requirements
-  phases/
-    01-foundation/
-      01-RESEARCH.md                  — Phase research findings
-      MILESTONE-AUDIT.md              — Phase audit report
-    02-feature-name/
-      02-RESEARCH.md
-      MILESTONE-AUDIT.md
-  codebase/
-    STACK.md                          — Technology stack
-    ARCHITECTURE.md                   — System architecture
-    STRUCTURE.md                      — Directory structure
-    CONVENTIONS.md                    — Code conventions
-    TESTING.md                        — Test infrastructure
-    INTEGRATIONS.md                   — External integrations
-    CONCERNS.md                       — Tech debt and concerns
-  research/
-    {topic-slug}.md                   — Domain research documents
-  debug/
-    {issue-slug}.md                   — Debug session logs
+.claude/plan/
+  plan.yaml                             — Project plan with phases, tasks, must_haves
+  tasks/
+    task-{N.M}.md                       — Individual task prompts (TDD-first)
+```
+
+Additional state directories:
+
+```
+.claude/
+  vgl-sessions/                         — Per-task VGL session state
+  plans/
+    plan-summary.md                     — Condensed plan summary
 ```
 
 These files are the source of truth for all gsd-vgl commands. They are designed

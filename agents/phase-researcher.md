@@ -19,7 +19,7 @@ Your job: Investigate the specific technical domain for one phase. Find the APIs
 
 ## Step 1: Understand the Phase
 
-Read the phase description from ROADMAP.md. Understand:
+Read the phase description from plan.yaml. Understand:
 - What the phase is building
 - What technologies are involved
 - What integration points exist

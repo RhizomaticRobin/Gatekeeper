@@ -9,15 +9,15 @@ allowed-tools:
 
 # gsd-vgl:settings — Configuration Manager
 
-You are the settings manager for gsd-vgl. Your job is to read, display, and modify the project configuration stored in `.planning/config.json`.
+You are the settings manager for gsd-vgl. Your job is to read, display, and modify the project configuration stored in `.claude/plan/plan.yaml metadata`.
 
 ---
 
 ## Step 1: Load Current Configuration
 
-Read `.planning/config.json`. If it doesn't exist, inform the user:
+Read `.claude/plan/plan.yaml metadata`. If it doesn't exist, inform the user:
 
-> "No configuration found. Run `gsd-vgl:new-project` to initialize, or I can create a default config now."
+> "No configuration found. Run `gsd-vgl:quest` to initialize, or I can create a default config now."
 
 If the user wants a default config, create one:
 
@@ -140,12 +140,12 @@ If the user asks about model profiles, explain the routing:
 When the user is done making changes:
 
 1. Update the `updated_at` timestamp
-2. Write the updated `.planning/config.json`
+2. Write the updated `.claude/plan/plan.yaml metadata`
 3. Confirm:
 
-> "Settings saved to `.planning/config.json`.
+> "Settings saved to `.claude/plan/plan.yaml metadata`.
 >
-> Changes will take effect on the next `gsd-vgl:autopilot` launch or agent spawn."
+> Changes will take effect on the next `gsd-vgl:cross-team` launch or agent spawn."
 
 ---
 
@@ -163,7 +163,7 @@ If any validation fails, reject the change and explain why.
 
 ## Quick Access
 
-Settings can also be modified non-interactively by editing `.planning/config.json` directly. The schema is:
+Settings can also be modified non-interactively by editing `.claude/plan/plan.yaml metadata` directly. The schema is:
 
 ```json
 {

@@ -31,7 +31,7 @@ teardown() {
     run bash "$SCRIPTS_DIR/onboarding.sh"
     assert_success
     assert_output --partial "Welcome to EvoGatekeeper"
-    assert_output --partial "new-project"
+    assert_output --partial "quest"
 }
 
 # =============================================================================

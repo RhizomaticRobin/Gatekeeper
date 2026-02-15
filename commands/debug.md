@@ -23,7 +23,7 @@ If the user provided an issue description as an argument, use it as the starting
 ### From State
 If no description is provided, check for existing debug context:
 
-1. Read `.planning/STATE.md` — check for BLOCKED status with blocker description
+1. Read `.claude/plan/plan.yaml` — check for BLOCKED status with blocker description
 2. Scan `.planning/debug/*.md` — check for open debug sessions
 3. Ask the user: "What issue are you experiencing?"
 
@@ -60,7 +60,7 @@ Create the debug session file `.planning/debug/{slug}.md`:
 - OS: {detected}
 - Runtime: {detected}
 - Project: {from PROJECT.md}
-- Phase: {from STATE.md}
+- Phase: {from plan.yaml}
 
 ## Reproduction Steps
 {to be filled in}
@@ -79,7 +79,7 @@ Spawn a `debugger` agent via the Task tool:
 Task: "You are a debugger agent investigating: {issue description}
 
 Project context: {from PROJECT.md}
-Current phase: {from STATE.md}
+Current phase: {from plan.yaml}
 
 Perform initial investigation:
 
@@ -211,7 +211,7 @@ Update the debug session file:
 ### Update State
 
 1. Update `.planning/debug/{slug}.md` status to RESOLVED
-2. If STATE.md was BLOCKED, update it to the appropriate status (IN_PROGRESS)
+2. If plan.yaml task was BLOCKED, update it to the appropriate status (IN_PROGRESS)
 3. Inform the user:
 
 > "Issue resolved: {root cause summary}
@@ -220,7 +220,7 @@ Update the debug session file:
 > Files modified: {list}
 >
 > Debug session saved to `.planning/debug/{slug}.md`.
-> - `gsd-vgl:autopilot` — resume execution
+> - `gsd-vgl:cross-team` — resume execution
 > - `gsd-vgl:progress` — check overall status"
 
 ---

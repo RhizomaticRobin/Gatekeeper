@@ -344,14 +344,14 @@ class TestDeliverablesValidation:
         assert "deliverables.backend is required" in captured.err
 
     def test_validate_missing_frontend(self, tmp_path, capsys):
-        """Missing deliverables.frontend produces an error."""
+        """Missing deliverables.frontend produces a warning (not error)."""
         plan = _valid_plan()
         del plan["phases"][0]["tasks"][0]["deliverables"]["frontend"]
         path = write_plan(tmp_path, plan)
         result = validate(path)
         captured = capsys.readouterr()
-        assert result == 1
-        assert "deliverables.frontend is required" in captured.err
+        assert result == 0
+        assert "deliverables.frontend" in captured.err  # warning present
 
 
 # ===========================================================================
@@ -795,3 +795,189 @@ class TestEdgeCases:
         path = write_plan(tmp_path, plan)
         result = validate(path)
         assert result == 0
+
+
+# ===========================================================================
+# Resilience metadata validation
+# ===========================================================================
+
+
+class TestResilienceMetadata:
+    def test_resilience_metadata_accepted(self, tmp_path, capsys):
+        """Plan with all 4 resilience fields in metadata passes validation."""
+        plan = _valid_plan()
+        plan["metadata"]["max_vgl_iterations"] = 50
+        plan["metadata"]["timeout_hours"] = 8
+        plan["metadata"]["stuck_threshold"] = 3
+        plan["metadata"]["circuit_breaker_threshold"] = 5
+        path = write_plan(tmp_path, plan)
+        result = validate(path)
+        captured = capsys.readouterr()
+        assert result == 0
+        assert "PASSED" in captured.out
+
+    def test_resilience_metadata_partial(self, tmp_path, capsys):
+        """Plan with only some resilience fields passes (they're optional)."""
+        plan = _valid_plan()
+        plan["metadata"]["max_vgl_iterations"] = 100
+        plan["metadata"]["timeout_hours"] = 12
+        # stuck_threshold and circuit_breaker_threshold omitted
+        path = write_plan(tmp_path, plan)
+        result = validate(path)
+        captured = capsys.readouterr()
+        assert result == 0
+        assert "PASSED" in captured.out
+
+    def test_resilience_metadata_bad_types(self, tmp_path, capsys):
+        """Non-integer resilience fields produce errors."""
+        plan = _valid_plan()
+        plan["metadata"]["max_vgl_iterations"] = "not_a_number"
+        path = write_plan(tmp_path, plan)
+        result = validate(path)
+        captured = capsys.readouterr()
+        assert result == 1
+        assert "max_vgl_iterations" in captured.err
+
+    def test_resilience_metadata_negative_value(self, tmp_path, capsys):
+        """Negative resilience field values produce errors."""
+        plan = _valid_plan()
+        plan["metadata"]["timeout_hours"] = -1
+        path = write_plan(tmp_path, plan)
+        result = validate(path)
+        captured = capsys.readouterr()
+        assert result == 1
+        assert "timeout_hours" in captured.err
+
+    def test_resilience_metadata_zero_value(self, tmp_path, capsys):
+        """Zero resilience field values produce errors (must be positive)."""
+        plan = _valid_plan()
+        plan["metadata"]["stuck_threshold"] = 0
+        path = write_plan(tmp_path, plan)
+        result = validate(path)
+        captured = capsys.readouterr()
+        assert result == 1
+        assert "stuck_threshold" in captured.err
+
+
+# ===========================================================================
+# Project context validation
+# ===========================================================================
+
+
+class TestProjectContext:
+    def test_project_context_accepted(self, tmp_path, capsys):
+        """Plan with project_context dict in metadata passes validation."""
+        plan = _valid_plan()
+        plan["metadata"]["project_context"] = {
+            "vision": "Build a CLI tool",
+            "users": "developers",
+            "tech_stack": ["python", "bash"],
+        }
+        path = write_plan(tmp_path, plan)
+        result = validate(path)
+        captured = capsys.readouterr()
+        assert result == 0
+        assert "PASSED" in captured.out
+
+    def test_project_context_bad_type(self, tmp_path, capsys):
+        """project_context as string produces error."""
+        plan = _valid_plan()
+        plan["metadata"]["project_context"] = "not a dict"
+        path = write_plan(tmp_path, plan)
+        result = validate(path)
+        captured = capsys.readouterr()
+        assert result == 1
+        assert "project_context" in captured.err
+
+    def test_project_context_in_metadata(self, tmp_path, capsys):
+        """Plan with full discovery project_context (all fields) passes validation.
+
+        This verifies that validate-plan.py accepts metadata.project_context
+        containing all discovery fields from the deep discovery interview:
+        vision, primary_user, problem, success_criteria, core_features,
+        out_of_scope, future_features, greenfield, tech_constraints,
+        integrations, deploy_target, quality_preference.
+        """
+        plan = _valid_plan()
+        plan["metadata"]["project_context"] = {
+            "vision": "A task management app for remote teams",
+            "primary_user": "Remote team leads and project managers",
+            "problem": "Distributed teams lack visibility into task progress",
+            "success_criteria": "Teams can track tasks in real-time across timezones",
+            "core_features": [
+                "Task board with drag-and-drop",
+                "Real-time sync across clients",
+                "Team member assignments",
+                "Due date tracking",
+                "Activity feed",
+            ],
+            "out_of_scope": [
+                "Video conferencing",
+                "File storage",
+                "Invoicing",
+            ],
+            "future_features": [
+                "Gantt chart view",
+                "Time tracking integration",
+            ],
+            "greenfield": True,
+            "tech_constraints": "Must use TypeScript and PostgreSQL",
+            "integrations": ["Slack API", "GitHub webhooks"],
+            "deploy_target": "AWS ECS with RDS",
+            "quality_preference": "quality",
+        }
+        path = write_plan(tmp_path, plan)
+        result = validate(path)
+        captured = capsys.readouterr()
+        assert result == 0
+        assert "PASSED" in captured.out
+
+
+# ===========================================================================
+# Frontend optional validation
+# ===========================================================================
+
+
+class TestFrontendOptional:
+    def test_frontend_optional(self, tmp_path, capsys):
+        """Plan task without deliverables.frontend passes (warning only)."""
+        plan = _valid_plan()
+        del plan["phases"][0]["tasks"][0]["deliverables"]["frontend"]
+        path = write_plan(tmp_path, plan)
+        result = validate(path)
+        captured = capsys.readouterr()
+        assert result == 0
+        # Should produce a warning, not an error
+        assert "Warning" in captured.err or "warning" in captured.err.lower()
+
+    def test_frontend_present_still_works(self, tmp_path, capsys):
+        """Plan with deliverables.frontend still passes."""
+        plan = _valid_plan()
+        # frontend is already present in _valid_plan()
+        path = write_plan(tmp_path, plan)
+        result = validate(path)
+        captured = capsys.readouterr()
+        assert result == 0
+        assert "PASSED" in captured.out
+
+
+# ===========================================================================
+# Existing plans backward compatibility
+# ===========================================================================
+
+
+class TestBackwardCompatibility:
+    def test_existing_plans_still_valid(self, tmp_path, capsys):
+        """All existing fixture plans still pass validation."""
+        fixtures_dir = os.path.join(
+            os.path.dirname(__file__), "..", "fixtures"
+        )
+        plans = []
+        for root, dirs, files in os.walk(fixtures_dir):
+            for f in files:
+                if f == "plan.yaml":
+                    plans.append(os.path.join(root, f))
+        assert len(plans) > 0, "No fixture plans found"
+        for plan_path in plans:
+            result = validate(plan_path)
+            assert result == 0, f"Fixture plan failed validation: {plan_path}"

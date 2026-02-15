@@ -15,10 +15,11 @@ Functions:
   get_model_profile(plan) — get model_profile from metadata
 
 Also usable as CLI:
-  python3 plan_utils.py --complete-task <plan.yaml> <task_id>
-  python3 plan_utils.py --next-task <plan.yaml>
-  python3 plan_utils.py --unblocked-tasks <plan.yaml>
-  python3 plan_utils.py --all-ids <plan.yaml>
+  python3 plan_utils.py <plan.yaml> --complete-task <task_id>
+  python3 plan_utils.py <plan.yaml> --start-task <task_id>
+  python3 plan_utils.py <plan.yaml> --next-task
+  python3 plan_utils.py <plan.yaml> --unblocked-tasks
+  python3 plan_utils.py <plan.yaml> --all-ids
 """
 
 import sys
@@ -279,6 +280,8 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--complete-task", metavar="TASK_ID",
                        help="Mark task as completed")
+    group.add_argument("--start-task", metavar="TASK_ID",
+                       help="Mark task as in_progress")
     group.add_argument("--next-task", action="store_true",
                        help="Output next unblocked task as JSON")
     group.add_argument("--all-ids", action="store_true",
@@ -300,6 +303,15 @@ def main():
             print(json.dumps({"status": "completed", "task_id": args.complete_task}))
         else:
             print(json.dumps({"error": f"Task {args.complete_task} not found"}),
+                  file=sys.stderr)
+            sys.exit(1)
+
+    elif args.start_task:
+        ok = update_task_status(args.plan_file, args.start_task, "in_progress")
+        if ok:
+            print(json.dumps({"status": "in_progress", "task_id": args.start_task}))
+        else:
+            print(json.dumps({"error": f"Task {args.start_task} not found"}),
                   file=sys.stderr)
             sys.exit(1)
 

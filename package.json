@@ -6,7 +6,6 @@
     "gsd-vgl": "bin/install.js"
   },
   "files": [
-    "bin",
     "commands",
     "agents",
     "hooks",
@@ -20,8 +19,7 @@
     "claude-code",
     "verifier-loop",
     "tdd",
-    "spec-driven-development",
-    "autopilot"
+    "spec-driven-development"
   ],
   "author": "User",
   "license": "MIT",

@@ -55,7 +55,6 @@ function verifyInstallation(fs, pluginDir) {
     'hooks/hooks.json',
     'commands/help.md',
     'agents/verifier.md',
-    'bin/ralph.sh',
     'templates/opencode.json',
   ];
 

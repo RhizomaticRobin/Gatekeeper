@@ -26,12 +26,15 @@ status: pending
 ## Deliverables
 {backend and frontend deliverables}
 
-## Tests to Write (TDD-First)
-{test files and what they test - written BEFORE implementation}
+## Tests to Write (Tester Agent — Phase 1)
+{test files and what they test - written by the tester agent BEFORE executor begins}
+NOTE: These test specifications are instructions for the **tester agent**, not the executor.
+The tester writes comprehensive tests based on these specs, passes the `assess_tests` quality gate,
+and then the executor receives the pre-written tests to implement against.
 
 ## Test Dependency Graph
-Each test below becomes a single opencode agent dispatch. Tests with no
-dependencies on each other run concurrently; tests that depend on another
+Each test below becomes a single opencode agent dispatch by the **executor agent** (Phase 2).
+Tests with no dependencies on each other run concurrently; tests that depend on another
 test's implementation run after that test's agent completes.
 
 | Test | File | Depends On | Guidance |

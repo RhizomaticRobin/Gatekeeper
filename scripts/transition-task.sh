@@ -62,6 +62,51 @@ export GSD_VGL_PLAN_LOCKED=1
 echo "Completing task: $CURRENT_TASK_ID" >&2
 python3 "${SCRIPTS_DIR}/plan_utils.py" "$PLAN_FILE" --complete-task "$CURRENT_TASK_ID" >/dev/null
 
+# Git checkpoint: commit plan.yaml status change
+create_checkpoint() {
+  local task_id="$1"
+  local task_name="$2"
+
+  # Skip if not in git repo
+  if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+    echo "Checkpoint: skipped (not a git repository)" >&2
+    return 0
+  fi
+
+  # Stage plan.yaml and any VGL state changes
+  git add .claude/plan/plan.yaml 2>/dev/null || true
+
+  # Check if anything is staged
+  if git diff --cached --quiet 2>/dev/null; then
+    echo "Checkpoint: skipped (no changes to commit)" >&2
+    return 0
+  fi
+
+  # Create checkpoint commit
+  local commit_msg="checkpoint(task-${task_id}): ${task_name}"
+  if git commit -m "$commit_msg" > /dev/null 2>&1; then
+    local short_sha=$(git rev-parse --short HEAD)
+    echo "Checkpoint: $short_sha (task-${task_id})" >&2
+  else
+    echo "Checkpoint: commit failed (non-fatal)" >&2
+  fi
+
+  return 0
+}
+
+# Get task name for checkpoint message
+TASK_NAME=$(python3 -c "
+import sys
+sys.path.insert(0, '${SCRIPTS_DIR}')
+from plan_utils import load_plan, find_task
+plan = load_plan('$PLAN_FILE')
+_, task = find_task(plan, '$CURRENT_TASK_ID')
+if task: print(task.get('name', 'task $CURRENT_TASK_ID'))
+else: print('task $CURRENT_TASK_ID')
+" 2>/dev/null || echo "task $CURRENT_TASK_ID")
+
+create_checkpoint "$CURRENT_TASK_ID" "$TASK_NAME"
+
 # Check if completing this task finishes a phase that needs integration checking
 INTEGRATION_CHECK=$(python3 -c "
 import sys, json

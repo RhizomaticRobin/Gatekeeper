@@ -111,18 +111,7 @@ YOUR TASK:
 $TASK_PROMPT"
 
 # Mark task as in_progress
-python3 -c "
-import sys
-sys.path.insert(0, '${PLUGIN_ROOT}/scripts')
-from plan_utils import load_plan, save_plan
-plan = load_plan('$PLAN_FILE')
-for phase in plan.get('phases', []):
-    for task in phase.get('tasks', []):
-        if str(task['id']) == '$TASK_ID':
-            task['status'] = 'in_progress'
-save_plan('$PLAN_FILE', plan)
-print('Task $TASK_ID set to in_progress')
-" 2>&1 || true
+python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$TASK_ID" 2>&1 || true
 
 # Build JSON input and launch VGL in plan mode
 export _VGL_TASK_PROMPT="$TASK_PROMPT"

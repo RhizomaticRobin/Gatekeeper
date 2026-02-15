@@ -43,17 +43,19 @@ Run the test command yourself to verify all tests pass:
 - Do NOT proceed until the full suite is green
 
 ### Step 5: Spawn the Verifier
-When ready, spawn the Verifier subagent to verify completion:
+When ready, call the `verify_task` MCP tool:
 ```
-Task(subagent_type='general-purpose', model='opus',
-     prompt=open('.claude/verifier-prompt.local.md').read())
+verify_task(task_id="<task_id>")
 ```
 
-The Verifier will:
-- Run tests independently via `fetch-completion-token.sh`
-- Check for TODO/FIXME/stub implementations
-- Only receive the completion token if ALL checks pass
-- Output the token to complete the loop, or reject with specific issues
+The verifier MCP server handles everything internally:
+- Loads the pre-generated verifier prompt (you never see it)
+- Spawns an independent Claude Code agent with locked-down tools
+- Runs tests independently via `fetch-completion-token.sh`
+- Checks for TODO/FIXME/stub implementations
+- Returns PASS (with token) or FAIL with specific issues
+
+Parse the JSON result: if `status: "PASS"`, the loop completes. If `status: "FAIL"`, fix the issues in `details` and call `verify_task` again.
 
 ### Critical Rules
 - Follow TDD order strictly: tests FIRST, then implementation, then verification

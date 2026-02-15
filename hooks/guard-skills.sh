@@ -7,7 +7,6 @@
 #   - Running /quest (would overwrite the plan mid-execution)
 #   - Running /bridge (would start a competing non-plan loop)
 #   - Running /run-away (only the user should cancel)
-#   - Running /new-project (would overwrite project state)
 #   - Running /help (unnecessary noise during loop)
 #
 # /cross-team is allowed because the auto-transition stop hook uses it
@@ -32,8 +31,8 @@ fi
 # Normalize skill name — strip "gsd-vgl:" prefix if present
 BARE_SKILL="${SKILL#gsd-vgl:}"
 
-# Allow /cross and /cross-team through — needed for auto-transition and recovery
-if [[ "$BARE_SKILL" == "cross" ]] || [[ "$BARE_SKILL" == "cross-team" ]]; then
+# Allow /cross-team through — needed for auto-transition and recovery
+if [[ "$BARE_SKILL" == "cross-team" ]]; then
   exit 0
 fi
 
@@ -44,7 +43,7 @@ fi
 
 # Block all other gsd-vgl skills during active VGL
 case "$BARE_SKILL" in
-  quest|bridge|run-away|new-project|research|map-codebase|autopilot|settings|verify-milestone|debug|help)
+    quest|new-project|bridge|run-away|research|map-codebase|settings|verify-milestone|debug|help)
     echo "BLOCKED: /$SKILL is not available during an active VGL loop." >&2
     echo "The Verifier-Gated Loop is running — focus on the current task." >&2
     echo "Only /cross-team and /progress are allowed. To cancel, the USER must run /run-away." >&2

@@ -165,10 +165,8 @@ SUMMARY: .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md
 What to commit:
 
 ```bash
-git add .planning/phases/XX-name/task-*.md
-git add .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md
-git add .planning/plan.yaml
-git add .planning/ROADMAP.md
+git add .claude/plan/plan.yaml
+git add .claude/plan/tasks/task-*.md
 git commit
 ```
 

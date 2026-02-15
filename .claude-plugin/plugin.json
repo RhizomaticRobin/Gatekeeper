@@ -12,13 +12,17 @@
     "verifier-loop",
     "tdd",
     "spec-driven-development",
-    "autopilot",
+    "evolutionary-intelligence",
     "meta-prompting",
     "context-engineering"
   ],
   "mcpServers": {
     "opencode-mcp": {
       "command": "${CLAUDE_PLUGIN_ROOT}/bin/opencode-mcp.sh",
+      "env": {}
+    },
+    "verifier-mcp": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/verifier-mcp.sh",
       "env": {}
     }
   }

@@ -20,10 +20,10 @@ You are a research coordinator. Your job is to spawn parallel research agents th
 
 Read the argument provided by the user (phase number). Then load context:
 
-1. Read `.planning/milestones/v1-ROADMAP.md` to find the phase details
-2. Read `.planning/milestones/v1-REQUIREMENTS.md` for requirements in that phase
-3. Read `.planning/PROJECT.md` for overall project context
-4. Read `.planning/config.json` for model profile settings
+1. Read `.claude/plan/plan.yaml` to find the phase details
+2. Read `.claude/plan/plan.yaml` for requirements in that phase
+3. Read `.claude/plan/plan.yaml` for overall project context
+4. Read `.claude/plan/plan.yaml metadata` for model profile settings
 
 If no phase number is provided, ask the user which phase to research.
 
@@ -134,7 +134,7 @@ After all agents complete, read their output files and create a unified research
 
 After research is complete:
 
-1. Update `.planning/STATE.md` to note that research for Phase {N} is complete
+1. Update `.claude/plan/plan.yaml` to note that research for Phase {N} is complete
 2. Summarize findings to the user:
 
 > "Research complete for Phase {N}. Key findings:
@@ -144,7 +144,7 @@ After research is complete:
 >
 > {N} risk(s) identified. See `.planning/phases/XX-{slug}/XX-RESEARCH.md` for full details.
 >
-> Next: `gsd-vgl:autopilot` to begin execution, or `gsd-vgl:research {N+1}` for the next phase."
+> Next: `gsd-vgl:cross-team` to begin execution, or `gsd-vgl:research {N+1}` for the next phase."
 
 ---
 
@@ -154,4 +154,4 @@ After research is complete:
 - If a researcher agent fails, log the failure and proceed with remaining topics
 - If the phase has no obvious research needs, tell the user and suggest alternatives:
   - `gsd-vgl:map-codebase` for understanding existing code
-  - `gsd-vgl:new-project` if planning is incomplete
+  - `gsd-vgl:quest` if planning is incomplete

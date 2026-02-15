@@ -28,7 +28,7 @@ Default to "balanced" if not set.
 |-------|---------|----------|--------|
 | executor | opus | sonnet | sonnet |
 | verifier | sonnet | sonnet | haiku |
-| general-purpose | -- | -- | -- |
+| integration-checker | sonnet | sonnet | haiku |
 
 Store resolved models for use in Task calls below.
 </step>
@@ -62,8 +62,8 @@ Confirm phase exists and has tasks in plan.yaml:
 
 ```bash
 # Extract tasks for the given phase from plan.yaml
-TASKS=$(grep -A 100 "phase: ${PHASE_ARG}" plan.yaml 2>/dev/null | grep "task-" || true)
-TASK_COUNT=$(echo "$TASKS" | grep -c "task-" 2>/dev/null || echo 0)
+TASKS=$(grep -A 100 "phase: ${PHASE_ARG}" plan.yaml 2>/dev/null | grep "id:" || true)
+TASK_COUNT=$(echo "$TASKS" | grep -c "id:" 2>/dev/null || echo 0)
 if [ "$TASK_COUNT" -eq 0 ]; then
   echo "ERROR: No tasks found for phase '${PHASE_ARG}' in plan.yaml"
   exit 1
@@ -77,7 +77,7 @@ Report: "Found {N} tasks in phase {phase}"
 List all tasks for the phase and extract metadata from plan.yaml:
 
 For each task, extract:
-- `id` - Task identifier (e.g., "task-001")
+- `id` - Task identifier (e.g., "1.1")
 - `wave: N` - Execution wave (pre-computed in plan.yaml)
 - `file_scope: [...]` - Files this task touches
 - `autonomous: true/false` - Whether task has checkpoints
@@ -104,9 +104,9 @@ Read `wave` from each task in plan.yaml and group by wave number:
 **Group tasks:**
 ```
 waves = {
-  1: [task-001, task-002],
-  2: [task-003, task-004],
-  3: [task-005]
+  1: [1.1, 1.2],
+  2: [2.1, 2.2],
+  3: [3.1]
 }
 ```
 
@@ -117,9 +117,9 @@ Tasks in the same wave can run in parallel if their `file_scope` arrays do not o
 
 ```
 Wave 1:
-  task-001 (file_scope: [src/auth.ts, src/login.tsx])  -- parallel group A
-  task-002 (file_scope: [src/api/users.ts])             -- parallel group A (no overlap)
-  task-003 (file_scope: [src/auth.ts, src/session.ts])  -- sequential after task-001 (overlaps auth.ts)
+  1.1 (file_scope: [src/auth.ts, src/login.tsx])  -- parallel group A
+  1.2 (file_scope: [src/api/users.ts])             -- parallel group A (no overlap)
+  1.3 (file_scope: [src/auth.ts, src/session.ts])  -- sequential after 1.1 (overlaps auth.ts)
 ```
 
 Report wave structure with context:
@@ -130,9 +130,9 @@ Report wave structure with context:
 
 | Wave | Tasks | Parallel? | What it builds |
 |------|-------|-----------|----------------|
-| 1 | task-001, task-002 | Yes (no file_scope overlap) | {from task objectives} |
-| 1 | task-003 | After task-001 (overlaps auth.ts) | {from task objectives} |
-| 2 | task-004 | Solo | {from task objectives} |
+| 1 | 1.1, 1.2 | Yes (no file_scope overlap) | {from task objectives} |
+| 1 | 1.3 | After 1.1 (overlaps auth.ts) | {from task objectives} |
+| 2 | 2.1 | Solo | {from task objectives} |
 
 ```
 
@@ -266,7 +266,7 @@ Tasks with `autonomous: false` require user interaction.
 
 1. **Spawn agent for checkpoint task:**
    ```
-   Task(prompt="{subagent-task-prompt}", subagent_type="executor", model="{executor_model}")
+   Task(prompt="{subagent-task-prompt}", subagent_type="evogatekeeper:executor", model="{executor_model}")
    ```
 
 2. **Agent runs until checkpoint:**
@@ -304,7 +304,7 @@ Tasks with `autonomous: false` require user interaction.
    ```
    Task(
      prompt=filled_continuation_template,
-     subagent_type="executor",
+     subagent_type="evogatekeeper:executor",
      model="{executor_model}"
    )
    ```
@@ -356,15 +356,15 @@ After all waves complete, aggregate results:
 
 | Wave | Tasks | Status |
 |------|-------|--------|
-| 1 | task-001, task-002 | Complete |
-| CP | task-003 | Verified |
-| 2 | task-004 | Complete |
-| 3 | task-005 | Complete |
+| 1 | 1.1, 1.2 | Complete |
+| CP | 1.3 | Verified |
+| 2 | 2.1 | Complete |
+| 3 | 3.1 | Complete |
 
 ### Task Details
 
-1. **task-001**: [one-liner from checkpoint summary]
-2. **task-002**: [one-liner from checkpoint summary]
+1. **1.1**: [one-liner from checkpoint summary]
+2. **1.2**: [one-liner from checkpoint summary]
 ...
 
 ### Issues Encountered
@@ -375,20 +375,15 @@ After all waves complete, aggregate results:
 <step name="verify_phase_goal">
 Verify phase achieved its GOAL, not just completed its TASKS.
 
-**Spawn verifier:**
+**Spawn verifier via MCP:**
+
+For phase-level verification, use the `verify_task` MCP tool with the phase's representative task ID (typically the last task in the phase):
 
 ```
-Task(
-  prompt="Verify phase {phase_name} goal achievement.
+verify_task(task_id="{last_task_id_in_phase}")
+```
 
-Phase goal: {goal from plan.yaml}
-must_haves from plan.yaml: truths, artifacts, key_links
-
-Check must_haves against actual codebase. Create verification report.
-Verify what actually exists in the code.",
-  subagent_type="verifier",
-  model="{verifier_model}"
-)
+The verifier MCP server handles everything internally — loading the verifier prompt, spawning a locked-down Claude Code agent, running tests, and performing Playwright visual verification.
 ```
 
 **Read verification status and route:**

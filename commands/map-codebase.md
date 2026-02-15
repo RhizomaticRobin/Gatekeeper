@@ -19,7 +19,7 @@ You are a senior software architect performing a comprehensive codebase analysis
 
 Before spawning the mapper agent, perform a quick survey:
 
-1. **Check for `.planning/PROJECT.md`** — load project context if available
+1. **Check for `.claude/plan/plan.yaml`** — load project context if available
 2. **List top-level files and directories:**
    ```bash
    ls -la
@@ -274,6 +274,6 @@ After all files are created, present a summary to the user:
 > - **Concerns:** {N} critical, {N} high priority
 >
 > Full analysis in `.planning/codebase/`. Next steps:
-> - `gsd-vgl:new-project` — create project plan informed by this analysis
+> - `gsd-vgl:quest` — create project plan informed by this analysis
 > - `gsd-vgl:research` — investigate specific concerns or technologies
-> - `gsd-vgl:autopilot` — begin execution"
+> - `gsd-vgl:cross-team` — begin execution"

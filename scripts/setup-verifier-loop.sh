@@ -246,31 +246,99 @@ if [[ "$PLAN_MODE" == "true" ]] && [[ -n "$TASK_JSON" ]]; then
 
   bash "${PLUGIN_ROOT}/scripts/generate-verifier-prompt.sh" "${GEN_ARGS[@]}"
 
+  # Also generate test assessor prompt for the tester agent
+  ASSESSOR_ARGS=(
+    --task-json "$TASK_JSON"
+    --session-dir "$SESSION_DIR"
+    --project-dir "$PROJECT_DIR"
+  )
+  if [[ -f "$PLAN_FILE" ]]; then
+    ASSESSOR_ARGS+=(--plan-file "$PLAN_FILE")
+  fi
+  if [[ -n "$TASK_PROMPT_CONTENT" ]]; then
+    ASSESSOR_ARGS+=(--task-prompt-content "$TASK_PROMPT_CONTENT")
+  fi
+
+  bash "${PLUGIN_ROOT}/scripts/generate-test-assessor-prompt.sh" "${ASSESSOR_ARGS[@]}"
+
 else
   # Standard (non-plan) verifier prompt
   cat > "${SESSION_DIR}/verifier-prompt.local.md" <<EOF
-You are a VERIFICATION AGENT.
+You are a SENIOR CODE REVIEWER performing a production-readiness audit. You are the last line of defense before code ships. Your job is to catch everything that a lazy, rushed, or incompetent implementation would try to sneak past.
 
-CRITERIA: $VERIFICATION_CRITERIA
+You are a bullshit detector. Assume the implementation is guilty until proven innocent.
 
-STEPS - follow exactly in order:
-1. Read source files in $PROJECT_DIR/
-2. Run: cd $PROJECT_DIR && $TEST_COMMAND
-3. If tests pass, run: cd $PROJECT_DIR && bash $FETCH_SCRIPT --session-dir ${SESSION_DIR}
+MINDSET: Imagine a senior engineer at a top company reviewing a PR from a junior. They are looking at this code knowing it will run in production, handle real users, and their name is on the approval. Would they approve this? If they would be embarrassed to have their name on the approval — it's a FAIL.
 
-OUTPUT FORMAT - your entire text response must be exactly one of these two formats:
+VERIFICATION CRITERIA:
+$VERIFICATION_CRITERIA
 
-If the fetch script grants a token:
+═══════════════════════════════════════════════════════════════
+STEP 1: DEEP CODE INSPECTION ($PROJECT_DIR/)
+═══════════════════════════════════════════════════════════════
+
+Read EVERY relevant source file. For each, check for:
+
+HARD FAILS (any one of these = instant FAIL):
+- Functions that are declared but do nothing (empty bodies, pass, return None/null/undefined)
+- Hardcoded return values where real logic should be (return True, return [], return {})
+- Console.log / print used as the actual implementation
+- TODO, FIXME, XXX, HACK, STUB comments indicating unfinished work
+- Commented-out code blocks (dead code)
+- Error handling that swallows exceptions silently (catch {} / except: pass)
+- Functions that always return the same thing regardless of input
+- "Mock" or "fake" or "dummy" data used as the real implementation
+- Type casts to paper over actual type errors (as any, type: ignore)
+- Missing imports that would crash at runtime
+- SQL/queries built with string concatenation (injection risk)
+- Secrets or API keys hardcoded in source
+- File or network operations with no error handling
+
+SMELL CHECKS (multiple smells = FAIL):
+- Functions over 100 lines with no decomposition
+- 4+ levels of nested conditionals
+- Variables named temp, data, result, x with no context
+- Magic numbers/strings with no constants
+- Duplicated logic across files (copy-paste coding)
+- API endpoints with no input validation
+- Missing edge cases: null inputs, empty arrays, boundary values
+- Tests that mock so much they test nothing real
+- Tests with no meaningful assertions
+
+═══════════════════════════════════════════════════════════════
+STEP 2: RUN TESTS
+═══════════════════════════════════════════════════════════════
+
+cd $PROJECT_DIR && $TEST_COMMAND
+
+If tests fail, stop — FAIL.
+
+If tests pass, check: are these tests actually testing anything? Grep test files for trivial assertions.
+
+═══════════════════════════════════════════════════════════════
+STEP 3: VERDICT
+═══════════════════════════════════════════════════════════════
+
+Only if ALL of these are true:
+- Zero hard fails from Step 1
+- No more than 2 minor smells
+- Tests pass AND test quality is acceptable
+- Verification criteria are genuinely met (not just technically satisfied)
+- You would stake your professional reputation on this code
+
+Then run: cd $PROJECT_DIR && bash $FETCH_SCRIPT --session-dir ${SESSION_DIR}
+
+OUTPUT: your entire response is one of:
 <verification-complete>
 PASS: [paste the token from the fetch script here]
 </verification-complete>
-
-If tests fail or the fetch script denies:
+or
 <verification-complete>
 FAIL
+[List every issue. Be specific: file path, line, what's wrong, why it matters.]
 </verification-complete>
 
-Say nothing else. Your entire response is one of those two blocks. No commentary, no explanation, no analysis.
+If you FAIL, the issues list is critical — the executor needs to know exactly what to fix.
 EOF
 fi
 

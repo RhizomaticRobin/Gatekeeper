@@ -1,0 +1,40 @@
+/**
+ * verifier-mcp - MCP server entry point
+ *
+ * Starts the Verifier MCP server with stdio transport.
+ * Exposes only the verify_task tool.
+ */
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { createServer } from "./server.js";
+
+async function main(): Promise<void> {
+  const serverCwd = process.cwd();
+  const server = createServer(serverCwd);
+  const transport = new StdioServerTransport();
+
+  // Handle graceful shutdown (idempotent)
+  let closing = false;
+  const shutdown = async () => {
+    if (closing) return;
+    closing = true;
+    try {
+      await server.close();
+    } catch {
+      // Ignore close errors during shutdown
+    }
+    process.exitCode = 0;
+    setTimeout(() => process.exit(0), 100);
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+
+  await server.connect(transport);
+
+  // Log to stderr (stdout is used for MCP communication)
+  console.error(`verifier-mcp server started (cwd: ${serverCwd})`);
+}
+
+main().catch((err) => {
+  console.error("Fatal error:", err);
+  process.exit(1);
+});

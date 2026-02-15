@@ -7,7 +7,7 @@
 - **Python classes:** PascalCase (`EvolutionDB`, `CascadeEvaluator`, `Approach`)
 - **JavaScript files:** kebab-case (`install-lib.js`, `intel-index.js`, `build-hooks.js`)
 - **Agent definitions:** kebab-case (`executor.md`, `plan-checker.md`, `codebase-mapper.md`)
-- **Commands:** kebab-case (`cross-team.md`, `map-codebase.md`, `new-project.md`)
+- **Commands:** kebab-case (`cross-team.md`, `map-codebase.md`, `quest.md`)
 - **Templates:** kebab-case or snake_case (`task-prompt.md`, `config.json`)
 - **Environment variables:** UPPER_SNAKE_CASE (`PLUGIN_ROOT`, `GSD_VGL_PLAN_LOCKED`, `CLAUDE_PLUGIN_ROOT`)
 - **VGL tokens:** `VGL_COMPLETE_` prefix + 32 hex chars
