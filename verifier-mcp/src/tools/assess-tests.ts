@@ -44,14 +44,17 @@ export async function executeAssessTests(
     };
   }
 
+  // Derive project root from plan file path (plan is at <project>/.claude/plan/plan.yaml)
+  const projectRoot = path.resolve(path.dirname(planFile), "..", "..");
+
   // 2. Find session directory: try .claude/vgl-sessions/task-{id}/ first, fall back to .claude/
   const taskSessionDir = path.join(
-    serverCwd,
+    projectRoot,
     ".claude",
     "vgl-sessions",
     `task-${input.task_id}`
   );
-  const fallbackDir = path.join(serverCwd, ".claude");
+  const fallbackDir = path.join(projectRoot, ".claude");
 
   let sessionDir: string;
   if (fs.existsSync(taskSessionDir)) {
@@ -105,12 +108,14 @@ export async function executeAssessTests(
   // 4. Spawn Claude Code via query() with locked-down config
   // Same read-only toolset as verifier, but NO Playwright MCP (no browser needed)
   const options: Partial<Options> = {
-    cwd: serverCwd,
+    cwd: projectRoot,
     allowedTools: ["Read", "Bash", "Grep", "Glob"],
     disallowedTools: ["Write", "Edit", "Task", "WebFetch", "WebSearch"],
     model: "claude-opus-4-6",
     permissionMode: "dontAsk",
-    settingSources: ["user", "project", "local"],
+    maxTurns: 30,
+    persistSession: false,
+    settingSources: [],
   };
 
   let resultText = "";

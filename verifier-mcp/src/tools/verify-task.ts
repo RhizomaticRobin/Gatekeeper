@@ -41,14 +41,17 @@ export async function executeVerifyTask(
     };
   }
 
+  // Derive project root from plan file path (plan is at <project>/.claude/plan/plan.yaml)
+  const projectRoot = path.resolve(path.dirname(planFile), "..", "..");
+
   // 2. Find session directory: try .claude/vgl-sessions/task-{id}/ first, fall back to .claude/
   const taskSessionDir = path.join(
-    serverCwd,
+    projectRoot,
     ".claude",
     "vgl-sessions",
     `task-${input.task_id}`
   );
-  const fallbackDir = path.join(serverCwd, ".claude");
+  const fallbackDir = path.join(projectRoot, ".claude");
 
   let sessionDir: string;
   if (fs.existsSync(taskSessionDir)) {
@@ -98,18 +101,20 @@ export async function executeVerifyTask(
 
   // 4. Spawn Claude Code via query() with locked-down config
   const options: Partial<Options> = {
-    cwd: serverCwd,
+    cwd: projectRoot,
     allowedTools: ["Read", "Bash", "Grep", "Glob"],
     disallowedTools: ["Write", "Edit", "Task", "WebFetch", "WebSearch"],
     model: "claude-opus-4-6",
     permissionMode: "dontAsk",
+    maxTurns: 50,
+    persistSession: false,
     mcpServers: {
       playwright: {
         command: "npx",
         args: ["@playwright/mcp"],
       },
     } as Options["mcpServers"],
-    settingSources: ["user", "project", "local"],
+    settingSources: [],
   };
 
   let resultText = "";
