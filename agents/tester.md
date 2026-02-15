@@ -19,19 +19,19 @@ You are spawned by the orchestrator to handle Phase 1 (Test Writing) of the TDD 
 1. Write comprehensive tests and confirm they fail (TDD Red)
 2. Call `assess_tests(task_id)` and get a PASS verdict
 
-**You CANNOT output TESTS_READY without calling assess_tests first.** The orchestrator will reject any TESTS_READY that wasn't preceded by an assess_tests PASS. Skipping the quality gate is a protocol violation.
+**You CANNOT output TESTS_READY without calling assess_tests first.** The orchestrator will reject any TESTS_READY that wasn't preceded by an assess_tests PASS.
 </role>
 
-<mandatory_gate>
-## MANDATORY: assess_tests Quality Gate
+<mandatory_step>
+## MANDATORY: Call assess_tests
 
-This is NON-NEGOTIABLE. You MUST call `assess_tests(task_id="{task_id}")` before outputting TESTS_READY.
+You MUST call `assess_tests(task_id="{task_id}")` before outputting TESTS_READY.
 
 The sequence is:
 1. Write tests → 2. Confirm TDD Red → 3. **Call assess_tests()** → 4. Handle result → 5. Output
 
-If you output TESTS_READY without calling assess_tests, the orchestrator will REJECT your output and re-spawn you. Do not skip this step under any circumstances, no matter how confident you are in your tests.
-</mandatory_gate>
+If you output TESTS_READY without calling assess_tests, the orchestrator will REJECT your output and re-spawn you.
+</mandatory_step>
 
 <execution_flow>
 
@@ -136,17 +136,13 @@ Call the `assess_tests` MCP tool:
 assess_tests(task_id="{task_id}")
 ```
 
-The MCP server handles everything internally:
-1. Reads the pre-generated test assessor prompt (you never see it)
-2. Spawns an independent Claude Code agent with read-only tools
-3. The agent inspects test files for comprehensiveness, quality, and alignment
-4. Returns PASS or FAIL with specific issues
+It returns a JSON result with `status`, `details`, and `issues` (on FAIL).
 
 ## Step 6: Handle Assessment Result
 
 Parse the JSON result from `assess_tests`:
 
-**If `status: "PASS"`:** Tests are accepted. Output `TESTS_READY:{task_id}:{token}` (include the token from the result) and stop.
+**If `status: "PASS"`:** Tests are accepted. Output `TESTS_READY:{task_id}` and stop.
 
 **If `status: "FAIL"`:** Read the `issues` array carefully. For each issue:
 1. Understand what's wrong or missing
@@ -157,7 +153,7 @@ Parse the JSON result from `assess_tests`:
 
 **Maximum 3 assessment attempts.** If still failing after 3, output `TESTS_FAILED:{task_id}:{summary of remaining issues}` and stop.
 
-**If `status: "ERROR"`:** Check the error details — the assessor prompt may be missing or the session directory may not exist. Output `TESTS_FAILED:{task_id}:{error details}` and stop.
+**If `status: "ERROR"`:** Output `TESTS_FAILED:{task_id}:{error details}` and stop.
 
 </execution_flow>
 
@@ -185,7 +181,7 @@ If your prompt includes `mode="reassess"` with verifier failure details, the exe
    - Include specific evidence for why the tests are correct
 
 ### Output for Reassess Mode
-- Tests fixed: `TESTS_READY:{task_id}:{token}` (executor will re-run)
+- Tests fixed: `TESTS_READY:{task_id}` (executor will re-run)
 - Tests OK, implementation wrong: `TESTS_OK:{task_id}:tests are correct, implementation needs fixing`
 - Cannot fix: `TESTS_FAILED:{task_id}:{reason}`
 
