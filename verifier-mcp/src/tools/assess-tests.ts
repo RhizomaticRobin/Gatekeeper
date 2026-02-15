@@ -20,6 +20,7 @@ export interface AssessTestsInput {
 export interface AssessTestsResult {
   task_id: string;
   status: "PASS" | "FAIL" | "ERROR";
+  token?: string;
   details: string;
   issues?: string[];
   durationMs: number;
@@ -156,14 +157,17 @@ export async function executeAssessTests(
     };
   }
 
-  // 5. Parse result for PASS/FAIL (no token — simple assessment)
+  // 5. Parse result for PASS/FAIL + token
+  // Token format: TQG_PASS_<32 hex chars> (128-bit entropy)
   const passMatch = resultText.match(
     /<test-assessment>\s*PASS/i
   );
   if (passMatch) {
+    const tokenMatch = resultText.match(/TQG_PASS_([a-f0-9]{32})/);
     return {
       task_id: input.task_id,
       status: "PASS",
+      token: tokenMatch ? tokenMatch[0] : undefined,
       details: resultText,
       durationMs: Date.now() - startTime,
     };

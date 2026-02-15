@@ -5,10 +5,8 @@ description: >
   via web search and Context7, then writes comprehensive tests for a task.
   Tests must pass the assess_tests quality gate before being accepted.
 model: opus
-tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch
+tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, mcp__plugin_evogatekeeper_verifier-mcp__assess_tests
 disallowedTools: Task
-mcpServers:
-  - verifier-mcp
 color: cyan
 ---
 
@@ -148,7 +146,7 @@ The MCP server handles everything internally:
 
 Parse the JSON result from `assess_tests`:
 
-**If `status: "PASS"`:** Tests are accepted. Output `TESTS_READY:{task_id}` and stop.
+**If `status: "PASS"`:** Tests are accepted. Output `TESTS_READY:{task_id}:{token}` (include the token from the result) and stop.
 
 **If `status: "FAIL"`:** Read the `issues` array carefully. For each issue:
 1. Understand what's wrong or missing
@@ -187,7 +185,7 @@ If your prompt includes `mode="reassess"` with verifier failure details, the exe
    - Include specific evidence for why the tests are correct
 
 ### Output for Reassess Mode
-- Tests fixed: `TESTS_READY:{task_id}` (executor will re-run)
+- Tests fixed: `TESTS_READY:{task_id}:{token}` (executor will re-run)
 - Tests OK, implementation wrong: `TESTS_OK:{task_id}:tests are correct, implementation needs fixing`
 - Cannot fix: `TESTS_FAILED:{task_id}:{reason}`
 

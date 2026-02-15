@@ -197,6 +197,11 @@ TEST_CMD_HASH:$TEST_CMD_HASH
 SECRETEOF
 chmod 600 "${SESSION_DIR}/verifier-token.secret" 2>/dev/null || true
 
+# Generate test assessor token (separate from verifier token)
+TQG_TOKEN="TQG_PASS_$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')"
+echo "$TQG_TOKEN" > "${SESSION_DIR}/test-assessor-token.secret"
+chmod 600 "${SESSION_DIR}/test-assessor-token.secret" 2>/dev/null || true
+
 # Create state file
 PLAN_MODE_FRONTMATTER=""
 if [[ "$PLAN_MODE" == "true" ]] && [[ -n "$TASK_ID" ]]; then

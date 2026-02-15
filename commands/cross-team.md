@@ -59,7 +59,7 @@ The per-task flow is: **Tester** (writes tests) → **Executor** (implements to 
    - One `Task(subagent_type='evogatekeeper:tester')` per task (model: opus, HAS web access)
    - Each tester gets: task prompt + session directory path
    - Testers research the domain, write comprehensive tests, confirm TDD Red, then call `assess_tests` quality gate
-   - Testers return `TESTS_READY:{task_id}` or `TESTS_FAILED:{task_id}:{reason}`
+   - Testers return `TESTS_READY:{task_id}:{tqg_token}` or `TESTS_FAILED:{task_id}:{reason}`
    - Testers for independent tasks (same wave, no file_scope overlap) can run in parallel
 
 2. **Phase 2 — Spawn executor agents** for each task with ready tests:
@@ -76,21 +76,26 @@ The per-task flow is: **Tester** (writes tests) → **Executor** (implements to 
    - If the verifier's failure details suggest test issues (impossible assertions, contradictory tests, missing coverage):
      - Re-spawn Tester: `Task(subagent_type='evogatekeeper:tester', prompt="mode=reassess ...")`
      - Include verifier failure details in the prompt
-     - Collect `TESTS_READY:{task_id}` (tests fixed) or `TESTS_OK:{task_id}:...` (tests are fine)
+     - Collect `TESTS_READY:{task_id}:{tqg_token}` (tests fixed) or `TESTS_OK:{task_id}:...` (tests are fine)
      - If tests were fixed, re-spawn Executor
    - If failure is clearly implementation-related, re-spawn Executor directly
 
-5. **Validate completion tokens**:
+5. **Validate tester tokens** before spawning executor:
+   - Read `.claude/vgl-sessions/task-{id}/test-assessor-token.secret` (or `.claude/test-assessor-token.secret`)
+   - Compare with the `tqg_token` from `TESTS_READY:{task_id}:{tqg_token}`
+   - Only spawn executor if tokens match
+
+6. **Validate completion tokens**:
    - Read `.claude/vgl-sessions/task-{id}/verifier-token.secret` (line 1)
    - Compare with the token reported by the executor
    - Only mark complete if tokens match
 
-6. **Mark tasks completed** via:
+7. **Mark tasks completed** via:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id} --token {token}
    ```
 
-7. **Check for integration checkpoints** after marking a task complete:
+8. **Check for integration checkpoints** after marking a task complete:
    - If the completed task was the last task in its phase, check if that phase has `integration_check: true`
    - If so, spawn an integration-checker before dispatching next-phase tasks:
      ```
@@ -100,13 +105,13 @@ The per-task flow is: **Tester** (writes tests) → **Executor** (implements to 
    - If the checker reports NEEDS_FIXES with CRITICAL issues, fix them before spawning next-phase executors
    - WARNING-level issues can be noted and addressed later
 
-8. **Check for newly unblocked tasks** after each completion:
+9. **Check for newly unblocked tasks** after each completion:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/get-unblocked-tasks.py" .claude/plan/plan.yaml
    ```
    - For each newly unblocked task, set up its VGL session and spawn tester → executor for it
 
-9. **When all tasks are done**:
+10. **When all tasks are done**:
    - All executor Tasks have returned
    - Remove `.claude/vgl-team-active`
    - Remove `.claude/vgl-sessions/`
@@ -117,7 +122,7 @@ The per-task flow is: **Tester** (writes tests) → **Executor** (implements to 
 - You are the LEAD ORCHESTRATOR — never write implementation or test code
 - Only YOU update plan.yaml — tester and executor sub-orchestrators must not touch it
 - Always run tester BEFORE executor for each task (tester writes tests, executor implements)
-- Validate every token before marking a task complete
+- Validate every token (both tester TQG and executor VGL) before proceeding
 - Testers/executors with overlapping file scopes must NOT run simultaneously
 - If an executor fails 3 times, skip the task and note it for the user
 - On verify failure, consider re-spawning tester in reassess mode before re-running executor

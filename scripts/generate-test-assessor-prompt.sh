@@ -251,4 +251,24 @@ FAIL
 If you FAIL, the issues list is critical — the tester needs to know exactly what to fix.
 STEPSEOF
 
+# Append token fetch instructions (needs variable expansion, so separate heredoc)
+cat >> "$OUTPUT_FILE" <<TOKENEOF
+
+===============================================================
+STEP 6: TOKEN (only on PASS)
+===============================================================
+
+If your verdict is PASS, you MUST read the quality gate token and include it in your output.
+
+Run: cat ${SESSION_DIR}/test-assessor-token.secret
+
+The token format is TQG_PASS_<32 hex chars>. Include the FULL token in your <test-assessment> output like:
+<test-assessment>
+PASS TQG_PASS_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+[Brief summary]
+</test-assessment>
+
+If you cannot read the token file, output PASS without the token — the MCP server will handle the error.
+TOKENEOF
+
 echo "Test assessor prompt generated at: ${OUTPUT_FILE}" >&2

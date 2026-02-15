@@ -107,7 +107,7 @@ Spawn all non-conflicting executors in parallel (multiple Task calls in one mess
 Each worker Task returns a result string. Parse it for:
 
 **From Testers:**
-- `TESTS_READY:{task_id}` — proceed to spawn executor for this task
+- `TESTS_READY:{task_id}:{tqg_token}` — validate token against `.claude/vgl-sessions/task-{task_id}/test-assessor-token.secret` (or `.claude/test-assessor-token.secret`), then spawn executor
 - `TESTS_FAILED:{task_id}:{reason}` — log failure, consider manual intervention
 
 **From Executors:**
