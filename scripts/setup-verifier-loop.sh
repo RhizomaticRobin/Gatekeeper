@@ -45,7 +45,7 @@ if [[ "${1:-}" == "--from-json" ]]; then
   PROMPT=$(echo "$JSON_INPUT" | jq -r '.prompt')
   VERIFICATION_CRITERIA=$(echo "$JSON_INPUT" | jq -r '.verification_criteria')
   TEST_COMMAND=$(echo "$JSON_INPUT" | jq -r '.test_command')
-  VERIFIER_MODEL=$(echo "$JSON_INPUT" | jq -r '.verifier_model // "opus"')
+  VERIFIER_MODEL=$(echo "$JSON_INPUT" | jq -r '.verifier_model // "sonnet"')
   MAX_ITERATIONS=$(echo "$JSON_INPUT" | jq -r '.max_iterations // 0')
   PLAN_MODE=$(echo "$JSON_INPUT" | jq -r '.plan_mode // false')
   TASK_ID=$(echo "$JSON_INPUT" | jq -r '.task_id // ""')
@@ -70,7 +70,7 @@ else
   MAX_ITERATIONS=0
   VERIFICATION_CRITERIA=""
   TEST_COMMAND=""
-  VERIFIER_MODEL="opus"
+  VERIFIER_MODEL="sonnet"
   PLAN_MODE="false"
   TASK_ID=""
   TASK_JSON=""
@@ -92,7 +92,7 @@ ARGUMENTS:
 OPTIONS:
   --verification-criteria '<text>'  What the Verifier checks (REQUIRED)
   --test-command '<cmd>'            Command to run tests (default: auto-detect)
-  --verifier-model <model>          Model for Verifier (default: opus)
+  --verifier-model <model>          Model for Verifier (default: sonnet)
   --max-iterations <n>              Max iterations (default: unlimited)
   -h, --help                        Show this help
 

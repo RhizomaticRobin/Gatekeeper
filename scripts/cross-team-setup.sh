@@ -196,7 +196,7 @@ print(json.dumps({
     "verification_criteria": "Quantitative: {} must pass\nQualitative:\n{}".format(
         os.environ["_VGL_TEST_CMD"], os.environ["_VGL_QUAL_CRITERIA"]),
     "test_command": os.environ["_VGL_TEST_CMD"],
-    "verifier_model": "opus",
+    "verifier_model": "sonnet",
     "max_iterations": 0,
     "plan_mode": True,
     "task_id": os.environ["_VGL_TASK_ID"],

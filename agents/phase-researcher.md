@@ -1,7 +1,7 @@
 ---
 name: phase-researcher
 description: Phase-specific research. Deep dives into technical requirements for a specific phase — APIs, libraries, patterns, integration points.
-model: opus
+model: sonnet
 tools: Read, Bash, WebSearch, WebFetch, Glob, Grep
 disallowedTools: Write, Edit, Task
 color: blue

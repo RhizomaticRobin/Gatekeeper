@@ -117,7 +117,7 @@ export async function executeVerifyTask(
       "mcp__playwright__browser_close",
     ],
     disallowedTools: ["Write", "Edit", "Task", "WebFetch", "WebSearch"],
-    model: "claude-opus-4-6",
+    model: "claude-sonnet-4-5-20250929",
     permissionMode: "dontAsk",
     maxTurns: 50,
     persistSession: false,

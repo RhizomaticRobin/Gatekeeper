@@ -4,7 +4,7 @@ description: >
   Research-driven test author. Researches APIs, patterns, and edge cases
   via web search and Context7, then writes comprehensive tests for a task.
   Tests must pass the assess_tests quality gate before being accepted.
-model: opus
+model: sonnet
 tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, mcp__plugin_evogatekeeper_verifier-mcp__assess_tests
 disallowedTools: Task
 color: cyan

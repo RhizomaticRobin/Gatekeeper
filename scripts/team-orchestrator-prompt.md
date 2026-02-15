@@ -22,7 +22,7 @@ Only YOU update plan.yaml. Workers MUST NOT touch it.
 ### 1. Phase 1 — Spawn Testers
 
 For each task in the dispatch list above, spawn a tester using `Task(subagent_type='evogatekeeper:tester')`.
-Each tester is a **test architect** subagent (model: opus, HAS web access) that:
+Each tester is a **test architect** subagent (model: sonnet, HAS web access) that:
 - Researches the domain via WebSearch and Context7
 - Writes comprehensive test files for the task
 - Confirms tests fail (TDD Red state)
@@ -58,7 +58,7 @@ Spawn all non-conflicting testers in parallel (multiple Task calls in one messag
 ### 2. Phase 2 — Spawn Executors (After Tests Ready)
 
 For each task where tester returned `TESTS_READY:{task_id}`, spawn an executor using `Task(subagent_type='evogatekeeper:executor')`.
-Each executor is an **implementation** subagent (model: opus, no web access) that:
+Each executor is an **implementation** subagent (model: sonnet, no web access) that:
 - Reads pre-written test files (already quality-gate approved)
 - Spawns concurrent gsd-builder opencode agents (one per test file)
 - Waits for completion, answers agent questions

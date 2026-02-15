@@ -90,7 +90,7 @@ Both MCP servers (opencode-mcp and verifier-mcp) auto-install dependencies and a
 User
  └─ /cross-team → Lead Orchestrator (never writes code)
       ├─ Spawns 1..N Executor agents (concurrent where file_scope allows)
-      │    └─ Each Executor (model: opus):
+      │    └─ Each Executor (model: sonnet):
       │         ├─ Writes all tests (TDD Red)
       │         ├─ Dispatches gsd-builder opencode agents (1 per test, wave-based)
       │         │    ├─ Wave 1: fresh agents for independent tests (concurrent)
@@ -219,7 +219,7 @@ phases:
 
 ## Agents
 
-All agents run on model: opus with restricted tool access.
+All agents run on model: sonnet with restricted tool access.
 
 | Agent | Role | Disallowed Tools |
 |-------|------|------------------|

@@ -56,14 +56,14 @@ prompt_template = open('${CLAUDE_PLUGIN_ROOT}/scripts/team-orchestrator-prompt.m
 The per-task flow is: **Tester** (writes tests) → **Executor** (implements to pass tests) → verify.
 
 1. **Phase 1 — Spawn tester agents** for each dispatched task:
-   - One `Task(subagent_type='evogatekeeper:tester')` per task (model: opus, HAS web access)
+   - One `Task(subagent_type='evogatekeeper:tester')` per task (model: sonnet, HAS web access)
    - Each tester gets: task prompt + session directory path
    - Testers research the domain, write comprehensive tests, confirm TDD Red, then call `assess_tests` quality gate
    - Testers return `TESTS_READY:{task_id}:{tqg_token}` or `TESTS_FAILED:{task_id}:{reason}`
    - Testers for independent tasks (same wave, no file_scope overlap) can run in parallel
 
 2. **Phase 2 — Spawn executor agents** for each task with ready tests:
-   - One `Task(subagent_type='evogatekeeper:executor')` per task (model: opus, no web access)
+   - One `Task(subagent_type='evogatekeeper:executor')` per task (model: sonnet, no web access)
    - Each executor gets: task prompt + VGL instructions + session directory path
    - Executors read pre-written tests, spawn gsd-builder opencode agents concurrently, run full test suite, then call `verify_task`
    - Executors return `TASK_COMPLETE:{task_id}:{token}` or `TASK_FAILED:{task_id}:{reason}`

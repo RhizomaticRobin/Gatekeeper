@@ -311,7 +311,7 @@ metadata:
   dev_server_command: "npm run dev"
   dev_server_url: "http://localhost:3000"
   test_framework: "vitest"
-  model_profile: "opus"
+  model_profile: "sonnet"
   created_at: "YYYY-MM-DD"
   project_context:       # Only include if Deep Discovery was used in Phase 0
     vision: "..."
