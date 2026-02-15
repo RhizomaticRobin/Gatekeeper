@@ -12,6 +12,7 @@ import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { resolveApiKey, buildQueryEnv, noApiKeyError } from "./resolve-api-key.js";
 
 export interface AssessTestsInput {
   task_id: string;
@@ -33,21 +34,14 @@ export async function executeAssessTests(
 ): Promise<AssessTestsResult> {
   const startTime = Date.now();
 
-  // Pre-flight: Agent SDK requires ANTHROPIC_API_KEY for spawning Claude Code subprocesses.
-  // Subscription (OAuth) auth does not propagate to query()-spawned processes.
-  if (!process.env.ANTHROPIC_API_KEY) {
+  // Pre-flight: Resolve API key from env or OAuth credentials.
+  // The Agent SDK's query() needs a key to spawn Claude Code subprocesses.
+  const apiKey = resolveApiKey();
+  if (!apiKey) {
     return {
       task_id: input.task_id,
       status: "ERROR",
-      details: [
-        "ANTHROPIC_API_KEY not set. The assess_tests tool uses the Claude Agent SDK to spawn",
-        "an independent assessor agent, which requires API key authentication.",
-        "",
-        "Subscription (OAuth) auth does not propagate to SDK-spawned subprocesses.",
-        "",
-        "To fix: export ANTHROPIC_API_KEY=sk-ant-... before starting Claude Code.",
-        "Get your key at: https://console.anthropic.com/settings/keys",
-      ].join("\n"),
+      details: noApiKeyError(),
       durationMs: Date.now() - startTime,
     };
   }
@@ -149,7 +143,7 @@ This token proves you completed the assessment. Do NOT modify it.`;
   // Same read-only toolset as verifier, but NO Playwright MCP (no browser needed)
   const options: Partial<Options> = {
     cwd: projectRoot,
-    env: { ...process.env },
+    env: buildQueryEnv(),
     allowedTools: ["Read", "Bash", "Grep", "Glob"],
     disallowedTools: ["Write", "Edit", "Task", "WebFetch", "WebSearch"],
     model: "claude-opus-4-6",

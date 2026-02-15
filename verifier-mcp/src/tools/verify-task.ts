@@ -13,6 +13,7 @@ import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { resolveApiKey, buildQueryEnv, noApiKeyError } from "./resolve-api-key.js";
 
 export interface VerifyTaskInput {
   task_id: string;
@@ -33,21 +34,14 @@ export async function executeVerifyTask(
 ): Promise<VerifyTaskResult> {
   const startTime = Date.now();
 
-  // Pre-flight: Agent SDK requires ANTHROPIC_API_KEY for spawning Claude Code subprocesses.
-  // Subscription (OAuth) auth does not propagate to query()-spawned processes.
-  if (!process.env.ANTHROPIC_API_KEY) {
+  // Pre-flight: Resolve API key from env or OAuth credentials.
+  // The Agent SDK's query() needs a key to spawn Claude Code subprocesses.
+  const apiKey = resolveApiKey();
+  if (!apiKey) {
     return {
       task_id: input.task_id,
       status: "ERROR",
-      details: [
-        "ANTHROPIC_API_KEY not set. The verify_task tool uses the Claude Agent SDK to spawn",
-        "an independent verifier agent, which requires API key authentication.",
-        "",
-        "Subscription (OAuth) auth does not propagate to SDK-spawned subprocesses.",
-        "",
-        "To fix: export ANTHROPIC_API_KEY=sk-ant-... before starting Claude Code.",
-        "Get your key at: https://console.anthropic.com/settings/keys",
-      ].join("\n"),
+      details: noApiKeyError(),
       durationMs: Date.now() - startTime,
     };
   }
@@ -164,7 +158,7 @@ export async function executeVerifyTask(
   // 5. Spawn Claude Code via query() with locked-down config
   const options: Partial<Options> = {
     cwd: projectRoot,
-    env: { ...process.env },
+    env: buildQueryEnv(),
     allowedTools: [
       "Read", "Bash", "Grep", "Glob",
       // Playwright MCP tools for visual verification

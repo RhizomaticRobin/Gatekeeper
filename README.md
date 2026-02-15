@@ -24,23 +24,20 @@ EvoGatekeeper orchestrates software projects through a structured pipeline where
 | **jq** | any recent | JSON parsing in hook scripts |
 | **Claude Code** | latest | The CLI tool that runs the plugin |
 | **OpenCode** | latest | Agent dispatch for gsd-builder agents |
-| **ANTHROPIC_API_KEY** | -- | Required for verifier + test assessor agents (see below) |
+| **ANTHROPIC_API_KEY** | -- | Auto-detected from subscription or set manually (see below) |
 
-### API Key Requirement
+### Authentication for Verification Agents
 
-The `verify_task` and `assess_tests` MCP tools use the Claude Agent SDK to spawn independent Claude Code subprocesses for verification and test quality assessment. The Agent SDK requires an `ANTHROPIC_API_KEY` environment variable -- subscription (OAuth) auth does **not** propagate to SDK-spawned subprocesses.
+The `verify_task` and `assess_tests` MCP tools spawn independent Claude Code subprocesses via the Agent SDK. Authentication is resolved automatically in this order:
+
+1. **`ANTHROPIC_API_KEY` env var** -- if set, used directly
+2. **OAuth token from `~/.claude/.credentials.json`** -- if you're logged in to Claude Code with a subscription (Pro/Max), the OAuth access token is read and used automatically
+
+Most users don't need to do anything -- just be logged in to Claude Code. If auto-detection fails:
 
 ```bash
-# Set before starting Claude Code
-export ANTHROPIC_API_KEY=sk-ant-...
-
-# Or add to your shell profile (~/.bashrc, ~/.zshrc)
-export ANTHROPIC_API_KEY=sk-ant-...
+export ANTHROPIC_API_KEY=sk-ant-...  # https://console.anthropic.com/settings/keys
 ```
-
-Get your key at: https://console.anthropic.com/settings/keys
-
-You can use Claude Code itself with a subscription, but the verification agents need an API key.
 
 ### Check prerequisites
 
@@ -51,7 +48,7 @@ git --version
 jq --version
 claude --version  # Claude Code CLI
 opencode version  # OpenCode CLI
-echo $ANTHROPIC_API_KEY  # Should show sk-ant-...
+echo $ANTHROPIC_API_KEY  # Optional if logged in via subscription
 ```
 
 ## Installation
