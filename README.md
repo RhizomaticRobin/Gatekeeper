@@ -238,9 +238,47 @@ All agents run on model: sonnet with restricted tool access.
 The opencode MCP server hardcodes all spawned agents to use the `gsd-builder` profile defined in `templates/opencode.json`:
 
 - No web access (websearch/webfetch disabled)
+- **Context7 MCP server** for library documentation research (see below)
+- Research-first `prompt` — agents must look up APIs via Context7 before implementing
 - Bash (ask permission), Edit/Write (allowed)
 - Temperature 1.0, no step limit
 - 10-minute timeout per `wait_for_completion()` call
+
+#### How Context7 MCP gets to opencode agents
+
+```
+templates/opencode.json          Canonical config (checked into gsd-vgl repo)
+       │
+       ▼ (copied at setup time by cross-team-setup.sh / setup-verifier-loop.sh)
+<project>/opencode.json          Deployed to project root
+       │
+       ▼ (opencode reads from cwd on spawn)
+opencode run --agent gsd-builder  Spawned by Better-OpenCodeMCP (opencode.tool.ts)
+       │
+       ▼ (opencode loads "mcp" section from opencode.json)
+Context7 MCP server started       npx -y @upstash/context7-mcp
+       │
+       ▼ (tools available to agent)
+resolve-library-id, query-docs    Agent can research any library docs
+```
+
+**Deployment flow:**
+
+1. `templates/opencode.json` defines both the `gsd-builder` agent profile and the `mcp.context7` server
+2. During VGL setup (`cross-team-setup.sh` or `setup-verifier-loop.sh`), the template is copied to the project root as `opencode.json` — but only if one doesn't already exist with a `gsd-builder` agent
+3. When the executor spawns an opencode agent via `launch_opencode()`, the Better-OpenCodeMCP server calls `opencode run --format json -m <model> --agent gsd-builder "<prompt>"`
+4. OpenCode reads `opencode.json` from its working directory (the project root), loads the `mcp` section, and starts the Context7 MCP server as a subprocess
+5. The agent's `prompt` field instructs it to use `resolve-library-id` then `query-docs` before implementing
+
+**Key files:**
+
+| File | Role |
+|------|------|
+| `templates/opencode.json` | Canonical source — edit this, not deployed copies |
+| `scripts/cross-team-setup.sh` (L40-48) | Deploys template to project root |
+| `scripts/setup-verifier-loop.sh` (L18-27) | Same deployment for single-task mode |
+| `Better-OpenCodeMCP/src/tools/opencode.tool.ts` (L68-100) | Spawns `opencode run` from project cwd |
+| `Better-OpenCodeMCP/src/constants.ts` (L58) | OpenCode binary path |
 
 ## Hooks
 
@@ -299,7 +337,7 @@ gsd-vgl/
 │   ├── evo_pollinator.py            Cross-task strategy pollination
 │   └── team-orchestrator-prompt.md  Lead orchestrator template
 ├── templates/
-│   ├── opencode.json                gsd-builder agent config
+│   ├── opencode.json                gsd-builder agent + Context7 MCP config
 │   ├── task-prompt.md               task-{id}.md template
 │   ├── plan-summary.md              Plan summary template
 │   └── codebase/                    7-dimension codebase analysis templates
