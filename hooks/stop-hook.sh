@@ -38,26 +38,31 @@ FRONTMATTER=$(awk 'NR==1 && /^---$/{next} /^---$/{exit} NR>1{print}' "$STATE_FIL
 
 # Handle empty or corrupted state file (no frontmatter at all)
 if [[ -z "$FRONTMATTER" ]] || ! echo "$FRONTMATTER" | grep -q '^iteration:'; then
-  echo "VGL: State file corrupted or empty (no valid frontmatter). Cleaning up." >&2
+  echo "VGL: ERROR: State file corrupted or empty (no valid frontmatter)." >&2
+  echo "  Frontmatter content: $(echo "$FRONTMATTER" | head -c 200)" >&2
+  echo "  State preserved at: ${STATE_FILE}.corrupted" >&2
   echo "  Recovery: run /gatekeeper:run-away to reset, then restart your task." >&2
+  cp "$STATE_FILE" "${STATE_FILE}.corrupted" 2>/dev/null
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
-  exit 0
+  exit 1
 fi
 
 ITERATION=$(echo "$FRONTMATTER" | grep '^iteration:' | sed 's/iteration: *//')
 MAX_ITERATIONS=$(echo "$FRONTMATTER" | grep '^max_iterations:' | sed 's/max_iterations: *//')
-SESSION_ID=$(echo "$FRONTMATTER" | grep '^session_id:' | sed 's/session_id: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+SESSION_ID=$(echo "$FRONTMATTER" | grep '^session_id:' | sed 's/session_id: *//' | sed 's/^"\(.*\)"$/\1/')
 
 # Handle missing session_id
 if [[ -z "$SESSION_ID" ]]; then
-  echo "VGL: State file corrupted (missing session_id). Cleaning up." >&2
+  echo "VGL: ERROR: State file corrupted (missing session_id)." >&2
+  echo "  State preserved at: ${STATE_FILE}.corrupted" >&2
   echo "  Recovery: run /gatekeeper:run-away to reset, then restart your task." >&2
+  cp "$STATE_FILE" "${STATE_FILE}.corrupted" 2>/dev/null
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
-  exit 0
+  exit 1
 fi
 
 # Stale session detection: warn and cleanup if started_at > 24h ago
-STARTED_AT=$(echo "$FRONTMATTER" | grep '^started_at:' | sed 's/started_at: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+STARTED_AT=$(echo "$FRONTMATTER" | grep '^started_at:' | sed 's/started_at: *//' | sed 's/^"\(.*\)"$/\1/')
 if [[ -n "$STARTED_AT" ]]; then
   STARTED_EPOCH=$(date -d "$STARTED_AT" +%s 2>/dev/null || date -jf "%Y-%m-%dT%H:%M:%SZ" "$STARTED_AT" +%s 2>/dev/null || echo "0")
   NOW_EPOCH=$(date +%s)
@@ -81,22 +86,26 @@ COMPLETION_TOKEN=$(head -1 "$TOKEN_FILE" | tr -d '\n')
 
 # Validate numeric fields
 if [[ ! "$ITERATION" =~ ^[0-9]+$ ]]; then
-  echo "VGL: State file corrupted (invalid iteration: '$ITERATION')" >&2
+  echo "VGL: ERROR: State file corrupted (invalid iteration: '$ITERATION')" >&2
+  echo "  State preserved at: ${STATE_FILE}.corrupted" >&2
+  cp "$STATE_FILE" "${STATE_FILE}.corrupted" 2>/dev/null
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
-  exit 0
+  exit 1
 fi
 
 if [[ ! "$MAX_ITERATIONS" =~ ^[0-9]+$ ]]; then
-  echo "VGL: State file corrupted (invalid max_iterations: '$MAX_ITERATIONS')" >&2
+  echo "VGL: ERROR: State file corrupted (invalid max_iterations: '$MAX_ITERATIONS')" >&2
+  echo "  State preserved at: ${STATE_FILE}.corrupted" >&2
+  cp "$STATE_FILE" "${STATE_FILE}.corrupted" 2>/dev/null
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
-  exit 0
+  exit 1
 fi
 
 # Validate token format
 if [[ ! "$COMPLETION_TOKEN" =~ ^VGL_COMPLETE_[a-f0-9]{32}$ ]]; then
-  echo "VGL: Token corrupted" >&2
+  echo "VGL: ERROR: Token corrupted (value: '${COMPLETION_TOKEN:0:20}...')" >&2
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
-  exit 0
+  exit 1
 fi
 
 # Check max iterations
@@ -106,8 +115,11 @@ if [[ $MAX_ITERATIONS -gt 0 ]] && [[ $ITERATION -ge $MAX_ITERATIONS ]]; then
   exit 0
 fi
 
-# Get transcript path from hook input (handle malformed JSON gracefully)
-TRANSCRIPT_PATH=$(echo "$HOOK_INPUT" | jq -r '.transcript_path' 2>/dev/null) || true
+# Get transcript path from hook input
+TRANSCRIPT_PATH=$(echo "$HOOK_INPUT" | jq -r '.transcript_path') || {
+  echo "VGL: ERROR: Failed to parse transcript_path from hook input" >&2
+  TRANSCRIPT_PATH=""
+}
 if [[ -z "$TRANSCRIPT_PATH" ]] || [[ "$TRANSCRIPT_PATH" == "null" ]]; then
   debug "MALFORMED OR MISSING JSON INPUT — passthrough"
   echo "VGL: Malformed hook input (could not parse transcript_path). Passing through." >&2
@@ -137,10 +149,14 @@ if [[ -n "$EXTRACTED_TOKEN" ]] && [[ "$EXTRACTED_TOKEN" = "$COMPLETION_TOKEN" ]]
   RESILIENCE_PLUGIN_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
   RESILIENCE_SCRIPT="${RESILIENCE_PLUGIN_ROOT}/scripts/resilience.py"
   RESILIENCE_STATE=".claude/vgl-resilience.json"
-  RESILIENCE_TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/' || echo "")
+  RESILIENCE_TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/')
   if [[ -f "$RESILIENCE_SCRIPT" ]]; then
-    python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" --record-success "$RESILIENCE_TASK_ID" 2>/dev/null || true
-    python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" --reset 2>/dev/null || true
+    if ! python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" --record-success "$RESILIENCE_TASK_ID" 2>&1; then
+      echo "WARN: Failed to record resilience success for task $RESILIENCE_TASK_ID" >&2
+    fi
+    if ! python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" --reset 2>&1; then
+      echo "WARN: Failed to reset resilience state" >&2
+    fi
   fi
 
   # Plan mode: auto-transition to next task
@@ -153,23 +169,38 @@ if [[ -n "$EXTRACTED_TOKEN" ]] && [[ "$EXTRACTED_TOKEN" = "$COMPLETION_TOKEN" ]]
     # Transition: mark current task complete, get next task JSON
     NEXT_JSON=""
     TRANSITION_EXIT=0
-    NEXT_JSON=$("${PLUGIN_ROOT}/scripts/transition-task.sh" 2>/dev/null) || TRANSITION_EXIT=$?
+    NEXT_JSON=$("${PLUGIN_ROOT}/scripts/transition-task.sh") || TRANSITION_EXIT=$?
 
     if [[ $TRANSITION_EXIT -eq 0 ]] && [[ -n "$NEXT_JSON" ]] && [[ "$NEXT_JSON" != "null" ]]; then
-      NEXT_ID=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null || echo "")
-      NEXT_NAME=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['name'])" 2>/dev/null || echo "")
-      NEXT_TEST_CMD=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tests']['quantitative']['command'])" 2>/dev/null || echo "")
-      NEXT_PROMPT_FILE=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['prompt_file'])" 2>/dev/null || echo "")
+      NEXT_ID=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])") || {
+        echo "VGL: ERROR: Failed to parse next task ID from transition output" >&2
+        exit 1
+      }
+      NEXT_NAME=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['name'])") || {
+        echo "VGL: ERROR: Failed to parse next task name from transition output" >&2
+        exit 1
+      }
+      NEXT_TEST_CMD=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tests']['quantitative']['command'])") || {
+        echo "VGL: ERROR: Next task missing tests.quantitative.command" >&2
+        exit 1
+      }
+      NEXT_PROMPT_FILE=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['prompt_file'])") || {
+        echo "VGL: ERROR: Next task missing prompt_file" >&2
+        exit 1
+      }
       NEXT_QUAL_CRITERIA=$(echo "$NEXT_JSON" | python3 -c "
 import sys, json
 t = json.load(sys.stdin)
 criteria = t.get('tests',{}).get('qualitative',{}).get('criteria',[])
 for c in criteria:
     print(f'- {c}')
-" 2>/dev/null || echo "")
+") || NEXT_QUAL_CRITERIA=""
 
       # Check if an integration check is needed before this task
-      NEEDS_INTEGRATION=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('_integration_check_before', False))" 2>/dev/null || echo "False")
+      NEEDS_INTEGRATION=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('_integration_check_before', False))") || {
+        echo "WARN: Could not determine integration check status for next task" >&2
+        NEEDS_INTEGRATION="False"
+      }
       INTEGRATION_PREFIX=""
       if [[ "$NEEDS_INTEGRATION" == "True" ]]; then
         echo "VGL: Integration check required before next phase" >&2
@@ -194,11 +225,14 @@ If the integration check reports NEEDS_FIXES with CRITICAL issues, fix them befo
 
       # Build evolution context for next task (replaces LEARNINGS_PREFIX)
       EVOLUTION_PREFIX=""
-      NEXT_TASK_ID=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null || echo "")
+      NEXT_TASK_ID="$NEXT_ID"
       NEXT_EVO_DB_PATH=".planning/evolution/${NEXT_TASK_ID}/"
       EVO_PROMPT_SCRIPT="${PLUGIN_ROOT}/scripts/evo_prompt.py"
       if [[ -f "$EVO_PROMPT_SCRIPT" ]] && [[ -d "$NEXT_EVO_DB_PATH" ]] && [[ -n "$NEXT_TASK_ID" ]]; then
-        EVO_CONTEXT=$(python3 "$EVO_PROMPT_SCRIPT" --build "$NEXT_EVO_DB_PATH" "$NEXT_TASK_ID" 2>/dev/null || echo "")
+        EVO_CONTEXT=$(python3 "$EVO_PROMPT_SCRIPT" --build "$NEXT_EVO_DB_PATH" "$NEXT_TASK_ID" 2>&1) || {
+          echo "WARN: Evolution context generation failed for task $NEXT_TASK_ID, proceeding without evolutionary intelligence" >&2
+          EVO_CONTEXT=""
+        }
         if [[ -n "$EVO_CONTEXT" ]]; then
           EVOLUTION_PREFIX="EVOLUTION CONTEXT:
 ${EVO_CONTEXT}
@@ -226,7 +260,9 @@ TDD-FIRST WORKFLOW:
 YOUR TASK:
 $NEXT_TASK_PROMPT"
 
-      python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$NEXT_ID" 2>/dev/null || true
+      if ! python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$NEXT_ID" 2>&1; then
+        echo "WARN: Failed to mark task $NEXT_ID as in_progress in plan.yaml" >&2
+      fi
 
       rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
 
@@ -297,11 +333,17 @@ fi
 
 # --- Evolution: evaluate this iteration's attempt ---
 PLUGIN_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
-TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/' || echo "")
+TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/') || TASK_ID=""
+if [[ -z "$TASK_ID" ]]; then
+  echo "WARN: No task_id in VGL state frontmatter — evolution tracking disabled for this iteration" >&2
+fi
 PLAN_FILE=".claude/plan/plan.yaml"
 SCRIPTS_DIR="${PLUGIN_ROOT}/scripts"
 EVO_DB_PATH=".planning/evolution/${TASK_ID}/"
-TEST_COMMAND=$(echo "$FRONTMATTER" | grep '^test_command:' | sed 's/test_command: *//' | sed 's/^"\(.*\)"$/\1/' || echo "")
+TEST_COMMAND=$(echo "$FRONTMATTER" | grep '^test_command:' | sed 's/test_command: *//' | sed 's/^"\(.*\)"$/\1/') || TEST_COMMAND=""
+if [[ -z "$TEST_COMMAND" ]]; then
+  echo "WARN: No test_command in VGL state frontmatter — evaluation disabled for this iteration" >&2
+fi
 
 # Create population dir on first iteration
 if [[ ! -d "$EVO_DB_PATH" ]]; then
@@ -315,7 +357,10 @@ EVAL_METRICS="{}"
 if [[ -f "$EVO_EVAL_SCRIPT" ]] && [[ -n "$TEST_COMMAND" ]]; then
   debug "VGL: Evaluating iteration attempt"
   echo "VGL: Evaluating iteration attempt" >&2
-  EVAL_METRICS=$(python3 "$EVO_EVAL_SCRIPT" --evaluate "$TEST_COMMAND" 2>/dev/null || echo '{}')
+  EVAL_METRICS=$(python3 "$EVO_EVAL_SCRIPT" --evaluate "$TEST_COMMAND" 2>&1) || {
+    echo "WARN: Evaluation failed for iteration $ITERATION — metrics unavailable" >&2
+    EVAL_METRICS="{}"
+  }
   debug "VGL: Eval metrics: $EVAL_METRICS"
 
   # Store in population — restructure flat eval metrics into Approach format
@@ -334,9 +379,14 @@ print(json.dumps({
     'task_id': sys.argv[2],
     'iteration': int(sys.argv[3]),
 }))
-" "$EVAL_METRICS" "$TASK_ID" "$ITERATION" 2>/dev/null || echo '{}')
+" "$EVAL_METRICS" "$TASK_ID" "$ITERATION" 2>&1) || {
+      echo "WARN: Failed to build approach JSON for population storage" >&2
+      APPROACH_JSON="{}"
+    }
     if [[ "$APPROACH_JSON" != "{}" ]]; then
-      python3 "$EVO_DB_SCRIPT" --db-path "$EVO_DB_PATH" --add "$APPROACH_JSON" 2>/dev/null || true
+      if ! python3 "$EVO_DB_SCRIPT" --db-path "$EVO_DB_PATH" --add "$APPROACH_JSON" 2>&1; then
+        echo "WARN: Failed to store approach in evolution population DB" >&2
+      fi
     fi
   fi
 fi
@@ -348,7 +398,9 @@ if [[ "$ITERATION" == "1" ]] || [[ "$ITERATION" == "0" ]]; then
   if [[ -f "$EVO_POLLINATOR" ]] && [[ -f "$PLAN_FILE" ]] && [[ -n "$TASK_ID" ]]; then
     debug "VGL: Pollinating from similar tasks"
     echo "VGL: Pollinating from similar tasks" >&2
-    python3 "$EVO_POLLINATOR" --pollinate "$EVO_DB_PATH" "$PLAN_FILE" "$TASK_ID" 2>/dev/null || true
+    if ! python3 "$EVO_POLLINATOR" --pollinate "$EVO_DB_PATH" "$PLAN_FILE" "$TASK_ID" 2>&1; then
+      echo "WARN: Cross-task pollination failed for task $TASK_ID" >&2
+    fi
   fi
 fi
 
@@ -356,7 +408,10 @@ fi
 EVOLUTION_PREFIX=""
 EVO_PROMPT_SCRIPT="${PLUGIN_ROOT}/scripts/evo_prompt.py"
 if [[ -f "$EVO_PROMPT_SCRIPT" ]] && [[ -d "$EVO_DB_PATH" ]] && [[ -n "$TASK_ID" ]]; then
-  EVO_CONTEXT=$(python3 "$EVO_PROMPT_SCRIPT" --build "$EVO_DB_PATH" "$TASK_ID" 2>/dev/null || echo "")
+  EVO_CONTEXT=$(python3 "$EVO_PROMPT_SCRIPT" --build "$EVO_DB_PATH" "$TASK_ID" 2>&1) || {
+    echo "WARN: Evolution context generation failed for retry iteration, proceeding without" >&2
+    EVO_CONTEXT=""
+  }
   if [[ -n "$EVO_CONTEXT" ]]; then
     EVOLUTION_PREFIX="EVOLUTION CONTEXT:
 ${EVO_CONTEXT}
@@ -370,8 +425,10 @@ RESILIENCE_SCRIPT="${PLUGIN_ROOT}/scripts/resilience.py"
 RESILIENCE_STATE=".claude/vgl-resilience.json"
 if [[ -f "$RESILIENCE_SCRIPT" ]]; then
   # Record the failure
-  python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" \
-    --record-failure "$TASK_ID" 2>/dev/null || true
+  if ! python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" \
+    --record-failure "$TASK_ID" 2>&1; then
+    echo "WARN: Failed to record resilience failure for task $TASK_ID" >&2
+  fi
 
   # Read resilience config from plan.yaml metadata
   RESILIENCE_CONFIG=$(python3 -c "
@@ -380,13 +437,17 @@ sys.path.insert(0, '${SCRIPTS_DIR}')
 from plan_utils import load_plan
 plan = load_plan('$PLAN_FILE')
 meta = plan.get('metadata', {})
-print(json.dumps({
-    'stuck_threshold': meta.get('stuck_threshold', 3),
-    'circuit_breaker_threshold': meta.get('circuit_breaker_threshold', 5),
-    'max_vgl_iterations': meta.get('max_vgl_iterations', 50),
-    'timeout_hours': meta.get('timeout_hours', 8),
-}))
-" 2>/dev/null || echo '{}')
+config = {}
+for key in ('stuck_threshold', 'circuit_breaker_threshold', 'max_vgl_iterations', 'timeout_hours'):
+    if key in meta:
+        config[key] = meta[key]
+    else:
+        raise KeyError(f'Required resilience config key missing from plan metadata: {key}')
+print(json.dumps(config))
+" 2>&1) || {
+    echo "WARN: Failed to read resilience config from plan metadata — using hardcoded defaults" >&2
+    RESILIENCE_CONFIG='{"stuck_threshold":3,"circuit_breaker_threshold":5,"max_vgl_iterations":50,"timeout_hours":8}'
+  }
 
   # Check all resilience conditions
   RESILIENCE_CHECK_OUTPUT=""

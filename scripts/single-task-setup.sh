@@ -22,9 +22,9 @@ PLAN_FILE=".claude/plan/plan.yaml"
 
 # Check plan file
 if [[ ! -f "$PLAN_FILE" ]]; then
-  echo "PLAN_NOT_FOUND: Plan file not found at $PLAN_FILE"
+  echo "ERROR: Plan file not found at $PLAN_FILE" >&2
   echo "CROSS_TEAM_FAILED"
-  exit 0
+  exit 1
 fi
 
 # Get task JSON
@@ -38,18 +38,34 @@ if task is None:
     print('null')
 else:
     print(json.dumps(task))
-" 2>/dev/null) || true
+") || {
+  echo "ERROR: Failed to extract task $TASK_ID from plan" >&2
+  echo "CROSS_TEAM_FAILED"
+  exit 1
+}
 
 if [[ -z "$TASK_JSON" ]] || [[ "$TASK_JSON" == "null" ]]; then
-  echo "TASK_NOT_FOUND: Task $TASK_ID not found in plan"
+  echo "ERROR: Task $TASK_ID not found in plan" >&2
   echo "CROSS_TEAM_FAILED"
-  exit 0
+  exit 1
 fi
 
 # Extract task fields
-TASK_NAME=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('name',''))" 2>/dev/null) || true
-TEST_CMD=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tests']['quantitative']['command'])" 2>/dev/null) || true
-PROMPT_FILE=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['prompt_file'])" 2>/dev/null) || true
+TASK_NAME=$(echo "$TASK_JSON" | python3 -c "import sys,json; t=json.load(sys.stdin); n=t.get('name',''); assert n, 'name is empty'; print(n)") || {
+  echo "ERROR: Task $TASK_ID has no 'name' field" >&2
+  echo "CROSS_TEAM_FAILED"
+  exit 1
+}
+TEST_CMD=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tests']['quantitative']['command'])") || {
+  echo "ERROR: Task $TASK_ID missing tests.quantitative.command" >&2
+  echo "CROSS_TEAM_FAILED"
+  exit 1
+}
+PROMPT_FILE=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['prompt_file'])") || {
+  echo "ERROR: Task $TASK_ID missing prompt_file" >&2
+  echo "CROSS_TEAM_FAILED"
+  exit 1
+}
 
 QUAL_CRITERIA=$(echo "$TASK_JSON" | python3 -c "
 import sys, json
@@ -57,7 +73,7 @@ t = json.load(sys.stdin)
 criteria = t.get('tests', {}).get('qualitative', {}).get('criteria', [])
 for c in criteria:
     print(f'- {c}')
-" 2>/dev/null) || true
+") || QUAL_CRITERIA=""
 
 MUST_HAVES=$(echo "$TASK_JSON" | python3 -c "
 import sys, json
@@ -75,7 +91,7 @@ if artifacts:
 if key_links:
     print('KEY LINKS (references):')
     for kl in key_links: print(f'  - {kl}')
-" 2>/dev/null) || true
+") || MUST_HAVES=""
 
 # Read task prompt file
 FULL_PROMPT_PATH=".claude/plan/${PROMPT_FILE}"
@@ -114,7 +130,9 @@ $TASK_PROMPT"
 date -u +%Y-%m-%dT%H:%M:%SZ > .claude/plan-locked
 
 # Mark task as in_progress
-python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$TASK_ID" 2>&1 || true
+python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$TASK_ID" 2>&1 || {
+  echo "WARN: Failed to update plan.yaml status for task $TASK_ID" >&2
+}
 
 # Build JSON input and launch VGL in plan mode
 export _VGL_TASK_PROMPT="$TASK_PROMPT"
@@ -138,18 +156,22 @@ print(json.dumps({
     "task_prompt_content": os.environ["_VGL_RAW_TASK_PROMPT"],
 }))
 PYEOF
-) || true
+) || {
+  echo "ERROR: Failed to build setup JSON for task $TASK_ID" >&2
+  echo "CROSS_TEAM_FAILED"
+  exit 1
+}
 
 if [[ -z "$SETUP_JSON" ]]; then
-  echo "SETUP_JSON_FAILED: Could not build setup JSON"
+  echo "ERROR: Setup JSON is empty for task $TASK_ID" >&2
   echo "CROSS_TEAM_FAILED"
-  exit 0
+  exit 1
 fi
 
 "${PLUGIN_ROOT}/scripts/setup-verifier-loop.sh" --from-json "$SETUP_JSON" 2>&1 || {
-  echo "SETUP_VGL_FAILED: setup-verifier-loop.sh failed"
+  echo "ERROR: setup-verifier-loop.sh failed for task $TASK_ID" >&2
   echo "CROSS_TEAM_FAILED"
-  exit 0
+  exit 1
 }
 
 echo "CROSS_OK"

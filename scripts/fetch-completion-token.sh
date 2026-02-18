@@ -119,7 +119,10 @@ ISSUES=""
 
 # Check for TODO/FIXME in source files (if src/ exists)
 if [[ -d "src" ]]; then
-  TODO_COUNT=$(timeout 10 grep -r -I -i "TODO\|FIXME\|XXX\|HACK" src/ 2>/dev/null | wc -l | tr -d ' ') || TODO_COUNT="0"
+  TODO_COUNT=$(timeout 10 grep -r -I -i "TODO\|FIXME\|XXX\|HACK" src/ 2>&1 | wc -l | tr -d ' ') || {
+    echo "WARN: TODO/FIXME scan failed — skipping this check" >&2
+    TODO_COUNT="0"
+  }
   if [[ "$TODO_COUNT" =~ ^[0-9]+$ ]] && [[ "$TODO_COUNT" -gt 0 ]]; then
     ISSUES="${ISSUES}Found $TODO_COUNT TODO/FIXME comments in src/\n"
   fi
@@ -127,7 +130,10 @@ fi
 
 # Check for stub implementations
 if [[ -d "src" ]]; then
-  STUB_COUNT=$(timeout 10 grep -r -I "pass  # TODO\|raise NotImplementedError\|return None  # stub" src/ 2>/dev/null | wc -l | tr -d ' ') || STUB_COUNT="0"
+  STUB_COUNT=$(timeout 10 grep -r -I "pass  # TODO\|raise NotImplementedError\|return None  # stub" src/ 2>&1 | wc -l | tr -d ' ') || {
+    echo "WARN: Stub implementation scan failed — skipping this check" >&2
+    STUB_COUNT="0"
+  }
   if [[ "$STUB_COUNT" =~ ^[0-9]+$ ]] && [[ "$STUB_COUNT" -gt 0 ]]; then
     ISSUES="${ISSUES}Found $STUB_COUNT stub implementations in src/\n"
   fi
@@ -154,6 +160,11 @@ fi
 
 # All checks passed - reveal the token (line 1 of token file)
 COMPLETION_TOKEN=$(head -1 "$TOKEN_FILE")
+if [[ -z "$COMPLETION_TOKEN" ]] || [[ "$COMPLETION_TOKEN" == "PLACEHOLDER_TOKEN_GENERATED_AT_CALL_TIME" ]]; then
+  echo "Error: Token file is empty or contains placeholder — VGL token was never generated"
+  echo "Try: Run /gatekeeper:run-away to reset the session, then restart with /gatekeeper:cross-team."
+  exit 1
+fi
 
 echo "═══════════════════════════════════════════════════════════════════════════════════════"
 echo "                         VERIFICATION PASSED - TOKEN GRANTED"

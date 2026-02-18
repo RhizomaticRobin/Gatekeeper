@@ -35,6 +35,7 @@ from collections import deque
 try:
     import yaml
 except ImportError:
+    print("WARN: PyYAML not installed — plan operations will fail if _parse_yaml_minimal is not available", file=sys.stderr)
     yaml = None
 
 
@@ -112,8 +113,8 @@ def _atomic_write_plan(path, plan):
         # Clean up temp file on error
         try:
             os.unlink(tmp_path)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"WARN: Failed to clean up temp file {tmp_path}: {e}", file=sys.stderr)
         raise
 
 

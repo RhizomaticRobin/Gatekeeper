@@ -106,12 +106,14 @@ def compute_complexity(file_path, function_name):
     try:
         with open(file_path, "r", encoding="utf-8", errors="replace") as f:
             source = f.read()
-    except OSError:
+    except OSError as e:
+        print(f"[evo_profiler] WARN: Cannot read {file_path}: {e}", file=sys.stderr)
         return 0
 
     try:
         tree = ast.parse(source)
-    except SyntaxError:
+    except SyntaxError as e:
+        print(f"[evo_profiler] WARN: Cannot parse {file_path}: {e}", file=sys.stderr)
         return 0
 
     for node in ast.walk(tree):
@@ -153,7 +155,11 @@ def estimate_test_count(test_command, function_name):
             if function_name.lower() in line.lower():
                 count += 1
         return max(count, 1)  # At least 1 if the function was profiled
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except subprocess.TimeoutExpired:
+        print(f"[evo_profiler] WARN: pytest --collect-only timed out while estimating test count for {function_name}", file=sys.stderr)
+        return 1
+    except FileNotFoundError as e:
+        print(f"[evo_profiler] WARN: pytest not found while estimating test count: {e}", file=sys.stderr)
         return 1
 
 

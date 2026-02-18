@@ -51,9 +51,17 @@ fi
 # 3. Find ALL unblocked tasks
 echo ""
 echo "Finding all unblocked tasks..."
-UNBLOCKED_JSON=$(python3 "${PLUGIN_ROOT}/scripts/get-unblocked-tasks.py" "$PLAN_FILE" 2>&1) || true
+UNBLOCKED_JSON=$(python3 "${PLUGIN_ROOT}/scripts/get-unblocked-tasks.py" "$PLAN_FILE" 2>&1) || {
+  echo "ERROR: get-unblocked-tasks.py failed" >&2
+  echo "CROSS_TEAM_FAILED"
+  exit 1
+}
 
-TASK_COUNT=$(echo "$UNBLOCKED_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null) || TASK_COUNT="0"
+TASK_COUNT=$(echo "$UNBLOCKED_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))") || {
+  echo "ERROR: Failed to parse unblocked tasks JSON" >&2
+  echo "CROSS_TEAM_FAILED"
+  exit 1
+}
 
 if [[ "$TASK_COUNT" == "0" ]]; then
   ALL_COMPLETE=$(python3 -c "
@@ -97,15 +105,31 @@ TASK_IDS=$(echo "$UNBLOCKED_JSON" | python3 -c "
 import sys, json
 tasks = json.load(sys.stdin)
 print(' '.join(t['id'] for t in tasks))
-" 2>/dev/null) || true
+") || {
+  echo "ERROR: Failed to extract task IDs from unblocked tasks" >&2
+  echo "CROSS_TEAM_FAILED"
+  exit 1
+}
 
 echo ""
 echo "Checking file scope conflicts..."
-CONFLICT_JSON=$(python3 "${PLUGIN_ROOT}/scripts/check-file-conflicts.py" "$PLAN_FILE" $TASK_IDS 2>&1) || true
+CONFLICT_JSON=$(python3 "${PLUGIN_ROOT}/scripts/check-file-conflicts.py" "$PLAN_FILE" $TASK_IDS 2>&1) || {
+  echo "ERROR: check-file-conflicts.py failed" >&2
+  echo "CROSS_TEAM_FAILED"
+  exit 1
+}
 echo "$CONFLICT_JSON"
 
-SAFE_COUNT=$(echo "$CONFLICT_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['safe_parallel']))" 2>/dev/null) || SAFE_COUNT="0"
-SEQ_COUNT=$(echo "$CONFLICT_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['sequential_fallback']))" 2>/dev/null) || SEQ_COUNT="0"
+SAFE_COUNT=$(echo "$CONFLICT_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['safe_parallel']))") || {
+  echo "ERROR: Failed to parse safe_parallel count from conflict JSON" >&2
+  echo "CROSS_TEAM_FAILED"
+  exit 1
+}
+SEQ_COUNT=$(echo "$CONFLICT_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['sequential_fallback']))") || {
+  echo "ERROR: Failed to parse sequential_fallback count from conflict JSON" >&2
+  echo "CROSS_TEAM_FAILED"
+  exit 1
+}
 
 echo ""
 echo "Safe to parallelize: $SAFE_COUNT task(s)"
@@ -132,11 +156,14 @@ if not safe and not conflicts:
     print(' '.join(seq))
 else:
     print(' '.join(safe))
-" 2>/dev/null) || true
+") || {
+  echo "ERROR: Failed to extract safe task IDs from conflict analysis" >&2
+  echo "CROSS_TEAM_FAILED"
+  exit 1
+}
 
 if [[ -z "$SAFE_IDS" ]]; then
-  echo "No tasks can be safely parallelized. Falling back to sequential execution."
-  # Use all task IDs for sequential execution
+  echo "WARN: No safe parallel tasks identified — falling back to sequential. Check file_scope definitions." >&2
   SAFE_IDS="$TASK_IDS"
   SAFE_COUNT="$TASK_COUNT"
 fi
@@ -152,18 +179,34 @@ from plan_utils import load_plan, find_task
 plan = load_plan('$PLAN_FILE')
 _, task = find_task(plan, '$TASK_ID')
 print(json.dumps(task))
-" 2>/dev/null) || continue
+") || {
+    echo "ERROR: Failed to extract JSON for task $TASK_ID from plan" >&2
+    echo "CROSS_TEAM_FAILED"
+    exit 1
+  }
 
-  TASK_NAME=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('name',''))" 2>/dev/null) || true
-  TEST_CMD=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tests']['quantitative']['command'])" 2>/dev/null) || true
-  PROMPT_FILE=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['prompt_file'])" 2>/dev/null) || true
+  TASK_NAME=$(echo "$TASK_JSON" | python3 -c "import sys,json; t=json.load(sys.stdin); n=t.get('name',''); assert n, 'name is empty'; print(n)") || {
+    echo "ERROR: Task $TASK_ID has no 'name' field" >&2
+    echo "CROSS_TEAM_FAILED"
+    exit 1
+  }
+  TEST_CMD=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tests']['quantitative']['command'])") || {
+    echo "ERROR: Task $TASK_ID missing tests.quantitative.command" >&2
+    echo "CROSS_TEAM_FAILED"
+    exit 1
+  }
+  PROMPT_FILE=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['prompt_file'])") || {
+    echo "ERROR: Task $TASK_ID missing prompt_file" >&2
+    echo "CROSS_TEAM_FAILED"
+    exit 1
+  }
   QUAL_CRITERIA=$(echo "$TASK_JSON" | python3 -c "
 import sys, json
 t = json.load(sys.stdin)
 criteria = t.get('tests', {}).get('qualitative', {}).get('criteria', [])
 for c in criteria:
     print(f'- {c}')
-" 2>/dev/null) || true
+") || QUAL_CRITERIA=""
 
   FULL_PROMPT_PATH=".claude/plan/${PROMPT_FILE}"
   if [[ -n "$PROMPT_FILE" ]] && [[ -f "$FULL_PROMPT_PATH" ]]; then
@@ -183,7 +226,9 @@ YOUR TASK:
 $TASK_PROMPT"
 
   # Mark task as in_progress
-  python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$TASK_ID" 2>/dev/null || true
+  python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$TASK_ID" || {
+    echo "WARN: Failed to update plan.yaml status for task $TASK_ID" >&2
+  }
 
   export _VGL_TASK_PROMPT="$TASK_PROMPT"
   export _VGL_RAW_TASK_PROMPT="$RAW_TASK_PROMPT"
@@ -208,7 +253,11 @@ print(json.dumps({
     "session_dir": os.environ["_VGL_SESSION_DIR"],
 }))
 PYEOF
-  ) || continue
+  ) || {
+    echo "ERROR: Failed to build setup JSON for task $TASK_ID" >&2
+    echo "CROSS_TEAM_FAILED"
+    exit 1
+  }
 
   "${PLUGIN_ROOT}/scripts/setup-verifier-loop.sh" --from-json "$SETUP_JSON" 2>&1 || {
     echo "WARNING: Failed to set up VGL for task $TASK_ID"

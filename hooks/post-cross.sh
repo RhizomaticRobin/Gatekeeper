@@ -86,7 +86,10 @@ if next_up:
     result['next_depends_on'] = deps
 
 print(json.dumps(result))
-" 2>/dev/null) || exit 0
+") || {
+  echo "ERROR: Failed to parse plan pipeline info from $PLAN_FILE" >&2
+  exit 1
+}
 
 if [[ -z "$PIPELINE_INFO" ]]; then
   exit 0

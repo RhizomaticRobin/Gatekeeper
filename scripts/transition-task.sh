@@ -35,7 +35,7 @@ if [[ ! -f "$STATE_FILE" ]]; then
 fi
 
 FRONTMATTER=$(awk 'NR==1 && /^---$/{next} /^---$/{exit} NR>1{print}' "$STATE_FILE")
-CURRENT_TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+CURRENT_TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/') || CURRENT_TASK_ID=""
 
 if [[ -z "$CURRENT_TASK_ID" ]]; then
   echo "Error: No task_id in state file frontmatter" >&2
@@ -44,9 +44,19 @@ if [[ -z "$CURRENT_TASK_ID" ]]; then
 fi
 
 # Extract iteration count and started_at for history recording
-HISTORY_ITERATION=$(echo "$FRONTMATTER" | grep '^iteration:' | sed 's/iteration: *//')
+HISTORY_ITERATION=$(echo "$FRONTMATTER" | grep '^iteration:' | sed 's/iteration: *//' || true)
+if [[ -z "$HISTORY_ITERATION" ]]; then
+  echo "WARN: No iteration count in state file frontmatter — defaulting to 1" >&2
+  HISTORY_ITERATION="1"
+fi
 HISTORY_STARTED_AT=$(echo "$FRONTMATTER" | grep '^started_at:' | sed 's/started_at: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+if [[ -z "$HISTORY_STARTED_AT" ]]; then
+  echo "WARN: No started_at in state file frontmatter — history duration will be 0" >&2
+fi
 HISTORY_SESSION_ID=$(echo "$FRONTMATTER" | grep '^session_id:' | sed 's/session_id: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+if [[ -z "$HISTORY_SESSION_ID" ]]; then
+  echo "WARN: No session_id in state file frontmatter" >&2
+fi
 
 # Acquire exclusive flock for the read-modify-write cycle
 # Uses the same lock file as Python's _plan_lock (plan.yaml.lock)
@@ -88,7 +98,10 @@ create_checkpoint() {
   fi
 
   # Stage plan.yaml and any VGL state changes
-  git add .claude/plan/plan.yaml 2>/dev/null || true
+  if ! git add .claude/plan/plan.yaml 2>&1; then
+    echo "Checkpoint: failed to stage plan.yaml" >&2
+    return 0
+  fi
 
   # Check if anything is staged
   if git diff --cached --quiet 2>/dev/null; then
@@ -117,7 +130,10 @@ plan = load_plan('$PLAN_FILE')
 _, task = find_task(plan, '$CURRENT_TASK_ID')
 if task: print(task.get('name', 'task $CURRENT_TASK_ID'))
 else: print('task $CURRENT_TASK_ID')
-" 2>/dev/null || echo "task $CURRENT_TASK_ID")
+" 2>&1) || {
+  echo "WARN: Failed to get task name for $CURRENT_TASK_ID" >&2
+  TASK_NAME="task $CURRENT_TASK_ID"
+}
 
 create_checkpoint "$CURRENT_TASK_ID" "$TASK_NAME"
 
@@ -143,7 +159,10 @@ for phase in plan.get('phases', []):
         break
 else:
     print('false')
-" 2>/dev/null || echo "false")
+" 2>&1) || {
+  echo "WARN: Failed to check integration status — assuming not needed" >&2
+  INTEGRATION_CHECK="false"
+}
 
 if [[ "$INTEGRATION_CHECK" == "true" ]]; then
   echo "INTEGRATION_CHECK_NEEDED" >&2
@@ -170,7 +189,7 @@ fi
 HISTORY_ITERATIONS="${HISTORY_ITERATION:-1}"
 
 if [[ -f "${SCRIPTS_DIR}/run_history.py" ]]; then
-  python3 "${SCRIPTS_DIR}/run_history.py" \
+  if python3 "${SCRIPTS_DIR}/run_history.py" \
     --record \
     --task-id "$CURRENT_TASK_ID" \
     --iterations "$HISTORY_ITERATIONS" \
@@ -178,8 +197,11 @@ if [[ -f "${SCRIPTS_DIR}/run_history.py" ]]; then
     --duration "$HISTORY_DURATION" \
     --session-id "${HISTORY_SESSION_ID:-}" \
     --history-dir ".planning/history" \
-    >/dev/null 2>&1 || true
-  echo "History recorded for task $CURRENT_TASK_ID" >&2
+    2>&1; then
+    echo "History recorded for task $CURRENT_TASK_ID" >&2
+  else
+    echo "WARN: Failed to record history for task $CURRENT_TASK_ID" >&2
+  fi
 else
   echo "History: run_history.py not found, skipping recording" >&2
 fi
@@ -200,7 +222,9 @@ import sys, json
 task = json.load(sys.stdin)
 task['_integration_check_before'] = True
 print(json.dumps(task))
-" 2>/dev/null || echo "$NEXT_JSON")
+" 2>&1) || {
+    echo "WARN: Failed to inject integration check flag into next task JSON" >&2
+  }
 fi
 
 # Output next task JSON to stdout

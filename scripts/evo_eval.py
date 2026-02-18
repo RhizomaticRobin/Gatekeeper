@@ -302,7 +302,8 @@ class CascadeEvaluator:
                                     todo_count += 1
                                 if "FIXME" in line_upper:
                                     fixme_count += 1
-                    except OSError:
+                    except OSError as e:
+                        print(f"[evo_eval] WARN: Cannot read {fpath}: {e}", file=sys.stderr)
                         continue
 
         return {
@@ -339,6 +340,8 @@ class CascadeEvaluator:
                     if any(kw in line for kw in ["Error", "FAILED", "error", "Exception"]):
                         error_lines.append(line)
                 error_trace = "\n".join(error_lines)
+                if not error_trace:
+                    print(f"[evo_eval] WARN: Process exited {exit_code} but no traceback or error pattern found in output", file=sys.stderr)
 
         # Truncate error_trace to 1000 chars
         if len(error_trace) > 1000:
@@ -503,6 +506,7 @@ def _measure_function_timing(function_name, module_path, baseline_ms):
                     val *= 1000.0
                 timings.append(val)
         except subprocess.TimeoutExpired:
+            print(f"[evo_eval] WARN: timeit timed out for {function_name} (rep {_ + 1}/5)", file=sys.stderr)
             continue
 
     if not timings:

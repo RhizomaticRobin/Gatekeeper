@@ -36,8 +36,8 @@ def find_function(source, function_name):
     try:
         tree = ast.parse(source)
     except SyntaxError as e:
-        print(f"SyntaxError parsing source: {e}", file=sys.stderr)
-        return None
+        print(f"ERROR: SyntaxError parsing source — cannot locate function '{function_name}': {e}", file=sys.stderr)
+        return None  # Callers MUST check for None and handle as a hard error
 
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):

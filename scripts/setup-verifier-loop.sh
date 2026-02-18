@@ -175,7 +175,9 @@ if [[ -z "$TEST_COMMAND" ]]; then
   elif [[ -f "package.json" ]]; then
     TEST_COMMAND="npm test"
   else
-    TEST_COMMAND="pytest"
+    echo "ERROR: Could not auto-detect test framework. No pyproject.toml, pytest.ini, vitest.config.*, or package.json found." >&2
+    echo "Try: Provide --test-command explicitly, e.g. --test-command 'pytest tests/'." >&2
+    exit 1
   fi
   echo "Auto-detected test command: $TEST_COMMAND"
 fi
@@ -198,7 +200,9 @@ PLACEHOLDER_TOKEN_GENERATED_AT_CALL_TIME
 TEST_CMD_B64:$TEST_CMD_B64
 TEST_CMD_HASH:$TEST_CMD_HASH
 SECRETEOF
-chmod 600 "${SESSION_DIR}/verifier-token.secret" 2>/dev/null || true
+if ! chmod 600 "${SESSION_DIR}/verifier-token.secret"; then
+  echo "WARN: Failed to set permissions on ${SESSION_DIR}/verifier-token.secret" >&2
+fi
 
 # Create state file
 PLAN_MODE_FRONTMATTER=""
