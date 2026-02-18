@@ -15,7 +15,15 @@ const EXCLUDE = new Set([
   '.npmrc',
   '.npmignore',
   '.gitignore',
+  '.gitmodules',
   '.DS_Store',
+  '.claude',
+  '.planning',
+  'tests',
+  'verifier-mcp',
+  'vitest.config.js',
+  'pytest.ini',
+  'package-lock.json',
 ]);
 
 // Colors (re-declared here to keep the module self-contained)
