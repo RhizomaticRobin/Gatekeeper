@@ -1,7 +1,7 @@
 ---
 name: debugger
 description: Systematic debugging with persistent state. Scientific method — evidence, hypothesis, test, verify. Survives context resets via debug file.
-model: sonnet
+model: opus
 tools: Read, Write, Edit, Bash, Grep, Glob
 disallowedTools: WebFetch, WebSearch, Task
 color: red
