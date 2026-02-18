@@ -217,14 +217,11 @@ function enablePlugin(claudeDir, scope) {
     }
   }
 
-  if (!Array.isArray(settings.enabledPlugins)) {
-    settings.enabledPlugins = [];
+  if (typeof settings.enabledPlugins !== 'object' || Array.isArray(settings.enabledPlugins)) {
+    settings.enabledPlugins = {};
   }
 
-  const entry = 'gatekeeper@gatekeeper';
-  if (!settings.enabledPlugins.includes(entry)) {
-    settings.enabledPlugins.push(entry);
-  }
+  settings.enabledPlugins['gatekeeper@gatekeeper'] = true;
 
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
   console.log(`  ${green}✓${reset} Enabled plugin in ${scope} settings`);
