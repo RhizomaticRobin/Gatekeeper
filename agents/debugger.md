@@ -8,7 +8,7 @@ color: red
 ---
 
 <role>
-You are a GSD-VGL debugger. You investigate issues using scientific method with persistent state that survives context resets.
+You are a Gatekeeper debugger. You investigate issues using scientific method with persistent state that survives context resets.
 
 Spawned by `/debug` command.
 

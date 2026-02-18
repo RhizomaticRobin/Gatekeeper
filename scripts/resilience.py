@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resilience module for GSD-VGL.
+"""Resilience module for Gatekeeper.
 
 Provides:
   - Stuck detection (per-task consecutive failures)
@@ -93,20 +93,20 @@ class ResilienceManager:
     def check_stuck(self, task_id: str, threshold: int) -> Tuple[bool, int, str]:
         count = self.state.task_failures.get(task_id, 0)
         is_stuck = count >= threshold
-        msg = f"VGL: Stuck on task {task_id} ({count} consecutive failures, threshold: {threshold})"
+        msg = f"Gatekeeper: Stuck on task {task_id} ({count} consecutive failures, threshold: {threshold})"
         return is_stuck, count, msg
 
     def check_circuit_breaker(self, threshold: int) -> Tuple[bool, int, str]:
         count = self.state.total_failures
         is_tripped = count >= threshold
-        msg = f"VGL: Circuit breaker tripped ({count} total failures, threshold: {threshold})"
+        msg = f"Gatekeeper: Circuit breaker tripped ({count} total failures, threshold: {threshold})"
         return is_tripped, count, msg
 
     def check_budget(
         self, max_iterations: int, timeout_hours: int
     ) -> Tuple[bool, Optional[str], str]:
         if self.state.total_iterations >= max_iterations:
-            msg = f"VGL: Budget exceeded ({self.state.total_iterations} iterations, max: {max_iterations})"
+            msg = f"Gatekeeper: Budget exceeded ({self.state.total_iterations} iterations, max: {max_iterations})"
             return True, "iterations", msg
 
         if self.state.started_at is not None:
@@ -114,7 +114,7 @@ class ResilienceManager:
             elapsed = datetime.now() - started
             elapsed_hours = elapsed.total_seconds() / 3600
             if elapsed_hours >= timeout_hours:
-                msg = f"VGL: Budget exceeded ({elapsed_hours:.1f} hours elapsed, max: {timeout_hours})"
+                msg = f"Gatekeeper: Budget exceeded ({elapsed_hours:.1f} hours elapsed, max: {timeout_hours})"
                 return True, "timeout", msg
 
         return False, None, ""
@@ -160,7 +160,7 @@ class ResilienceManager:
     ) -> Tuple[bool, Optional[str], Optional[str]]:
         stuck_threshold = config.get("stuck_threshold", 3)
         circuit_breaker_threshold = config.get("circuit_breaker_threshold", 5)
-        max_iterations = config.get("max_vgl_iterations", 50)
+        max_iterations = config.get("max_gatekeeper_iterations", 50)
         timeout_hours = config.get("timeout_hours", 8)
 
         is_stuck, _, stuck_msg = self.check_stuck(task_id, stuck_threshold)
@@ -212,7 +212,7 @@ class ResilienceManager:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="GSD-VGL Resilience Manager")
+    parser = argparse.ArgumentParser(description="Gatekeeper Resilience Manager")
     parser.add_argument("--state-path", required=True, help="Path to state JSON file")
 
     group = parser.add_mutually_exclusive_group(required=True)

@@ -10,7 +10,7 @@ Gatekeeper orchestrates software projects through a structured pipeline where no
 2. **Assess Phase** -- Phase assessor creates format contracts (API shapes, data structures, wiring) so independently-written tests produce compatible interfaces
 3. **Test** -- Tester agent researches the domain (WebSearch + Context7), writes comprehensive tests following format contracts, passes assessor quality gate (TQG token)
 4. **Execute** (`/cross-team`) -- TDD-first implementation with parallel opencode agents, wave-based dispatch, and session continuations
-5. **Verify** -- Independent verifier in a fresh context checks tests, inspects code, and runs Playwright visual verification. A 128-bit cryptographic VGL token is issued only on full pass
+5. **Verify** -- Independent verifier in a fresh context checks tests, inspects code, and runs Playwright visual verification. A 128-bit cryptographic Gatekeeper token is issued only on full pass
 6. **Verify Phase** -- Phase verifier checks integration contracts, cross-phase wiring, and end-to-end data flows. PVG token gates the next phase
 7. **Iterate** -- Failed verifications loop back through execution with evolutionary intelligence informing retry strategies
 
@@ -237,7 +237,7 @@ claude plugin enable gatekeeper
        ▼              ▼                   ▼
 ┌─────────────┐ ┌───────────────┐ ┌─────────────────┐
 │  PLANNING   │ │  HYPERPHASE 1 │ │  HYPERPHASE N   │
-│  PIPELINE   │ │  VGL Pipeline │ │  Evo Optimize   │
+│  PIPELINE   │ │  Gatekeeper   │ │  Evo Optimize   │
 │  (/quest)   │ │  (/cross-team)│ │  (/hyperphase)  │
 └──────┬──────┘ └──────┬────────┘ └───────┬─────────┘
        │               │                  │
@@ -259,7 +259,7 @@ claude plugin enable gatekeeper
 │  guard-scope.sh ── blocks agent access to tokens, prompts, plugin source   │
 │  guard-plan.sh  ── locks plan.yaml + task files during execution           │
 │  guard-orchestrator.sh ── blocks orchestrator from writing code            │
-│  guard-skills.sh ── blocks plan-modifying commands during VGL              │
+│  guard-skills.sh ── blocks plan-modifying commands during Gatekeeper loop   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -307,7 +307,7 @@ Phase 4 ── Hierarchical Plan Generation
 Phase 5 ── Confirm & Summarize → "Run /cross-team to start execution"
 ```
 
-### Hyperphase 1 — Verifier-Gated TDD (`/cross-team`)
+### Hyperphase 1 — Gatekeeper TDD (`/cross-team`)
 
 ```
 /cross-team
@@ -408,9 +408,9 @@ Phase 5 ── Confirm & Summarize → "Run /cross-team to start execution"
 │   │ Token Generation & Task Completion                               │    │
 │   │                                                                  │    │
 │   │  token = openssl rand -hex 32 | head -c 32                      │    │
-│   │  vgl_token = "VGL_COMPLETE_{token}"                              │    │
-│   │  Write to .claude/vgl-sessions/task-{id}/verifier-token.secret   │    │
-│   │  plan_utils.py --complete-task {task_id} --token {vgl_token}     │    │
+│   │  gk_token = "GK_COMPLETE_{token}"                               │    │
+│   │  Write to .claude/gk-sessions/task-{id}/verifier-token.secret   │    │
+│   │  plan_utils.py --complete-task {task_id} --token {gk_token}      │    │
 │   └──────────────────────┬──────────────────────────────────────────┘    │
 │                          ▼                                               │
 │   ┌─────────────────────────────────────────────────────────────────┐    │
@@ -540,7 +540,7 @@ Assessor ── ASSESSMENT_PASS:{tqg_token}:{summary} ──► write TQG token,
 Executor ── IMPLEMENTATION_READY:{id} ────────► Orchestrator ──► spawn Verifier
          └─ TASK_FAILED:{id}:{reason} ────────► log, retry or skip
 
-Verifier ── VERIFICATION_PASS ────────────────► generate VGL token, mark complete
+Verifier ── VERIFICATION_PASS ────────────────► generate GK token, mark complete
          └─ VERIFICATION_FAIL:{critique} ────► test_issue: re-spawn Tester (reassess)
                                                impl_issue: re-spawn Executor (max 3)
 
@@ -571,7 +571,7 @@ Evo-optimizer ── OPTIMIZATION_PASS:{island}:{speedup}:{iter} ──► migra
 │                                                                 │
 │  guard-orchestrator.sh (PreToolUse: Write/Edit/WebFetch/Search) │
 │  ├─ Blocks: ALL 4 tools (orchestrator can't write code)         │
-│  └─ Active when: .claude/vgl-team-active exists                 │
+│  └─ Active when: .claude/gk-team-active exists                 │
 │                                                                 │
 │  guard-skills.sh (PreToolUse: Skill)                            │
 │  ├─ Blocks: all /gatekeeper:* except /cross-team, /progress     │
@@ -583,25 +583,25 @@ Evo-optimizer ── OPTIMIZATION_PASS:{island}:{speedup}:{iter} ──► migra
 │  PAG ── Phase Assessment Gate                                   │
 │  ├─ Format: PAG_COMPLETE_{32_hex_chars} (128-bit)               │
 │  ├─ Generated: by orchestrator after PHASE_ASSESSMENT_PASS      │
-│  └─ Stored: .claude/vgl-sessions/phase-{id}/pag-token.secret    │
+│  └─ Stored: .claude/gk-sessions/phase-{id}/pag-token.secret    │
 │                                                                 │
 │  TQG ── Test Quality Gate                                       │
 │  ├─ Format: TQG_COMPLETE_{32_hex_chars} (128-bit)               │
 │  ├─ Generated: by assessor agent, included in ASSESSMENT_PASS   │
-│  └─ Stored: .claude/vgl-sessions/task-{id}/assessor-token.secret│
+│  └─ Stored: .claude/gk-sessions/task-{id}/assessor-token.secret│
 │                                                                 │
-│  VGL ── Verifier-Gated Loop                                     │
-│  ├─ Format: VGL_COMPLETE_{32_hex_chars} (128-bit)               │
+│  GK ── Gatekeeper loop                                      │
+│  ├─ Format: GK_COMPLETE_{32_hex_chars} (128-bit)               │
 │  ├─ Generated: by orchestrator after VERIFICATION_PASS          │
-│  ├─ Stored: .claude/vgl-sessions/task-{id}/verifier-token.secret│
+│  ├─ Stored: .claude/gk-sessions/task-{id}/verifier-token.secret│
 │  └─ Validated: plan_utils.py --complete-task --token             │
 │                                                                 │
 │  PVG ── Phase Verification Gate                                  │
 │  ├─ Format: PVG_COMPLETE_{32_hex_chars} (128-bit)               │
 │  ├─ Generated: by orchestrator after PHASE_VERIFICATION_PASS    │
-│  └─ Stored: .claude/vgl-sessions/phase-{id}/pvg-token.secret    │
+│  └─ Stored: .claude/gk-sessions/phase-{id}/pvg-token.secret    │
 │                                                                 │
-│  Token chain per task: PAG → TQG → VGL → PVG                    │
+│  Token chain per task: PAG → TQG → GK → PVG                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -618,7 +618,7 @@ project/
 │   │       └── task-1.2.md
 │   ├── plans/
 │   │   └── plan-summary.md             Condensed plan overview
-│   ├── vgl-sessions/                   Per-task/phase VGL state (during execution)
+│   ├── gk-sessions/                   Per-task/phase Gatekeeper state (during execution)
 │   │   ├── phase-1/
 │   │   │   ├── pag-token.secret        PAG token (phase assessment gate)
 │   │   │   ├── pvg-token.secret        PVG token (phase verification gate)
@@ -630,10 +630,10 @@ project/
 │   │   │       ├── integration-test-spec.md
 │   │   │       └── tester-guidance-task-{id}.md
 │   │   └── task-1.1/
-│   │       ├── verifier-token.secret   VGL token (task verification)
+│   │       ├── verifier-token.secret   GK token (task verification)
 │   │       ├── assessor-token.secret   TQG token (test quality gate)
 │   │       └── state.md                Session state
-│   ├── vgl-team-active                 Marker: team orchestration running
+│   ├── gk-team-active                 Marker: team orchestration running
 │   └── plan-locked                     Marker: plan files locked
 ├── .planning/
 │   ├── PROJECT.md                      Intent anchor for all subagents
@@ -664,9 +664,9 @@ gatekeeper/                             Plugin directory
 
 ## Core Concepts
 
-### Verifier-Gated Loop (VGL)
+### Gatekeeper Loop (GK)
 
-The executor cannot complete a task. Only the verifier can, and it runs in an independent context. The orchestrator generates a 128-bit cryptographic token (`VGL_COMPLETE_[32-hex]`) only when the verifier returns `VERIFICATION_PASS` after all checks:
+The executor cannot complete a task. Only the verifier can, and it runs in an independent context. The orchestrator generates a 128-bit cryptographic token (`GK_COMPLETE_[32-hex]`) only when the verifier returns `VERIFICATION_PASS` after all checks:
 
 - 16-point deep code inspection passes (no stubs, TODOs, fakes, security issues)
 - Tests pass in an independent subprocess
@@ -778,16 +778,16 @@ phases:
 | Command | Description |
 |---------|-------------|
 | `/quest` | Plan a project -- 5-phase discovery that generates plan.yaml + task prompt files |
-| `/cross-team` | Hyperphase 1 -- execute tasks with TDD + VGL (single-task or parallel team orchestration) |
+| `/cross-team` | Hyperphase 1 -- execute tasks with TDD + Gatekeeper loop (single-task or parallel team orchestration) |
 | `/hyperphase` | Hyperphase N -- evolutionary optimization of hot-spot functions after verification |
-| `/bridge` | Standalone VGL for ad-hoc tasks outside a plan |
+| `/bridge` | Standalone Gatekeeper loop for ad-hoc tasks outside a plan |
 | `/research` | Domain research before planning (parallel researcher agents) |
 | `/map-codebase` | Analyze existing codebase (7-dimension brownfield analysis) |
 | `/progress` | Project status dashboard with metrics |
 | `/verify-milestone` | Integration verification across phases |
 | `/debug` | Systematic debugging with persistent state (scientific method) |
 | `/settings` | Configure model profiles and preferences |
-| `/run-away` | Cancel the active VGL loop |
+| `/run-away` | Cancel the active Gatekeeper loop |
 | `/help` | Command reference |
 
 ## Agents
@@ -846,11 +846,11 @@ resolve-library-id, query-docs    Agent can research any library docs
 
 | Hook | Event | Purpose |
 |------|-------|---------|
-| `stop-hook.sh` | Stop | Prevents exit during VGL. Validates token, auto-transitions to next task |
-| `guard-scope.sh` | PreToolUse: Read, Bash, Grep, Glob | Blocks agent access to infrastructure files during VGL |
+| `stop-hook.sh` | Stop | Prevents exit during Gatekeeper loop. Validates token, auto-transitions to next task |
+| `guard-scope.sh` | PreToolUse: Read, Bash, Grep, Glob | Blocks agent access to infrastructure files during Gatekeeper loop |
 | `guard-plan.sh` | PreToolUse: Write, Edit | Locks plan.yaml and task files during execution |
 | `guard-orchestrator.sh` | PreToolUse: Write, Edit, WebFetch, WebSearch | Blocks code-writing by the lead orchestrator in team mode |
-| `guard-skills.sh` | PreToolUse: Skill | Blocks plan-modifying commands during active VGL |
+| `guard-skills.sh` | PreToolUse: Skill | Blocks plan-modifying commands during active Gatekeeper loop |
 | `post-cross.sh` | PostToolUse: Skill | Shows next task in pipeline after /cross-team |
 | `intel-index.js` | PostToolUse: Write, Edit | Indexes file exports/imports for codebase intelligence |
 
@@ -914,23 +914,23 @@ gatekeeper/
 ├── commands/                        12 slash commands
 ├── hooks/
 │   ├── hooks.json                   Hook event registration
-│   ├── stop-hook.sh                 VGL loop control + auto-transition
-│   ├── guard-scope.sh               File access restriction during VGL
+│   ├── stop-hook.sh                 Gatekeeper loop control + auto-transition
+│   ├── guard-scope.sh               File access restriction during Gatekeeper loop
 │   ├── guard-plan.sh                Plan file lock during execution
 │   ├── guard-orchestrator.sh        Orchestrator write restriction
-│   ├── guard-skills.sh              Skill blocker during VGL
+│   ├── guard-skills.sh              Skill blocker during Gatekeeper loop
 │   ├── post-cross.sh                Post-execution info
 │   ├── intel-index.js               Codebase intelligence indexer (source)
 │   └── dist/intel-index.js          Bundled indexer (built via esbuild)
 ├── scripts/
 │   ├── bootstrap.sh                 Full installation script
-│   ├── setup-verifier-loop.sh       Initialize VGL state
+│   ├── setup-verifier-loop.sh       Initialize Gatekeeper state
 │   ├── generate-verifier-prompt.sh  Build immutable verifier prompt
 │   ├── generate-test-assessor-prompt.sh  Build test assessor prompt
 │   ├── fetch-completion-token.sh    Independent test execution for token
 │   ├── transition-task.sh           Mark complete + find next task
 │   ├── cross-team-setup.sh          Plan validation + task dispatch setup
-│   ├── single-task-setup.sh         Single-task VGL setup
+│   ├── single-task-setup.sh         Single-task Gatekeeper setup
 │   ├── validate-plan.py             Plan.yaml structural validation
 │   ├── plan_utils.py                Shared plan utilities (load, save, find, sort)
 │   ├── get-unblocked-tasks.py       Find all unblocked tasks

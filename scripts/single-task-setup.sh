@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Single-Task VGL Setup Script (GSD-VGL)
+# Single-Task Gatekeeper Setup Script
 # Called by cross-team command when only 1 unblocked task exists.
 #
 # Usage: single-task-setup.sh <plugin_root> <task_id>
 #
 # 1. Reads task details from plan.yaml
 # 2. Reads the task prompt file
-# 3. Builds the VGL prompt with TDD-first instructions
+# 3. Builds the Gatekeeper prompt with TDD-first instructions
 # 4. Marks the task as in_progress
-# 5. Launches the VGL via setup-verifier-loop.sh
+# 5. Launches the Gatekeeper loop via setup-verifier-loop.sh
 #
 # Exit:
 #   Outputs "CROSS_OK" on success
@@ -106,7 +106,7 @@ fi
 
 RAW_TASK_PROMPT="$TASK_PROMPT"
 
-# Build the full VGL prompt with TDD-first instructions
+# Build the full Gatekeeper prompt with TDD-first instructions
 TASK_PROMPT="CRITICAL RULES — VIOLATION WILL BREAK THE LOOP:
 - Do NOT modify .claude/plan/plan.yaml or any .claude/ state files
 - Do NOT mark tasks as done or completed — the system handles all transitions
@@ -135,26 +135,26 @@ python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$TASK_
   gk_warn "Failed to update plan.yaml status for task $TASK_ID"
 }
 
-# Build JSON input and launch VGL in plan mode
-export _VGL_TASK_PROMPT="$TASK_PROMPT"
-export _VGL_RAW_TASK_PROMPT="$RAW_TASK_PROMPT"
-export _VGL_TEST_CMD="$TEST_CMD"
-export _VGL_QUAL_CRITERIA="$QUAL_CRITERIA"
-export _VGL_TASK_ID="$TASK_ID"
-export _VGL_NEXT_JSON="$TASK_JSON"
+# Build JSON input and launch Gatekeeper loop in plan mode
+export _GK_TASK_PROMPT="$TASK_PROMPT"
+export _GK_RAW_TASK_PROMPT="$RAW_TASK_PROMPT"
+export _GK_TEST_CMD="$TEST_CMD"
+export _GK_QUAL_CRITERIA="$QUAL_CRITERIA"
+export _GK_TASK_ID="$TASK_ID"
+export _GK_NEXT_JSON="$TASK_JSON"
 SETUP_JSON=$(python3 << 'PYEOF'
 import json, os
 print(json.dumps({
-    "prompt": os.environ["_VGL_TASK_PROMPT"],
+    "prompt": os.environ["_GK_TASK_PROMPT"],
     "verification_criteria": "Quantitative: {} must pass\nQualitative:\n{}".format(
-        os.environ["_VGL_TEST_CMD"], os.environ["_VGL_QUAL_CRITERIA"]),
-    "test_command": os.environ["_VGL_TEST_CMD"],
+        os.environ["_GK_TEST_CMD"], os.environ["_GK_QUAL_CRITERIA"]),
+    "test_command": os.environ["_GK_TEST_CMD"],
     "verifier_model": "sonnet",
     "max_iterations": 0,
     "plan_mode": True,
-    "task_id": os.environ["_VGL_TASK_ID"],
-    "task_json": os.environ["_VGL_NEXT_JSON"],
-    "task_prompt_content": os.environ["_VGL_RAW_TASK_PROMPT"],
+    "task_id": os.environ["_GK_TASK_ID"],
+    "task_json": os.environ["_GK_NEXT_JSON"],
+    "task_prompt_content": os.environ["_GK_RAW_TASK_PROMPT"],
 }))
 PYEOF
 ) || {

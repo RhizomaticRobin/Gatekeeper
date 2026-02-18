@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run history database for GSD-VGL task execution tracking.
+"""Run history database for Gatekeeper task execution tracking.
 
 Provides persistent JSONL-based storage for recording task execution outcomes
 and querying aggregate statistics.
@@ -301,7 +301,7 @@ def detect_patterns(history, min_occurrences=3):
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="GSD-VGL Run History Database"
+        description="Gatekeeper Run History Database"
     )
     parser.add_argument(
         "--history-dir",

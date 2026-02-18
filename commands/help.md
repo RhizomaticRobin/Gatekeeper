@@ -11,23 +11,23 @@ Display the following command reference to the user. Do NOT attempt to run any t
 
 ```
 ===============================================================================
-  Gatekeeper — Spec-Driven Development with Verifier-Gated Loops
+  Gatekeeper — Spec-Driven Development with Gatekeeper Loops
   Command Reference
 ===============================================================================
 
   COMMAND                      DESCRIPTION
   ─────────────────────────────────────────────────────────────────────────────
 
-  VGL Core Commands
+  Gatekeeper Core Commands
   ─────────────────
   gatekeeper:quest                Structured task execution with verification
                                gates. Supports optional deep discovery mode
                                for comprehensive project understanding.
 
-  gatekeeper:cross-team           Execute tasks with TDD + VGL. Handles both
+  gatekeeper:cross-team           Execute tasks with TDD + Gatekeeper. Handles both
                                single-task and multi-task parallel execution.
 
-  gatekeeper:bridge               Start a standalone Verifier-Gated Loop with
+  gatekeeper:bridge               Start a standalone Gatekeeper loop with
                                TDD-first workflow for ad-hoc tasks.
 
   gatekeeper:run-away             Emergency rollback. Safely revert changes
@@ -75,10 +75,10 @@ Display the following command reference to the user. Do NOT attempt to run any t
 1. gatekeeper:quest                — Plan your project (quick or deep discovery)
 2. gatekeeper:map-codebase         — (If brownfield) Analyze existing code
 3. gatekeeper:research 1           — Research Phase 1 domain knowledge
-4. gatekeeper:cross-team           — Execute tasks with TDD + VGL
+4. gatekeeper:cross-team           — Execute tasks with TDD + Gatekeeper
 5. gatekeeper:progress             — Monitor progress at any time
 6. gatekeeper:verify-milestone     — Audit completed milestones
-7. gatekeeper:bridge               — Start a standalone VGL loop for ad-hoc tasks
+7. gatekeeper:bridge               — Start a standalone Gatekeeper loop for ad-hoc tasks
 8. gatekeeper:run-away             — Emergency rollback if needed
 ```
 
@@ -95,11 +95,11 @@ quest --> cross-team (execute) --> verify-milestone
 research / map-codebase           debug (if issues)
                                         |
                                         v
-                                  bridge (standalone VGL)
+                                  bridge (standalone Gatekeeper loop)
 ```
 
 The workflow uses structured discovery via quest, then TDD-first execution via
-cross-team with verifier-gated loops. Bridge provides a standalone VGL loop for
+cross-team with Gatekeeper loops. Bridge provides a standalone Gatekeeper loop for
 ad-hoc tasks outside the main plan. Run-away offers emergency rollback.
 
 ---
@@ -139,7 +139,7 @@ Additional state directories:
 
 ```
 .claude/
-  vgl-sessions/                         — Per-task VGL session state
+  gk-sessions/                         — Per-task Gatekeeper session state
   plans/
     plan-summary.md                     — Condensed plan summary
 ```

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Generate Verifier Prompt Script (GSD-VGL)
+# Generate Verifier Prompt Script (Gatekeeper)
 #
 # Builds the immutable verifier prompt from plan.yaml metadata + task must_haves
 # + qualitative criteria + Playwright steps. Called by setup-verifier-loop.sh.
 #
-# NOT accessible to executor agents — this script runs at VGL setup time only.
+# NOT accessible to executor agents — this script runs at Gatekeeper setup time only.
 #
 # Usage:
 #   generate-verifier-prompt.sh --task-json <json> --plan-file <path> \

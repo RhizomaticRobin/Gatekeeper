@@ -18,7 +18,7 @@ Levels 1-3 can be checked programmatically. Level 4 often requires human verific
 
 ## must_haves Verification Pattern
 
-GSD-VGL tasks define `must_haves` with three categories that must all be verified:
+Gatekeeper tasks define `must_haves` with three categories that must all be verified:
 
 ### truths
 Invariant conditions that must hold true after task completion. These are boolean assertions about the state of the system.

@@ -19,7 +19,7 @@ The executor agent (agents/executor.md) orchestrates task implementation using T
 
 This task adds an evolution-guided approach selection step BEFORE the TDD dispatch. When a population exists from prior iterations (built by the stop-hook in task 2.1), the executor can spawn multiple parallel agents -- each trying a different evolved approach from different islands. The best candidate's work then feeds into the standard TDD verification flow.
 
-This is the parallel exploration mechanism: instead of trying one approach per VGL iteration, the executor can explore 2-3 approaches concurrently. Combined with the stop-hook storing results, this accelerates evolution convergence.
+This is the parallel exploration mechanism: instead of trying one approach per Gatekeeper iteration, the executor can explore 2-3 approaches concurrently. Combined with the stop-hook storing results, this accelerates evolution convergence.
 
 ## Backend Deliverables
 

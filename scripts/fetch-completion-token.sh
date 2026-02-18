@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Fetch Completion Token Script (GSD-VGL)
+# Fetch Completion Token Script (Gatekeeper)
 # This script ONLY reveals the completion token if independent verification passes
 # The Verifier subagent calls this - it never has the token in its prompt
 #
@@ -28,14 +28,14 @@ TOKEN_FILE="${SESSION_DIR}/verifier-token.secret"
 
 # Check state file exists
 if [[ ! -f "$STATE_FILE" ]]; then
-  echo "Error: No active VGL session found at ${STATE_FILE}"
-  echo "Try: Run /gatekeeper:cross-team to start a new VGL session, or check that the session directory is correct."
+  echo "Error: No active Gatekeeper session found at ${STATE_FILE}"
+  echo "Try: Run /gatekeeper:cross-team to start a new Gatekeeper session, or check that the session directory is correct."
   exit 1
 fi
 
 # Check token file exists (created by setup, only this script should read it)
 if [[ ! -f "$TOKEN_FILE" ]]; then
-  echo "Error: Token file not found at ${TOKEN_FILE} - VGL session may be corrupted"
+  echo "Error: Token file not found at ${TOKEN_FILE} - Gatekeeper session may be corrupted"
   echo "Try: Run /gatekeeper:run-away to reset the session, then restart with /gatekeeper:cross-team."
   exit 1
 fi
@@ -164,7 +164,7 @@ fi
 # All checks passed - reveal the token (line 1 of token file)
 COMPLETION_TOKEN=$(head -1 "$TOKEN_FILE")
 if [[ -z "$COMPLETION_TOKEN" ]] || [[ "$COMPLETION_TOKEN" == "PLACEHOLDER_TOKEN_GENERATED_AT_CALL_TIME" ]]; then
-  echo "Error: Token file is empty or contains placeholder — VGL token was never generated"
+  echo "Error: Token file is empty or contains placeholder — Gatekeeper token was never generated"
   echo "Try: Run /gatekeeper:run-away to reset the session, then restart with /gatekeeper:cross-team."
   exit 1
 fi

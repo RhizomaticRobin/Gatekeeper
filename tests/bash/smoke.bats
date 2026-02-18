@@ -26,7 +26,7 @@ setup() {
     [ "$count" -eq 0 ]
 }
 
-@test "help_bridge_correct: help.md describes bridge as standalone VGL loop" {
+@test "help_bridge_correct: help.md describes bridge as standalone Gatekeeper loop" {
     # The bridge description should contain "standalone" somewhere in help.md
     run grep -i "standalone" "$PLUGIN_ROOT/commands/help.md"
     assert_success

@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# End-to-End Evolution Pipeline Smoke Test for GSD-VGL
+# End-to-End Evolution Pipeline Smoke Test for Gatekeeper
 #
 # Exercises the full evolution pipeline: evo_db.py, evo_eval.py,
 # evo_prompt.py, evo_pollinator.py using a controlled fixture project.

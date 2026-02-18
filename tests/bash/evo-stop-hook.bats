@@ -106,7 +106,7 @@ teardown() {
 
 # Helper: generate a valid token
 make_token() {
-    echo "VGL_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
+    echo "GK_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
 }
 
 # Helper: create state file with task_id and test_command in frontmatter

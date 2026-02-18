@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Guard Scope Hook (PreToolUse: Read|Bash|Grep|Glob) — GSD-VGL
+# Guard Scope Hook (PreToolUse: Read|Bash|Grep|Glob) — Gatekeeper
 #
 # Blocks agents from reading infrastructure files outside their working scope.
-# Only active during VGL execution (verifier-loop.local.md exists).
+# Only active during Gatekeeper execution (verifier-loop.local.md exists).
 #
 # Restricted paths:
 #   - *-token.secret              (completion tokens)
@@ -22,7 +22,7 @@
 
 INPUT=$(cat)
 
-# Only guard during active VGL
+# Only guard during active Gatekeeper loop
 if [[ ! -f ".claude/verifier-loop.local.md" ]]; then
   exit 0
 fi
@@ -77,7 +77,7 @@ if [[ "$TOOL" == "Read" ]]; then
       echo "BLOCKED: That file is outside your working scope." >&2
       exit 2
       ;;
-    */.claude/vgl-sessions/*|*vgl-sessions/*.secret|*vgl-sessions/*.local.md)
+    */.claude/gk-sessions/*|*gk-sessions/*.secret|*gk-sessions/*.local.md)
       echo "BLOCKED: That file is outside your working scope." >&2
       exit 2
       ;;
@@ -123,7 +123,7 @@ if [[ "$TOOL" == "Bash" ]]; then
         echo "BLOCKED: That command accesses files outside your working scope." >&2
         exit 2
         ;;
-      *vgl-sessions/*)
+      *gk-sessions/*)
         echo "BLOCKED: That command accesses files outside your working scope." >&2
         exit 2
         ;;
@@ -144,7 +144,7 @@ if [[ "$TOOL" == "Grep" ]]; then
       echo "BLOCKED: That path is outside your working scope." >&2
       exit 2
       ;;
-    */.claude/vgl-sessions/*|*/.claude/vgl-sessions|*vgl-sessions/*)
+    */.claude/gk-sessions/*|*/.claude/gk-sessions|*gk-sessions/*)
       echo "BLOCKED: That path is outside your working scope." >&2
       exit 2
       ;;
@@ -168,7 +168,7 @@ if [[ "$TOOL" == "Glob" ]]; then
       echo "BLOCKED: That path is outside your working scope." >&2
       exit 2
       ;;
-    */.claude/vgl-sessions/*|*/.claude/vgl-sessions|*vgl-sessions/*)
+    */.claude/gk-sessions/*|*/.claude/gk-sessions|*gk-sessions/*)
       echo "BLOCKED: That path is outside your working scope." >&2
       exit 2
       ;;

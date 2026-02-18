@@ -16,7 +16,7 @@ Goal-backward verification starts from the outcome and works backwards:
 
 Then verify each level against the actual codebase.
 
-This forms the VGL (Verify-Gap-Loop) mechanism: verify -> identify gaps -> loop back for fixes until the goal is truly met.
+This forms the Gatekeeper loop (Verify-Gap-Loop) mechanism: verify -> identify gaps -> loop back for fixes until the goal is truly met.
 </core_principle>
 
 <required_reading>
@@ -483,7 +483,7 @@ Some things can't be verified programmatically:
 score = (verified_truths / total_truths)
 ```
 
-**VGL Loop mechanism:**
+**Gatekeeper Loop mechanism:**
 When gaps_found, the Verify-Gap-Loop engages:
 1. **Verify** -- this phase (just completed)
 2. **Gap** -- gaps are identified and documented
@@ -581,7 +581,7 @@ All must-haves verified. Phase goal achieved. Ready to proceed.
 1. task-{next-id}: {name}
 2. task-{next-id+1}: {name}
 
-### VGL Loop
+### Gatekeeper Loop
 
 Run `/verify-milestone` after fixes to re-verify.
 
@@ -597,7 +597,7 @@ Automated checks passed. Awaiting human verification.
 
 The orchestrator will:
 - If `passed`: Continue to update plan
-- If `gaps_found`: Enter VGL loop -- create fix tasks, execute, then re-verify
+- If `gaps_found`: Enter Gatekeeper loop -- create fix tasks, execute, then re-verify
 - If `human_needed`: Present items to user, collect responses
 </step>
 

@@ -9,7 +9,7 @@
 
 ## 1. Overview
 
-This document covers pytest best practices for testing the two Python scripts central to GSD-VGL's plan orchestration:
+This document covers pytest best practices for testing the two Python scripts central to Gatekeeper's plan orchestration:
 
 - **`/home/user/gatekeeper/scripts/plan_utils.py`** -- Shared utilities: YAML loading/saving, task lookup, dependency resolution, topological sort, CLI via argparse.
 - **`/home/user/gatekeeper/scripts/validate-plan.py`** -- Validates a plan.yaml file structure, checks for required fields, invalid statuses, broken dependency references, and dependency cycles. CLI entry point uses raw `sys.argv`.

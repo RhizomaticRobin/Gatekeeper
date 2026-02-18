@@ -1,7 +1,7 @@
 # Project: Gatekeeper
 
 ## Vision
-Evolve Gatekeeper from a structured TDD/VGL plugin into a self-improving, autonomously-learning development system. Gatekeeper retains the cryptographic verification core but adds adaptive orchestration, cross-project learning, and end-to-end autonomy — reducing human intervention from "guide every task" to "describe what you want."
+Evolve Gatekeeper from a structured TDD/Gatekeeper plugin into a self-improving, autonomously-learning development system. Gatekeeper retains the cryptographic verification core but adds adaptive orchestration, cross-project learning, and end-to-end autonomy — reducing human intervention from "guide every task" to "describe what you want."
 
 ## Primary User
 Software developers using Claude Code for complex, multi-task projects.
@@ -13,7 +13,7 @@ Current Gatekeeper orchestrates well but doesn't learn. Every project starts fro
 - System accumulates learnings across projects and applies them to future runs
 - Orchestration adapts dynamically (wave sizing, retry strategy, agent routing) based on task characteristics
 - A project can go from `/quest` to fully verified completion with minimal human input
-- Existing VGL, TDD, and verification guarantees remain intact (no regression)
+- Existing Gatekeeper, TDD, and verification guarantees remain intact (no regression)
 - Test coverage for core scripts, hooks, and plan utilities
 
 ## Technical Stack

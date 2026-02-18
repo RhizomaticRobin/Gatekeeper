@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Verifier-Gated Loop Setup Script (GSD-VGL)
+# Gatekeeper Loop Setup Script
 #
 # SECURITY MODEL:
 # 1. Completion token is stored in a SEPARATE file (.claude/verifier-token.secret)
@@ -82,7 +82,7 @@ else
     case $1 in
       -h|--help)
         cat << 'HELP_EOF'
-GSD-VGL - Verifier-Gated Loop with TDD + opencode MCP
+Gatekeeper - Gatekeeper loop with TDD + opencode MCP
 
 USAGE:
   /bridge [PROMPT...] [OPTIONS]
@@ -184,7 +184,7 @@ if [[ -z "$TEST_COMMAND" ]]; then
 fi
 
 # Session ID for tracking
-SESSION_ID="vgl_$(date +%s)_$(openssl rand -hex 4 2>/dev/null || head -c 8 /dev/urandom | xxd -p | tr -d '\n')"
+SESSION_ID="gk_$(date +%s)_$(openssl rand -hex 4 2>/dev/null || head -c 8 /dev/urandom | xxd -p | tr -d '\n')"
 
 # Create state directory
 mkdir -p "$SESSION_DIR"
@@ -354,7 +354,7 @@ fi
 cat <<EOF
 
 ╔═══════════════════════════════════════════════════════════════════════════════════════╗
-║                     GSD-VGL: VERIFIER-GATED LOOP ACTIVATED                           ║
+║                          𝙂𝘼𝙏𝙀𝙆𝙀𝙀𝙋𝙀𝙍 𝘼𝘾𝙏𝙄𝙑𝘼𝙏𝙀𝘿                                        ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                       ║
 ║  Session:              $SESSION_ID

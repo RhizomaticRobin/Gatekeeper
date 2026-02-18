@@ -22,7 +22,7 @@ def _make_manager(tmp_dir=None):
     """Create a ResilienceManager with a temporary state path."""
     if tmp_dir is None:
         tmp_dir = tempfile.mkdtemp()
-    state_path = os.path.join(tmp_dir, "vgl-resilience.json")
+    state_path = os.path.join(tmp_dir, "gk-resilience.json")
     return ResilienceManager(state_path)
 
 
@@ -133,7 +133,7 @@ class TestStuckDetection:
             mgr.record_failure("2.1")
         is_stuck, count, msg = mgr.check_stuck("2.1", threshold=3)
         assert is_stuck is True
-        expected = "VGL: Stuck on task 2.1 (3 consecutive failures, threshold: 3)"
+        expected = "Gatekeeper: Stuck on task 2.1 (3 consecutive failures, threshold: 3)"
         assert msg == expected
 
 
@@ -171,7 +171,7 @@ class TestCircuitBreakerTrips:
             mgr.record_failure(f"task-{i}")
         is_tripped, count, msg = mgr.check_circuit_breaker(threshold=5)
         assert is_tripped is True
-        expected = "VGL: Circuit breaker tripped (5 total failures, threshold: 5)"
+        expected = "Gatekeeper: Circuit breaker tripped (5 total failures, threshold: 5)"
         assert msg == expected
 
 
@@ -222,7 +222,7 @@ class TestBudgetChecks:
         mgr.state.total_iterations = 50
         exceeded, reason, msg = mgr.check_budget(max_iterations=50, timeout_hours=8)
         assert exceeded is True
-        expected = "VGL: Budget exceeded (50 iterations, max: 50)"
+        expected = "Gatekeeper: Budget exceeded (50 iterations, max: 50)"
         assert msg == expected
 
     def test_budget_timeout_message_format(self):
@@ -315,7 +315,7 @@ class TestCheckAll:
         config = {
             "stuck_threshold": 3,
             "circuit_breaker_threshold": 5,
-            "max_vgl_iterations": 50,
+            "max_gatekeeper_iterations": 50,
             "timeout_hours": 8,
         }
         triggered, check_name, msg = mgr.check_all("1.1", config)
@@ -331,7 +331,7 @@ class TestCheckAll:
         config = {
             "stuck_threshold": 3,
             "circuit_breaker_threshold": 5,
-            "max_vgl_iterations": 50,
+            "max_gatekeeper_iterations": 50,
             "timeout_hours": 8,
         }
         triggered, check_name, msg = mgr.check_all("1.1", config)
@@ -369,7 +369,7 @@ class TestPersistenceRoundtrip:
     def test_persistence_roundtrip(self):
         """save→load roundtrip preserves all state."""
         tmp_dir = tempfile.mkdtemp()
-        state_path = os.path.join(tmp_dir, "vgl-resilience.json")
+        state_path = os.path.join(tmp_dir, "gk-resilience.json")
 
         mgr1 = ResilienceManager(state_path)
         mgr1.record_failure("1.1", error="import error", files=["foo.py"])
@@ -392,7 +392,7 @@ class TestPersistenceRoundtrip:
     def test_persistence_creates_file(self):
         """save creates the JSON file on disk."""
         tmp_dir = tempfile.mkdtemp()
-        state_path = os.path.join(tmp_dir, "vgl-resilience.json")
+        state_path = os.path.join(tmp_dir, "gk-resilience.json")
 
         mgr = ResilienceManager(state_path)
         mgr.record_failure("1.1")
@@ -427,7 +427,7 @@ class TestCLIIntegration:
     def test_cli_record_failure(self):
         """CLI --record-failure updates state file."""
         tmp_dir = tempfile.mkdtemp()
-        state_path = os.path.join(tmp_dir, "vgl-resilience.json")
+        state_path = os.path.join(tmp_dir, "gk-resilience.json")
 
         result = self._run_cli(["--record-failure", "1.1", "--error", "test error"], state_path)
         assert result.returncode == 0
@@ -441,7 +441,7 @@ class TestCLIIntegration:
     def test_cli_record_success(self):
         """CLI --record-success resets task failure count."""
         tmp_dir = tempfile.mkdtemp()
-        state_path = os.path.join(tmp_dir, "vgl-resilience.json")
+        state_path = os.path.join(tmp_dir, "gk-resilience.json")
 
         # Record some failures first
         self._run_cli(["--record-failure", "1.1"], state_path)
@@ -458,7 +458,7 @@ class TestCLIIntegration:
     def test_cli_check_stuck_below_threshold(self):
         """CLI --check-stuck exits 0 when below threshold."""
         tmp_dir = tempfile.mkdtemp()
-        state_path = os.path.join(tmp_dir, "vgl-resilience.json")
+        state_path = os.path.join(tmp_dir, "gk-resilience.json")
 
         # Record 2 failures (below default threshold of 3)
         self._run_cli(["--record-failure", "1.1"], state_path)
@@ -470,7 +470,7 @@ class TestCLIIntegration:
     def test_cli_check_stuck_at_threshold(self):
         """CLI --check-stuck exits 1 when at threshold."""
         tmp_dir = tempfile.mkdtemp()
-        state_path = os.path.join(tmp_dir, "vgl-resilience.json")
+        state_path = os.path.join(tmp_dir, "gk-resilience.json")
 
         # Record 3 failures (at threshold)
         self._run_cli(["--record-failure", "1.1"], state_path)
@@ -484,12 +484,12 @@ class TestCLIIntegration:
     def test_cli_check_all_within_limits(self):
         """CLI --check-all exits 0 when within all limits."""
         tmp_dir = tempfile.mkdtemp()
-        state_path = os.path.join(tmp_dir, "vgl-resilience.json")
+        state_path = os.path.join(tmp_dir, "gk-resilience.json")
 
         config = json.dumps({
             "stuck_threshold": 3,
             "circuit_breaker_threshold": 5,
-            "max_vgl_iterations": 50,
+            "max_gatekeeper_iterations": 50,
             "timeout_hours": 8,
         })
         result = self._run_cli(["--check-all", "1.1", "--config", config], state_path)
@@ -498,7 +498,7 @@ class TestCLIIntegration:
     def test_cli_check_all_stuck(self):
         """CLI --check-all exits 1 when stuck."""
         tmp_dir = tempfile.mkdtemp()
-        state_path = os.path.join(tmp_dir, "vgl-resilience.json")
+        state_path = os.path.join(tmp_dir, "gk-resilience.json")
 
         # Record 3 failures
         self._run_cli(["--record-failure", "1.1"], state_path)
@@ -508,7 +508,7 @@ class TestCLIIntegration:
         config = json.dumps({
             "stuck_threshold": 3,
             "circuit_breaker_threshold": 5,
-            "max_vgl_iterations": 50,
+            "max_gatekeeper_iterations": 50,
             "timeout_hours": 8,
         })
         result = self._run_cli(["--check-all", "1.1", "--config", config], state_path)
@@ -517,7 +517,7 @@ class TestCLIIntegration:
     def test_cli_reset(self):
         """CLI --reset clears all state."""
         tmp_dir = tempfile.mkdtemp()
-        state_path = os.path.join(tmp_dir, "vgl-resilience.json")
+        state_path = os.path.join(tmp_dir, "gk-resilience.json")
 
         # Record some failures
         self._run_cli(["--record-failure", "1.1"], state_path)
@@ -535,7 +535,7 @@ class TestCLIIntegration:
     def test_cli_analyze_failures(self):
         """CLI --analyze-failures outputs JSON analysis."""
         tmp_dir = tempfile.mkdtemp()
-        state_path = os.path.join(tmp_dir, "vgl-resilience.json")
+        state_path = os.path.join(tmp_dir, "gk-resilience.json")
 
         # Record some failures with patterns
         for _ in range(3):
@@ -549,7 +549,7 @@ class TestCLIIntegration:
     def test_cli_check_circuit_breaker(self):
         """CLI --check-circuit-breaker exits correctly."""
         tmp_dir = tempfile.mkdtemp()
-        state_path = os.path.join(tmp_dir, "vgl-resilience.json")
+        state_path = os.path.join(tmp_dir, "gk-resilience.json")
 
         # Record 5 failures across different tasks
         for i in range(5):

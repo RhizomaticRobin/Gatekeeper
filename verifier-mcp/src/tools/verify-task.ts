@@ -51,11 +51,11 @@ export async function executeVerifyTask(
   // Derive project root from plan file path (plan is at <project>/.claude/plan/plan.yaml)
   const projectRoot = path.resolve(path.dirname(planFile), "..", "..");
 
-  // 2. Find session directory: try .claude/vgl-sessions/task-{id}/ first, fall back to .claude/
+  // 2. Find session directory: try .claude/gk-sessions/task-{id}/ first, fall back to .claude/
   const taskSessionDir = path.join(
     projectRoot,
     ".claude",
-    "vgl-sessions",
+    "gk-sessions",
     `task-${input.task_id}`
   );
   const fallbackDir = path.join(projectRoot, ".claude");
@@ -108,7 +108,7 @@ export async function executeVerifyTask(
 
   // 4. Generate one-time token and write token file just before spawning
   // Token file did NOT exist before this call — agents can't pre-read it
-  const token = `VGL_COMPLETE_${crypto.randomBytes(16).toString("hex")}`;
+  const token = `GK_COMPLETE_${crypto.randomBytes(16).toString("hex")}`;
   const tokenFilePath = path.join(sessionDir, "verifier-token.secret");
 
   // Read existing test command data if present (from setup), otherwise create minimal file

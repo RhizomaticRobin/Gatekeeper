@@ -1,6 +1,6 @@
 # File Locking and Atomic Operations for plan.yaml
 
-**Requirement:** R-005 (harden VGL loop edge cases -- concurrent writes, race conditions)
+**Requirement:** R-005 (harden Gatekeeper loop edge cases -- concurrent writes, race conditions)
 **Phase:** 01 -- Testing & Stability
 **Date:** 2026-02-11
 

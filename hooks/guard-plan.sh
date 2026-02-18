@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Guard Plan Hook (PreToolUse: Write|Edit) — GSD-VGL
+# Guard Plan Hook (PreToolUse: Write|Edit) — Gatekeeper
 #
 # Protects plan.yaml and task prompt files from modification during execution.
 # Active when .claude/plan-locked exists (created by /cross-team setup).

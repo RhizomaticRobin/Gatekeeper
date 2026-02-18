@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Output the next unblocked task from a GSD-VGL plan as JSON.
+"""Output the next unblocked task from a Gatekeeper plan as JSON.
 
 Usage:
   python3 next-task.py <plan.yaml>

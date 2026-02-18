@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Guard Skills Hook (PreToolUse: Skill) — GSD-VGL
+# Guard Skills Hook (PreToolUse: Skill) — Gatekeeper
 #
-# When a VGL loop is active, block all gatekeeper skills except /cross-team.
+# When a Gatekeeper loop is active, block all gatekeeper skills except /cross-team.
 # This prevents the agent from:
 #   - Running /quest (would overwrite the plan mid-execution)
 #   - Running /bridge (would start a competing non-plan loop)
@@ -22,7 +22,7 @@ if [[ -z "$SKILL" ]]; then
   exit 0
 fi
 
-# Only guard when a VGL loop is active
+# Only guard when a Gatekeeper loop is active
 STATE_FILE=".claude/verifier-loop.local.md"
 if [[ ! -f "$STATE_FILE" ]]; then
   exit 0
@@ -41,11 +41,11 @@ if [[ "$BARE_SKILL" == "progress" ]]; then
   exit 0
 fi
 
-# Block all other gatekeeper skills during active VGL
+# Block all other gatekeeper skills during active Gatekeeper loop
 case "$BARE_SKILL" in
     quest|new-project|bridge|run-away|research|map-codebase|settings|verify-milestone|debug|help)
-    echo "BLOCKED: /$SKILL is not available during an active VGL loop." >&2
-    echo "The Verifier-Gated Loop is running — focus on the current task." >&2
+    echo "BLOCKED: /$SKILL is not available during an active Gatekeeper loop." >&2
+    echo "The Gatekeeper loop is running — focus on the current task." >&2
     echo "Only /cross-team and /progress are allowed. To cancel, the USER must run /run-away." >&2
     exit 2
     ;;

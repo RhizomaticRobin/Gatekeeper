@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Post-Cross Hook (PostToolUse: Skill) — GSD-VGL
+# Post-Cross Hook (PostToolUse: Skill) — Gatekeeper
 #
 # After /cross-team completes successfully, show the agent the next task
 # in the pipeline (the one AFTER the task that was just launched).
@@ -20,7 +20,7 @@ if [[ "$BARE_SKILL" != "cross" ]] && [[ "$BARE_SKILL" != "cross-team" ]]; then
   exit 0
 fi
 
-# Only if VGL is now active (cross succeeded)
+# Only if Gatekeeper is now active (cross succeeded)
 STATE_FILE=".claude/verifier-loop.local.md"
 if [[ ! -f "$STATE_FILE" ]]; then
   exit 0

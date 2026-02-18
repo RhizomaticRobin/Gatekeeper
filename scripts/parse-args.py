@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parse VGL arguments from stdin using shlex (handles complex quoting properly).
+"""Parse Gatekeeper arguments from stdin using shlex (handles complex quoting properly).
 Outputs JSON to stdout for the setup script to consume."""
 
 import sys

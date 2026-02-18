@@ -40,7 +40,7 @@ class Approach:
     file_patterns: List[str]         # File scope patterns
     artifacts: Dict[str, str]        # {test_output, error_trace}
     timestamp: float                 # time.time()
-    iteration: int                   # VGL iteration where this was produced
+    iteration: int                   # Gatekeeper iteration where this was produced
 ```
 
 ### EvolutionDB Class

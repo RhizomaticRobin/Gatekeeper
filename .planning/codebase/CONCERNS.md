@@ -19,11 +19,11 @@ YAML frontmatter in `.claude/verifier-loop.local.md` is parsed with awk/sed/grep
 ### Evolution DB Cold Start
 On first iteration of a task, the evolution population is empty. The pollinator (`evo_pollinator.py`) migrates approaches from similar completed tasks, but if no tasks are completed yet, the first task gets no evolutionary guidance.
 
-### GSD_VGL_PLAN_LOCKED Deadlock Prevention
-The `GSD_VGL_PLAN_LOCKED=1` environment variable is used to prevent deadlock when a parent Bash process holds the plan.yaml flock and calls a Python child. If this env var is not properly propagated (e.g., in a subprocess without `export`), deadlock can occur.
+### GATEKEEPER_PLAN_LOCKED Deadlock Prevention
+The `GATEKEEPER_PLAN_LOCKED=1` environment variable is used to prevent deadlock when a parent Bash process holds the plan.yaml flock and calls a Python child. If this env var is not properly propagated (e.g., in a subprocess without `export`), deadlock can occur.
 
 ### Team Mode Stop Hook Skip
-When `.claude/vgl-team-active` exists, the stop hook skips all VGL processing. If a team execution is interrupted without cleanup, this marker file can persist and break subsequent single-task VGL executions. Manual removal of `.claude/vgl-team-active` is the recovery.
+When `.claude/gk-team-active` exists, the stop hook skips all Gatekeeper processing. If a team execution is interrupted without cleanup, this marker file can persist and break subsequent single-task Gatekeeper executions. Manual removal of `.claude/gk-team-active` is the recovery.
 
 ## Performance Concerns
 
@@ -36,7 +36,7 @@ When `.claude/vgl-team-active` exists, the stop hook skips all VGL processing. I
 ## Security Considerations
 
 ### Token in Transcript
-The VGL completion token appears in the Claude Code transcript. The stop-hook greps for it. An adversarial executor agent could hypothetically try to forge a token, but:
+The Gatekeeper completion token appears in the Claude Code transcript. The stop-hook greps for it. An adversarial executor agent could hypothetically try to forge a token, but:
 - The token has 128-bit entropy (32 hex chars)
 - The executor never sees the token value
 - The verifier can only obtain it via `fetch-completion-token.sh` which runs tests independently

@@ -40,7 +40,7 @@ npx vitest run tests/node/install.test.js
 
 ## Test Categories by Module
 **Core infrastructure:** test_plan_utils.py (44), test_validate_plan.py (49), test_file_locking.py (10)
-**VGL mechanics:** stop-hook.bats, vgl-edge-cases.bats, fetch-completion-token.bats, guard-skills.bats
+**Gatekeeper mechanics:** stop-hook.bats, gk-edge-cases.bats, fetch-completion-token.bats, guard-skills.bats
 **Evolutionary intelligence:** test_evo_db.py, test_evo_eval.py, test_evo_prompt.py, test_evo_pollinator.py, test_evo_executor.py, evo-stop-hook.bats, evo-migration.bats
 **Feedback loop:** test_run_history.py, test_learnings.py, test_patterns.py, history-integration.bats, learnings-injection.bats
 **Branding/UX:** rename-verification.bats, error-messages.bats, onboarding.bats

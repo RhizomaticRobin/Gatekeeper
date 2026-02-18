@@ -1,7 +1,7 @@
 # TDD + Opencode MCP Concurrent Execution
 
 ## Overview
-GSD-VGL uses a TDD-first workflow where tests are written before implementation. For tasks with multiple test files, implementation can be parallelized using opencode MCP agents.
+Gatekeeper uses a TDD-first workflow where tests are written before implementation. For tasks with multiple test files, implementation can be parallelized using opencode MCP agents.
 
 ## Workflow
 
@@ -141,7 +141,7 @@ Restrictions vs default build agent:
 
 Between test writing (Phase 1) and implementation dispatch (Phase 2), the executor
 checks for an evolution population at `.planning/evolution/{task_id}/`. This population
-is built by the stop-hook across VGL iterations (see task 2.1).
+is built by the stop-hook across Gatekeeper loop iterations (see task 2.1).
 
 ### When Parallel Island Exploration Activates
 

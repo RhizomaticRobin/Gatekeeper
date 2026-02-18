@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cross-task approach pollination for GSD-VGL.
+"""Cross-task approach pollination for Gatekeeper.
 
 Loads a plan.yaml to find completed tasks, computes file_scope similarity
 to a target task, and migrates successful approaches from similar completed
@@ -285,7 +285,7 @@ def pollinate(target_db_path, plan_path, task_id, threshold=0.3):
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="GSD-VGL Cross-Task Approach Pollinator"
+        description="Gatekeeper Cross-Task Approach Pollinator"
     )
     parser.add_argument(
         "--pollinate",

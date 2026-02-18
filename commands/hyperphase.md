@@ -5,7 +5,7 @@ allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "B
 
 # Hyperphase N — Evolutionary Optimization
 
-Run Hyperphase N to discover speed-optimized rewrites of hot-spot functions using MAP-Elites island-based optimization. Hyperphase 1 is the main VGL pipeline (test → assess → execute → verify); Hyperphase N runs after all tasks pass verification.
+Run Hyperphase N to discover speed-optimized rewrites of hot-spot functions using MAP-Elites island-based optimization. Hyperphase 1 is the main Gatekeeper Pipeline (test → assess → execute → verify); Hyperphase N runs after all tasks pass verification.
 
 ## Prerequisites
 

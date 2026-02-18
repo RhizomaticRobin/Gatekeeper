@@ -147,7 +147,7 @@ EOF
     HOOK="$HOOKS_DIR/stop-hook.sh"
     # Create an empty state file (triggers corruption path)
     touch "$TEST_DIR/.claude/verifier-loop.local.md"
-    local token="VGL_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
+    local token="GK_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
     echo "$token" > "$TEST_DIR/.claude/verifier-token.secret"
 
     run bash -c 'echo '"'"'{"transcript_path":"/dev/null"}'"'"' | bash "'"$HOOK"'" 2>&1'
@@ -173,7 +173,7 @@ project_dir: "${TEST_DIR}"
 
 Prompt text without session_id.
 EOF
-    local token="VGL_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
+    local token="GK_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
     echo "$token" > "$TEST_DIR/.claude/verifier-token.secret"
 
     run bash -c 'echo '"'"'{"transcript_path":"/dev/null"}'"'"' | bash "'"$HOOK"'" 2>&1'

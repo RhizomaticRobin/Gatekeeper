@@ -1,4 +1,4 @@
-# Hook Testing Research -- Gatekeeper (GSD-VGL Plugin)
+# Hook Testing Research -- Gatekeeper
 
 Phase 1: Testing & Stability | Requirements: R-003, R-005
 Researched: 2026-02-11
@@ -59,8 +59,8 @@ From `/home/user/gatekeeper/hooks/hooks.json`:
 
 | Event       | Matcher      | Script                | Purpose                                  |
 |-------------|-------------|-----------------------|------------------------------------------|
-| Stop        | (none/all)  | `stop-hook.sh`        | VGL loop control -- block stop or transition |
-| PreToolUse  | `Skill`     | `guard-skills.sh`     | Block disruptive skills during VGL loop   |
+| Stop        | (none/all)  | `stop-hook.sh`        | Gatekeeper loop control -- block stop or transition |
+| PreToolUse  | `Skill`     | `guard-skills.sh`     | Block disruptive skills during Gatekeeper loop   |
 | PostToolUse | `Skill`     | `post-cross.sh`       | Show pipeline progress after /cross-team  |
 | PostToolUse | `Write\|Edit` | `intel-index.js`    | Index file exports/imports on code changes |
 
@@ -101,7 +101,7 @@ To allow Claude to stop: exit 0 with no JSON, or omit the `decision` field.
 The stop hook has complex conditional logic depending on filesystem state:
 
 1. **No state file** -> exits 0 (allow stop)
-2. **Team mode active** (`.claude/vgl-team-active` exists) -> exits 0
+2. **Team mode active** (`.claude/gk-team-active` exists) -> exits 0
 3. **State file exists, token matches** -> exits 0 (cleanup + optionally auto-transition)
 4. **State file exists, token does not match** -> exits 0 with `decision: "block"` (continue loop)
 5. **State file corrupted** -> exits 0 (cleanup + allow stop)
@@ -191,7 +191,7 @@ session_id: "test-session"
 Your task prompt goes here.
 STATE
 # Create token file
-echo "VGL_COMPLETE_00000000000000000000000000000000" > "$TEST_DIR/.claude/verifier-token.secret"
+echo "GK_COMPLETE_00000000000000000000000000000000" > "$TEST_DIR/.claude/verifier-token.secret"
 # Create a dummy transcript with NO token
 echo '{"type":"text"}' > /tmp/test-transcript.jsonl
 # Build fixture with transcript path
@@ -270,7 +270,7 @@ echo "Results: $PASS passed, $FAIL failed"
 The guard-skills hook has this decision tree:
 
 1. No skill name in input -> exit 0 (allow)
-2. No VGL state file -> exit 0 (allow, not in loop)
+2. No Gatekeeper state file -> exit 0 (allow, not in loop)
 3. Skill is "cross" or "cross-team" -> exit 0 (allowed during loop)
 4. Skill is "progress" -> exit 0 (allowed during loop)
 5. Skill is on blocklist (quest, bridge, run-away, etc.) -> exit 2 (block)
@@ -280,7 +280,7 @@ The guard-skills hook has this decision tree:
 
 ```bash
 # Test: Block /quest during active loop
-echo "Test: Block /quest during active VGL loop"
+echo "Test: Block /quest during active Gatekeeper loop"
 TEST_DIR=$(mktemp -d)
 mkdir -p "$TEST_DIR/.claude"
 cat > "$TEST_DIR/.claude/verifier-loop.local.md" << 'EOF'
@@ -304,7 +304,7 @@ assert_exit 2 "should block with exit 2"
 [[ "$STDERR" == *"BLOCKED"* ]] && echo "  PASS: stderr contains BLOCKED" || echo "  FAIL: stderr missing BLOCKED"
 
 # Test: Allow /cross-team during active loop
-echo "Test: Allow /cross-team during active VGL loop"
+echo "Test: Allow /cross-team during active Gatekeeper loop"
 FIXTURE='{"tool_name":"Skill","tool_input":{"skill":"gatekeeper:cross-team"},"hook_event_name":"PreToolUse"}'
 cd "$TEST_DIR"
 STDOUT=$(echo "$FIXTURE" | bash "$HOOK_SCRIPT" 2>/tmp/hook-stderr)
@@ -312,8 +312,8 @@ EXIT_CODE=$?
 cd - >/dev/null
 assert_exit 0 "should allow with exit 0"
 
-# Test: Allow any skill when no VGL loop active
-echo "Test: Allow /quest when no VGL loop"
+# Test: Allow any skill when no Gatekeeper loop active
+echo "Test: Allow /quest when no Gatekeeper loop"
 TEST_DIR2=$(mktemp -d)
 FIXTURE='{"tool_name":"Skill","tool_input":{"skill":"gatekeeper:quest"},"hook_event_name":"PreToolUse"}'
 cd "$TEST_DIR2"
@@ -330,13 +330,13 @@ rm -rf "$TEST_DIR" "$TEST_DIR2"
 | Scenario                         | Expected Exit | stderr Contains        |
 |---------------------------------|--------------|------------------------|
 | No skill name                    | 0            | (empty)                |
-| No VGL loop active               | 0            | (empty)                |
-| VGL active + /quest              | 2            | "BLOCKED"              |
-| VGL active + /bridge             | 2            | "BLOCKED"              |
-| VGL active + /run-away           | 2            | "BLOCKED"              |
-| VGL active + /cross-team         | 0            | (empty)                |
-| VGL active + /progress           | 0            | (empty)                |
-| VGL active + non-gatekeeper skill   | 0            | (empty)                |
+| No Gatekeeper loop active               | 0            | (empty)                |
+| Gatekeeper active + /quest              | 2            | "BLOCKED"              |
+| Gatekeeper active + /bridge             | 2            | "BLOCKED"              |
+| Gatekeeper active + /run-away           | 2            | "BLOCKED"              |
+| Gatekeeper active + /cross-team         | 0            | (empty)                |
+| Gatekeeper active + /progress           | 0            | (empty)                |
+| Gatekeeper active + non-gatekeeper skill   | 0            | (empty)                |
 
 ---
 
@@ -374,7 +374,7 @@ PostToolUse hooks are informational -- they **cannot block** the tool call
 
 This hook:
 1. Checks if the skill was /cross or /cross-team -> exit 0 if not
-2. Checks for VGL state file -> exit 0 if not present
+2. Checks for Gatekeeper state file -> exit 0 if not present
 3. Checks for plan file -> exit 0 if not present
 4. Reads current task from state, computes pipeline status
 5. Prints progress banner to stdout
@@ -564,8 +564,8 @@ assert_file_exists() {
   fi
 }
 
-# Create a temporary test directory with optional VGL state
-setup_vgl_dir() {
+# Create a temporary test directory with optional Gatekeeper state
+setup_gk_dir() {
   local dir
   dir=$(mktemp -d)
   mkdir -p "$dir/.claude"
@@ -622,14 +622,14 @@ teardown() {
   rm -rf "$TEST_DIR"
 }
 
-@test "allow skill when no VGL loop active" {
+@test "allow skill when no Gatekeeper loop active" {
   cd "$TEST_DIR"
   run bash -c 'echo "{\"tool_name\":\"Skill\",\"tool_input\":{\"skill\":\"quest\"}}" | bash '"$HOOK"
   [ "$status" -eq 0 ]
 }
 
-@test "block /quest during active VGL loop" {
-  # Create VGL state file
+@test "block /quest during active Gatekeeper loop" {
+  # Create Gatekeeper state file
   cat > "$TEST_DIR/.claude/verifier-loop.local.md" << 'EOF'
 ---
 iteration: 1
@@ -644,7 +644,7 @@ EOF
   [[ "$output" == *"BLOCKED"* ]]
 }
 
-@test "allow /cross-team during active VGL loop" {
+@test "allow /cross-team during active Gatekeeper loop" {
   cat > "$TEST_DIR/.claude/verifier-loop.local.md" << 'EOF'
 ---
 iteration: 1
@@ -878,7 +878,7 @@ path with real plan files.
 
 The stop hook reads the transcript file to search for completion tokens:
 ```bash
-EXTRACTED_TOKEN=$(grep --no-filename -oP 'VGL_COMPLETE_[a-f0-9]{32}' "$TRANSCRIPT_PATH")
+EXTRACTED_TOKEN=$(grep --no-filename -oP 'GK_COMPLETE_[a-f0-9]{32}' "$TRANSCRIPT_PATH")
 ```
 
 Tests must provide a real file at the `transcript_path` specified in the

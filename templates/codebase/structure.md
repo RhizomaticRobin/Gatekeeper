@@ -126,7 +126,7 @@ Template for `.planning/codebase/structure.md` - captures physical file organiza
 gatekeeper/
 ├── bin/                # Executable entry points
 ├── commands/           # Slash command definitions
-│   └── gatekeeper/      # GSD-VGL-specific commands
+│   └── gatekeeper/      # Gatekeeper-specific commands
 ├── templates/          # File templates
 ├── references/         # Principle documents
 ├── workflows/          # Multi-step procedures

@@ -806,7 +806,7 @@ class TestResilienceMetadata:
     def test_resilience_metadata_accepted(self, tmp_path, capsys):
         """Plan with all 4 resilience fields in metadata passes validation."""
         plan = _valid_plan()
-        plan["metadata"]["max_vgl_iterations"] = 50
+        plan["metadata"]["max_gatekeeper_iterations"] = 50
         plan["metadata"]["timeout_hours"] = 8
         plan["metadata"]["stuck_threshold"] = 3
         plan["metadata"]["circuit_breaker_threshold"] = 5
@@ -819,7 +819,7 @@ class TestResilienceMetadata:
     def test_resilience_metadata_partial(self, tmp_path, capsys):
         """Plan with only some resilience fields passes (they're optional)."""
         plan = _valid_plan()
-        plan["metadata"]["max_vgl_iterations"] = 100
+        plan["metadata"]["max_gatekeeper_iterations"] = 100
         plan["metadata"]["timeout_hours"] = 12
         # stuck_threshold and circuit_breaker_threshold omitted
         path = write_plan(tmp_path, plan)
@@ -831,12 +831,12 @@ class TestResilienceMetadata:
     def test_resilience_metadata_bad_types(self, tmp_path, capsys):
         """Non-integer resilience fields produce errors."""
         plan = _valid_plan()
-        plan["metadata"]["max_vgl_iterations"] = "not_a_number"
+        plan["metadata"]["max_gatekeeper_iterations"] = "not_a_number"
         path = write_plan(tmp_path, plan)
         result = validate(path)
         captured = capsys.readouterr()
         assert result == 1
-        assert "max_vgl_iterations" in captured.err
+        assert "max_gatekeeper_iterations" in captured.err
 
     def test_resilience_metadata_negative_value(self, tmp_path, capsys):
         """Negative resilience field values produce errors."""

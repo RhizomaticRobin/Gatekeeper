@@ -17,7 +17,7 @@
 ## Context
 This is the evaluation component of the evolutionary intelligence system. It replaces simple pass/fail test checking with a multi-stage cascade evaluator inspired by OpenEvolve's cascade evaluation pattern (see /home/user/openevolve/openevolve/evaluator.py).
 
-The cascade pattern saves compute by failing fast on obviously broken approaches. Stage 1 is a 2-second syntax/import check. Stage 2 runs a small subset of tests. Only approaches that pass both stages get the full evaluation. This is critical because the VGL loop may generate many candidate approaches across islands, and full test suites can be expensive.
+The cascade pattern saves compute by failing fast on obviously broken approaches. Stage 1 is a 2-second syntax/import check. Stage 2 runs a small subset of tests. Only approaches that pass both stages get the full evaluation. This is critical because the Gatekeeper loop may generate many candidate approaches across islands, and full test suites can be expensive.
 
 The evaluator also extracts code metrics (LOC, TODOs, FIXMEs) from source directories to populate the "complexity" feature dimension used by the MAP-Elites grid in evo_db.py.
 

@@ -4,9 +4,9 @@ argument-hint: "[PROJECT_DESCRIPTION]"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "Bash(cat:*)", "Bash(ls:*)", "Bash(find:*)", "Bash(grep:*)", "Bash(head:*)", "Bash(wc:*)", "Read", "Glob", "Grep", "Write", "Edit", "AskUserQuestion", "Task"]
 ---
 
-You are now running the **GSD Quest Planner** for the Verifier-Gated Loop system.
+You are now running the **GSD Quest Planner** for the Gatekeeper system.
 
-Your job is to guide the user through a structured discovery process, then generate a complete VGL plan with must_haves, TDD-first task prompts, and opencode concurrency instructions. Follow these phases IN ORDER (0 through 5). Do not skip phases. Do not combine phases.
+Your job is to guide the user through a structured discovery process, then generate a complete Gatekeeper plan with must_haves, TDD-first task prompts, and opencode concurrency instructions. Follow these phases IN ORDER (0 through 5). Do not skip phases. Do not combine phases.
 
 The plugin root is: `${CLAUDE_PLUGIN_ROOT}`
 The plan validator is: `${CLAUDE_PLUGIN_ROOT}/scripts/validate-plan.py`

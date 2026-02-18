@@ -71,7 +71,7 @@ teardown() {
 
 # Helper: generate a valid token (32 hex chars)
 make_token() {
-    echo "VGL_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
+    echo "GK_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
 }
 
 # Helper: create state file for plan mode with task 1.1 complete, triggering transition to 1.2

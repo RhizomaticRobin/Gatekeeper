@@ -45,17 +45,17 @@ gatekeeper/
 ├── commands/                 15 slash commands (.md with frontmatter)
 ├── hooks/                    4 hook scripts + hooks.json registration
 │   ├── hooks.json            Event->script mapping (Stop, PreToolUse, PostToolUse)
-│   ├── stop-hook.sh          VGL loop control + auto-transition (~400 lines)
-│   ├── guard-skills.sh       Skill blocker during VGL
+│   ├── stop-hook.sh          Gatekeeper loop control + auto-transition (~400 lines)
+│   ├── guard-skills.sh       Skill blocker during Gatekeeper loop
 │   ├── post-cross.sh         Post-execution pipeline info
 │   └── intel-index.js        Codebase intelligence indexer (bundled with sql.js)
 ├── scripts/                  Core orchestration scripts
-│   ├── setup-verifier-loop.sh     Initialize VGL state + token
+│   ├── setup-verifier-loop.sh     Initialize Gatekeeper state + token
 │   ├── generate-verifier-prompt.sh Build immutable verifier prompt
 │   ├── fetch-completion-token.sh  Independent test execution for token grant
 │   ├── transition-task.sh         Mark complete + find next task
 │   ├── cross-team-setup.sh        Plan validation + task dispatch setup
-│   ├── single-task-setup.sh       Single-task VGL initialization
+│   ├── single-task-setup.sh       Single-task Gatekeeper initialization
 │   ├── validate-plan.py           Plan.yaml structural validation
 │   ├── plan_utils.py              Shared plan utilities (load, save, find, sort, lock)
 │   ├── next-task.py               Find next unblocked task

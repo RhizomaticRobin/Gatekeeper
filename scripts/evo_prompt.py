@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evolution Prompt Builder for GSD-VGL.
+"""Evolution Prompt Builder for Gatekeeper.
 
 Samples from the evolution population database (evo_db.py) and constructs
 rich markdown prompts with 5 sections for guiding the executor agent:
@@ -401,7 +401,7 @@ class EvolutionPromptBuilder:
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="GSD-VGL Evolution Prompt Builder"
+        description="Gatekeeper Evolution Prompt Builder"
     )
 
     parser.add_argument(

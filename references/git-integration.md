@@ -1,5 +1,5 @@
 <overview>
-Git integration for GSD-VGL framework.
+Git integration for Gatekeeper framework.
 </overview>
 
 <core_principle>
@@ -29,7 +29,7 @@ The git log should read like a changelog of what shipped, not a diary of plannin
 [ -d .git ] && echo "GIT_EXISTS" || echo "NO_GIT"
 ```
 
-If NO_GIT: Run `git init` silently. GSD-VGL projects always get their own repo.
+If NO_GIT: Run `git init` silently. Gatekeeper projects always get their own repo.
 </git_check>
 
 <checkpoint_commits>

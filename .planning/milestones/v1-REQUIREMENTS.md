@@ -30,8 +30,8 @@
   - [ ] Verification function tested with missing files
   - [ ] MCP launcher script tested (auto-build detection)
 
-### R-005: Harden VGL loop edge cases
-- **Description:** Fix edge cases in the verifier-gated loop: stale state files, concurrent writes, token race conditions
+### R-005: Harden Gatekeeper loop edge cases
+- **Description:** Fix edge cases in the Gatekeeper loop: stale state files, concurrent writes, token race conditions
 - **Acceptance Criteria:**
   - [ ] Stale verifier-loop.local.md detected and cleaned
   - [ ] Concurrent task transitions don't corrupt plan.yaml

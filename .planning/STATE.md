@@ -39,7 +39,7 @@ NOT_STARTED
 | 1.5 | bats tests for hooks | 16 |
 | 1.6 | vitest tests for install.js | 11 |
 | 1.7 | File locking for plan.yaml | 10 |
-| 1.8 | VGL edge case hardening | 9 |
+| 1.8 | Gatekeeper edge case hardening | 9 |
 
 ## Phase 5 Task Summary
 | Task | Description | Tests |
@@ -99,7 +99,7 @@ NOT_STARTED
 
 ## Implementation Changes (Phase 1)
 - scripts/plan_utils.py: Added file locking (_plan_lock), atomic writes (tempfile + os.replace)
-- scripts/transition-task.sh: Added flock around read-modify-write, GSD_VGL_PLAN_LOCKED env var
+- scripts/transition-task.sh: Added flock around read-modify-write, GATEKEEPER_PLAN_LOCKED env var
 - hooks/stop-hook.sh: Edge case hardening (stale detection, corrupted frontmatter, malformed JSON)
 - bin/install-lib.js: Extracted testable functions from install.js
 - 4 scripts: Fixed frontmatter extraction (sed -> awk) for embedded --- markers

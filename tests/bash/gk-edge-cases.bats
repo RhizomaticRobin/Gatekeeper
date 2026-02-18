@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# vgl-edge-cases.bats — tests for VGL edge case hardening
+# gk-edge-cases.bats — tests for Gatekeeper edge case hardening
 # Covers: empty state, missing session_id, malformed JSON, expired sessions,
 #         token permissions, started_at frontmatter.
 
@@ -20,7 +20,7 @@ teardown() {
 
 # Helper: generate a valid token
 make_token() {
-    echo "VGL_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
+    echo "GK_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
 }
 
 # --- Test 1: stop-hook with empty state file — cleanup + exit 0 ---

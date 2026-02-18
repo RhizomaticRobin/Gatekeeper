@@ -17,7 +17,7 @@ Your job: Determine if the tests are good enough to drive a correct implementati
 
 <input_format>
 You receive the following in your prompt from the orchestrator:
-- `session_dir`: Path to the VGL session directory
+- `session_dir`: Path to the Gatekeeper session directory
 - `task_id`: The task identifier
 - `task_spec`: Full contents of task-{id}.md (goal, must_haves, deliverables, tests)
 </input_format>

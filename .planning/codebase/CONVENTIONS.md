@@ -9,8 +9,8 @@
 - **Agent definitions:** kebab-case (`executor.md`, `plan-checker.md`, `codebase-mapper.md`)
 - **Commands:** kebab-case (`cross-team.md`, `map-codebase.md`, `quest.md`)
 - **Templates:** kebab-case or snake_case (`task-prompt.md`, `config.json`)
-- **Environment variables:** UPPER_SNAKE_CASE (`PLUGIN_ROOT`, `GSD_VGL_PLAN_LOCKED`, `CLAUDE_PLUGIN_ROOT`)
-- **VGL tokens:** `VGL_COMPLETE_` prefix + 32 hex chars
+- **Environment variables:** UPPER_SNAKE_CASE (`PLUGIN_ROOT`, `GATEKEEPER_PLAN_LOCKED`, `CLAUDE_PLUGIN_ROOT`)
+- **Gatekeeper tokens:** `GK_COMPLETE_` prefix + 32 hex chars
 
 ## File Organization
 - Agent .md files have YAML frontmatter with: name, description, model, tools, disallowedTools, color
@@ -34,7 +34,7 @@ echo "Try: Run /gatekeeper:quest to generate a plan." >&2
 ## State File Patterns
 - Frontmatter parsing: `awk 'NR==1 && /^---$/{next} /^---$/{exit} NR>1{print}'`
 - Field extraction: `grep '^field:' | sed 's/field: *//'`
-- File locking: `fcntl.flock()` in Python, `flock -x 9` in Bash, with `GSD_VGL_PLAN_LOCKED` env var to prevent deadlock
+- File locking: `fcntl.flock()` in Python, `flock -x 9` in Bash, with `GATEKEEPER_PLAN_LOCKED` env var to prevent deadlock
 - Atomic writes: `tempfile.mkstemp()` + `os.replace()` in Python
 
 ## Code Style

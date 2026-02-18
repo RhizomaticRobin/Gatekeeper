@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Guard Orchestrator Hook (PreToolUse: Write|Edit|WebFetch|WebSearch) — GSD-VGL
+# Guard Orchestrator Hook (PreToolUse: Write|Edit|WebFetch|WebSearch) — Gatekeeper
 #
-# When team mode is active (.claude/vgl-team-active exists), the main session
+# When team mode is active (.claude/gk-team-active exists), the main session
 # is the Lead Orchestrator. The orchestrator coordinates workers — it does NOT
 # write code or modify source files.
 #
@@ -16,7 +16,7 @@
 INPUT=$(cat)
 
 # Only guard when team mode is active
-TEAM_MARKER=".claude/vgl-team-active"
+TEAM_MARKER=".claude/gk-team-active"
 if [[ ! -f "$TEAM_MARKER" ]]; then
   exit 0
 fi

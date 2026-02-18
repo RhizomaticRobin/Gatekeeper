@@ -32,7 +32,7 @@
 | Variable | Purpose | Set By |
 |----------|---------|--------|
 | `CLAUDE_PLUGIN_ROOT` | Plugin installation directory | Claude Code runtime |
-| `GSD_VGL_PLAN_LOCKED` | Skip Python flock when parent Bash holds lock | `transition-task.sh` |
+| `GATEKEEPER_PLAN_LOCKED` | Skip Python flock when parent Bash holds lock | `transition-task.sh` |
 | `PROJECT_DIR` | Override project directory for onboarding | User/script |
 | `LOG_FILE` | Ralph log file path (default: `.planning/ralph.log`) | User/ralph.sh |
 | `PAUSE_FILE` | Pause marker for ralph (default: `.planning/.pause`) | User/ralph.sh |

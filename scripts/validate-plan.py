@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate a GSD-VGL plan.yaml file.
+"""Validate a Gatekeeper plan.yaml file.
 
 Exit 0 = valid, Exit 1 = errors found.
 Errors go to stderr, summary to stdout.
@@ -20,20 +20,20 @@ VALID_STATUSES = {"pending", "in_progress", "completed"}
 REQUIRED_METADATA = ["project", "dev_server_command", "dev_server_url"]
 
 OPTIONAL_METADATA = [
-    "max_vgl_iterations", "timeout_hours", "stuck_threshold",
+    "max_gatekeeper_iterations", "timeout_hours", "stuck_threshold",
     "circuit_breaker_threshold", "model_profile", "test_framework",
     "project_context",
 ]
 
 METADATA_DEFAULTS = {
-    "max_vgl_iterations": 50,
+    "max_gatekeeper_iterations": 50,
     "timeout_hours": 8,
     "stuck_threshold": 3,
     "circuit_breaker_threshold": 5,
 }
 
 POSITIVE_INT_METADATA = [
-    "max_vgl_iterations", "timeout_hours",
+    "max_gatekeeper_iterations", "timeout_hours",
     "stuck_threshold", "circuit_breaker_threshold",
 ]
 
@@ -182,7 +182,7 @@ def validate(path):
         if not task.get("prompt_file"):
             errors.append(f"{prefix}: prompt_file is required")
 
-        # must_haves validation (extended for GSD-VGL)
+        # must_haves validation (extended for Gatekeeper)
         task_mh = task.get("must_haves")
         if task_mh is not None:
             if not isinstance(task_mh, dict):

@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-Phase 1 establishes a test infrastructure across three languages (Python, Bash, Node.js) and hardens the VGL loop against concurrency issues. The research confirms that **pytest**, **bats-core**, and **vitest** are the right tools for their respective domains, and identifies specific patterns needed for each.
+Phase 1 establishes a test infrastructure across three languages (Python, Bash, Node.js) and hardens the Gatekeeper loop against concurrency issues. The research confirms that **pytest**, **bats-core**, and **vitest** are the right tools for their respective domains, and identifies specific patterns needed for each.
 
 The most impactful finding is the **file locking vulnerability** in plan.yaml writes. The current `save_plan()` function performs a direct `open(path, "w")` with no locking, and `transition-task.sh` does a read-modify-write cycle without concurrency protection. The recommended fix is a two-layer approach: `flock`-based serialization (interoperable between Bash and Python via `fcntl.flock`) plus atomic writes via tmp + `os.replace()`.
 

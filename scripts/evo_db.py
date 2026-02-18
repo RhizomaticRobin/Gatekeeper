@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Evolution population database with MAP-Elites and island-based populations.
 
-Implements a MAP-Elites algorithm with island-based evolution for the GSD-VGL
+Implements a MAP-Elites algorithm with island-based evolution for the Gatekeeper
 system. Replaces flat learnings.jsonl with a structured population database
 inspired by OpenEvolve's database.py.
 
@@ -54,7 +54,7 @@ class Approach:
     file_patterns: List[str]                   # File scope patterns
     artifacts: Dict[str, str]                  # {test_output, error_trace}
     timestamp: float                           # time.time()
-    iteration: int                             # VGL iteration
+    iteration: int                             # Gatekeeper iteration
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to a plain dict (JSON-safe)."""
@@ -514,7 +514,7 @@ class EvolutionDB:
 
 def main():
     """CLI entry point."""
-    parser = argparse.ArgumentParser(description="GSD-VGL Evolution Population Database")
+    parser = argparse.ArgumentParser(description="Gatekeeper Evolution Population Database")
     parser.add_argument("--db-path", required=True, help="Path to database directory")
 
     group = parser.add_mutually_exclusive_group(required=True)

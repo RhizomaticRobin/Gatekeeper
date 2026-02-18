@@ -9,7 +9,7 @@
   - Integration tests for shell scripts
   - Hook tests
   - Installer tests
-  - Edge case fixes for VGL loop
+  - Edge case fixes for Gatekeeper loop
 - **Dependencies:** None (first phase)
 - **Integration Check:** Yes — verify all tests pass and test infrastructure is solid before building on it
 

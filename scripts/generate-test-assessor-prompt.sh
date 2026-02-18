@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Generate Test Assessor Prompt Script (GSD-VGL)
+# Generate Test Assessor Prompt Script (Gatekeeper)
 #
 # Builds the immutable test assessor prompt from plan.yaml metadata + task must_haves.
 # Called by setup-verifier-loop.sh alongside generate-verifier-prompt.sh.
 #
-# NOT accessible to tester or executor agents — runs at VGL setup time only.
+# NOT accessible to tester or executor agents — runs at Gatekeeper setup time only.
 #
 # Usage:
 #   generate-test-assessor-prompt.sh --task-json <json> --plan-file <path> \

@@ -1,5 +1,5 @@
 ---
-description: "Execute tasks via TDD-first VGL — single-task or parallel Agent Teams"
+description: "Execute tasks via TDD-first Gatekeeper loop — single-task or parallel Agent Teams"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "Bash(cat:*)", "Bash(mkdir:*)", "Bash(rm:*)", "Read", "Task"]
 ---
 
@@ -53,7 +53,7 @@ prompt_template = open('${CLAUDE_PLUGIN_ROOT}/scripts/team-orchestrator-prompt.m
 
 ### Orchestration Workflow
 
-The per-phase flow is: **Phase Assessor** (defines integration contracts + format specs) → per-task: **Tester** → **Assessor** (TQG token) → **Executor** → **Verifier** (VGL token) → all tasks done → **Phase Verifier** (PVG token) → next phase.
+The per-phase flow is: **Phase Assessor** (defines integration contracts + format specs) → per-task: **Tester** → **Assessor** (TQG token) → **Executor** → **Verifier** (GK token) → all tasks done → **Phase Verifier** (PVG token) → next phase.
 
 0. **Phase 0.5 — Phase assessment gate** (once per phase, before testers):
    - One `Task(subagent_type='gatekeeper:phase-assessor')` per phase (model: opus, HAS write access for specs)
@@ -105,9 +105,9 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
 6. **Mark tasks completed** via:
    ```bash
    token=$(openssl rand -hex 32 | head -c 32)
-   vgl_token="VGL_COMPLETE_${token}"
+   gk_token="GK_COMPLETE_${token}"
    # Write token to verifier-token.secret (line 1, preserve TEST_CMD lines)
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id} --token {vgl_token}
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id} --token {gk_token}
    ```
 
 7. **Phase verification gate** after marking a task complete:
@@ -126,17 +126,17 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/get-unblocked-tasks.py" .claude/plan/plan.yaml
    ```
-   - For each newly unblocked task, set up its VGL session and spawn tester → assessor → executor → verifier
+   - For each newly unblocked task, set up its Gatekeeper session and spawn tester → assessor → executor → verifier
 
 9. **When all tasks are done**:
    - All verifier Tasks have returned PASS
-   - Remove `.claude/vgl-team-active`
-   - Remove `.claude/vgl-sessions/`
+   - Remove `.claude/gk-team-active`
+   - Remove `.claude/gk-sessions/`
    - Remove `.claude/plan-locked`
    - Report final status
 
 10. **Hyperphase N — Evolutionary Optimization (optional)**:
-   - Steps 1–9 above are **Hyperphase 1** (the main VGL pipeline)
+   - Steps 1–9 above are **Hyperphase 1** (the main Gatekeeper Pipeline)
    - After all Hyperphase 1 tasks are completed, check if `plan.yaml metadata.hyperphase: true`
    - If enabled, follow Section 8 of the team-orchestrator-prompt (scout → optimize → verify)
    - This is opt-in per project and can also be run standalone via `/gatekeeper:hyperphase`
@@ -150,5 +150,5 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
 - If an executor fails 3 times, skip the task and note it for the user
 - On verify failure, check category (test_issue vs impl_issue) to decide which agent to re-spawn
 - Verify must_haves (truths, artifacts, key_links) are satisfied before marking complete
-- The orchestrator generates VGL/PAG/PVG tokens; the assessor generates TQG tokens in its output signal
-- Token chain per task: PAG (phase start) → TQG (test quality) → VGL (task verification) → PVG (phase end)
+- The orchestrator generates GK/PAG/PVG tokens; the assessor generates TQG tokens in its output signal
+- Token chain per task: PAG (phase start) → TQG (test quality) → GK (task verification) → PVG (phase end)

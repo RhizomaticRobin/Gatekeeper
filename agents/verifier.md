@@ -31,7 +31,7 @@ Then verify each level against the actual codebase. Don't check boxes — verify
 
 <input_format>
 You receive the following in your prompt from the orchestrator:
-- `session_dir`: Path to the VGL session directory
+- `session_dir`: Path to the Gatekeeper session directory
 - `task_id`: The task identifier
 - `task_spec`: Full contents of task-{id}.md (goal, must_haves, deliverables, tests)
 - `test_command`: The quantitative test command to run

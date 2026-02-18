@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared logging helper for GSD-VGL shell scripts.
+# Shared logging helper for Gatekeeper shell scripts.
 #
 # Usage:
 #   source "${PLUGIN_ROOT}/scripts/gk_log.sh"   (or source by relative path)

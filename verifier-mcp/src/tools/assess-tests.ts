@@ -51,11 +51,11 @@ export async function executeAssessTests(
   // Derive project root from plan file path (plan is at <project>/.claude/plan/plan.yaml)
   const projectRoot = path.resolve(path.dirname(planFile), "..", "..");
 
-  // 2. Find session directory: try .claude/vgl-sessions/task-{id}/ first, fall back to .claude/
+  // 2. Find session directory: try .claude/gk-sessions/task-{id}/ first, fall back to .claude/
   const taskSessionDir = path.join(
     projectRoot,
     ".claude",
-    "vgl-sessions",
+    "gk-sessions",
     `task-${input.task_id}`
   );
   const fallbackDir = path.join(projectRoot, ".claude");

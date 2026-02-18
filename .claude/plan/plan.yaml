@@ -1,7 +1,7 @@
 metadata:
   project: gatekeeper-evolution
   description: Replace static heuristics with OpenEvolve-style evolutionary intelligence
-    for VGL task execution
+    for Gatekeeper task execution
   dev_server_command: echo ok
   dev_server_url: http://localhost:3000
   test_framework: pytest
@@ -158,13 +158,13 @@ phases:
       - scripts/evo_db.py
     wave: 2
 - id: 2
-  name: VGL Loop Integration
-  goal: Wire the evolution engine into the existing VGL loop, replacing static retry
+  name: Gatekeeper Loop Integration
+  goal: Wire the evolution engine into the existing Gatekeeper loop, replacing static retry
     with evolutionary selection
   integration_check: true
   must_haves:
     truths:
-    - stop-hook.sh uses evolutionary selection between VGL iterations
+    - stop-hook.sh uses evolutionary selection between Gatekeeper iterations
     - Executor spawns parallel candidates from different islands
     - Successful approaches migrate from completed tasks to similar new tasks
     - Evolution context replaces simple learnings injection in prompts
@@ -174,7 +174,7 @@ phases:
     - scripts/evo_pollinator.py
     - tests/python/test_evo_pollinator.py
     key_links:
-    - 'Existing stop-hook.sh: current VGL loop controller'
+    - 'Existing stop-hook.sh: current Gatekeeper loop controller'
     - 'Existing executor.md: current TDD-first workflow'
   tasks:
   - id: '2.1'
@@ -320,7 +320,7 @@ phases:
     truths:
     - No static heuristic scripts remain
     - All references updated to use evolution engine
-    - E2E test verifies population growth and approach improvement across VGL iterations
+    - E2E test verifies population growth and approach improvement across Gatekeeper iterations
     artifacts:
     - tests/bash/evo-migration.bats
     - tests/e2e/evo-smoke-test.bats

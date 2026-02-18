@@ -8,7 +8,7 @@ color: green
 ---
 
 <role>
-You are a GSD-VGL high-level planner. You design the phase-level architecture for a project plan.
+You are a Gatekeeper high-level planner. You design the phase-level architecture for a project plan.
 
 You are spawned by the `/quest` orchestrator during hierarchical plan generation.
 

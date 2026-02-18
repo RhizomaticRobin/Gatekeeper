@@ -180,7 +180,7 @@ _common_setup() {
 | `assert_failure N` | Exit code is exactly N | `run cmd; assert_failure 2` |
 | `assert_output "text"` | Exact stdout match | `assert_output "hello"` |
 | `assert_output --partial "sub"` | Substring match | `assert_output --partial "ERROR"` |
-| `assert_output --regexp "^pat"` | Regex match | `assert_output --regexp '^VGL_'` |
+| `assert_output --regexp "^pat"` | Regex match | `assert_output --regexp '^GK_'` |
 | `refute_output "text"` | Output does NOT match | `refute_output "secret_token"` |
 | `assert_line "text"` | Any output line matches | `assert_line "iteration: 2"` |
 | `assert_line --index N "text"` | Specific line matches | `assert_line --index 0 "OK"` |
@@ -264,41 +264,41 @@ teardown() {
     rm -rf "$TEST_TEMP_DIR"
 }
 
-# --- No VGL active: all skills allowed ---
+# --- No Gatekeeper active: all skills allowed ---
 
-@test "guard-skills: allows any skill when no VGL is active" {
+@test "guard-skills: allows any skill when no Gatekeeper loop is active" {
     # No state file exists
     INPUT='{"tool_input": {"skill": "quest"}}'
     run bash -c "echo '$INPUT' | $PROJECT_ROOT/hooks/guard-skills.sh"
     assert_success
 }
 
-# --- VGL active: blocked skills ---
+# --- Gatekeeper active: blocked skills ---
 
-@test "guard-skills: blocks /quest during active VGL" {
+@test "guard-skills: blocks /quest during active Gatekeeper loop" {
     touch .claude/verifier-loop.local.md
     INPUT='{"tool_input": {"skill": "quest"}}'
     run bash -c "echo '$INPUT' | $PROJECT_ROOT/hooks/guard-skills.sh"
     assert_failure 2
 }
 
-@test "guard-skills: blocks /bridge during active VGL" {
+@test "guard-skills: blocks /bridge during active Gatekeeper loop" {
     touch .claude/verifier-loop.local.md
     INPUT='{"tool_input": {"skill": "bridge"}}'
     run bash -c "echo '$INPUT' | $PROJECT_ROOT/hooks/guard-skills.sh"
     assert_failure 2
 }
 
-# --- VGL active: allowed skills ---
+# --- Gatekeeper active: allowed skills ---
 
-@test "guard-skills: allows /cross-team during active VGL" {
+@test "guard-skills: allows /cross-team during active Gatekeeper loop" {
     touch .claude/verifier-loop.local.md
     INPUT='{"tool_input": {"skill": "cross-team"}}'
     run bash -c "echo '$INPUT' | $PROJECT_ROOT/hooks/guard-skills.sh"
     assert_success
 }
 
-@test "guard-skills: allows /progress during active VGL" {
+@test "guard-skills: allows /progress during active Gatekeeper loop" {
     touch .claude/verifier-loop.local.md
     INPUT='{"tool_input": {"skill": "progress"}}'
     run bash -c "echo '$INPUT' | $PROJECT_ROOT/hooks/guard-skills.sh"
@@ -312,7 +312,7 @@ teardown() {
     assert_failure 2
 }
 
-@test "guard-skills: allows non-gatekeeper skills during VGL" {
+@test "guard-skills: allows non-gatekeeper skills during Gatekeeper loop" {
     touch .claude/verifier-loop.local.md
     INPUT='{"tool_input": {"skill": "some-other-plugin:thing"}}'
     run bash -c "echo '$INPUT' | $PROJECT_ROOT/hooks/guard-skills.sh"
@@ -344,7 +344,7 @@ setup() {
     cat > .claude/verifier-loop.local.md <<'STATE'
 ---
 active: true
-session_id: "vgl_test_12345"
+session_id: "gk_test_12345"
 iteration: 1
 max_iterations: 5
 verification_criteria: |
@@ -358,7 +358,7 @@ This is the prompt text for the loop.
 STATE
 
     # Create a valid token file
-    VALID_TOKEN="VGL_COMPLETE_$(printf '%032x' 12345678901234567890)"
+    VALID_TOKEN="GK_COMPLETE_$(printf '%032x' 12345678901234567890)"
     echo "$VALID_TOKEN" > .claude/verifier-token.secret
     echo "TEST_CMD_B64:$(echo -n 'echo ok' | base64 -w0)" >> .claude/verifier-token.secret
     echo "TEST_CMD_HASH:$(echo -n 'echo ok' | sha256sum | cut -d' ' -f1)" >> .claude/verifier-token.secret
@@ -376,7 +376,7 @@ teardown() {
 }
 
 @test "stop-hook: exits cleanly in team mode" {
-    touch .claude/vgl-team-active
+    touch .claude/gk-team-active
     HOOK_INPUT='{"transcript_path": "/dev/null"}'
     run bash -c "echo '$HOOK_INPUT' | $PROJECT_ROOT/hooks/stop-hook.sh"
     assert_success
@@ -426,7 +426,7 @@ setup() {
     mkdir -p "$WORK_DIR/.claude"
     cd "$WORK_DIR"
 
-    TOKEN="VGL_COMPLETE_aabbccdd11223344aabbccdd11223344"
+    TOKEN="GK_COMPLETE_aabbccdd11223344aabbccdd11223344"
     TEST_CMD="echo 'all tests pass'"
     TEST_CMD_B64=$(echo -n "$TEST_CMD" | base64 -w0)
     TEST_CMD_HASH=$(echo -n "$TEST_CMD" | sha256sum | cut -d' ' -f1)
@@ -435,7 +435,7 @@ setup() {
     cat > .claude/verifier-loop.local.md <<STATE
 ---
 active: true
-session_id: "vgl_test_1"
+session_id: "gk_test_1"
 iteration: 1
 max_iterations: 5
 project_dir: "$WORK_DIR"
@@ -460,7 +460,7 @@ teardown() {
     rm .claude/verifier-loop.local.md
     run "$PROJECT_ROOT/scripts/fetch-completion-token.sh" --session-dir .claude
     assert_failure
-    assert_output --partial "No active VGL session"
+    assert_output --partial "No active Gatekeeper session"
 }
 
 @test "fetch-token: fails when no token file" {
@@ -736,8 +736,8 @@ For tests that need parameterized data:
 create_state_file() {
     local iteration="${1:-1}"
     local max_iterations="${2:-5}"
-    local session_id="${3:-vgl_test_1234}"
-    local token="${4:-VGL_COMPLETE_aabbccdd11223344aabbccdd11223344}"
+    local session_id="${3:-gk_test_1234}"
+    local token="${4:-GK_COMPLETE_aabbccdd11223344aabbccdd11223344}"
 
     cat > .claude/verifier-loop.local.md <<EOF
 ---

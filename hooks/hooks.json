@@ -1,5 +1,5 @@
 {
-  "description": "Hooks for GSD-VGL (Get Shit Done - Verifier Gated Loop)",
+  "description": "Hooks for Gatekeeper",
   "hooks": {
     "Stop": [
       {

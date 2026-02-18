@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Output ALL unblocked tasks from a GSD-VGL plan as a JSON array.
+"""Output ALL unblocked tasks from a Gatekeeper plan as a JSON array.
 
 Usage:
   python3 get-unblocked-tasks.py <plan.yaml>

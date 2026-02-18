@@ -1,6 +1,6 @@
 # Model Profiles
 
-Model profiles control which Claude model each GSD-VGL agent uses. This allows balancing quality vs token spend.
+Model profiles control which Claude model each Gatekeeper agent uses. This allows balancing quality vs token spend.
 
 ## Profile Definitions
 
@@ -83,7 +83,7 @@ The `metadata` section of `plan.yaml` supports required and optional fields.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `max_vgl_iterations` | positive integer | 50 | Maximum VGL loop iterations before halting |
+| `max_gatekeeper_iterations` | positive integer | 50 | Maximum Gatekeeper loop iterations before halting |
 | `timeout_hours` | positive integer | 8 | Maximum hours before timeout |
 | `stuck_threshold` | positive integer | 3 | Number of retries on the same task before marking stuck |
 | `circuit_breaker_threshold` | positive integer | 5 | Consecutive failures before circuit breaker trips |
@@ -95,7 +95,7 @@ The `metadata` section of `plan.yaml` supports required and optional fields.
 
 ### Resilience Fields
 
-The four resilience fields (`max_vgl_iterations`, `timeout_hours`, `stuck_threshold`, `circuit_breaker_threshold`) correspond to the defaults in `scripts/resilience.py`. When present in `plan.yaml` metadata, they are validated as positive integers. When absent, the runtime defaults from `resilience.py` apply.
+The four resilience fields (`max_gatekeeper_iterations`, `timeout_hours`, `stuck_threshold`, `circuit_breaker_threshold`) correspond to the defaults in `scripts/resilience.py`. When present in `plan.yaml` metadata, they are validated as positive integers. When absent, the runtime defaults from `resilience.py` apply.
 
 ### Deliverables
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Bundle GSD-VGL hooks with dependencies for zero-config installation.
+ * Bundle Gatekeeper hooks with dependencies for zero-config installation.
  *
  * sql.js includes a WASM binary that must be inlined for portability.
  * This script bundles hooks into self-contained files that work from any cwd.

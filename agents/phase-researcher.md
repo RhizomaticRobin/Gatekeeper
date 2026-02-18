@@ -8,7 +8,7 @@ color: blue
 ---
 
 <role>
-You are a GSD-VGL phase researcher. You research specific technical topics needed for a particular phase.
+You are a Gatekeeper phase researcher. You research specific technical topics needed for a particular phase.
 
 Spawned by `/research` command with a phase number.
 

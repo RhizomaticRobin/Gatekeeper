@@ -1,9 +1,9 @@
 ---
-description: "Run away! Run away! — cancel an active Verifier-Gated Loop"
+description: "Run away! Run away! — cancel an active Gatekeeper loop"
 allowed-tools: ["Bash(rm:*)", "Bash(python3:*)"]
 ---
 
-Check for and remove the active Verifier-Gated Loop state files:
+Check for and remove the active Gatekeeper loop state files:
 
 ```!
 if [[ -f ".claude/verifier-loop.local.md" ]]; then
@@ -12,7 +12,7 @@ if [[ -f ".claude/verifier-loop.local.md" ]]; then
   TASK_ID=$(grep '^task_id:' .claude/verifier-loop.local.md | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/' 2>/dev/null || echo "")
 
   rm -f .claude/verifier-loop.local.md .claude/verifier-prompt.local.md .claude/verifier-token.secret
-  echo "VGL cancelled."
+  echo "Gatekeeper loop cancelled."
   echo "  Session: $SESSION_ID"
   echo "  Iteration: $ITERATION"
 
@@ -39,17 +39,17 @@ save_plan('.claude/plan/plan.yaml', plan)
   echo "  - .claude/verifier-prompt.local.md"
   echo "  - .claude/verifier-token.secret"
 else
-  echo "No active Verifier-Gated Loop found."
+  echo "No active Gatekeeper loop found."
 fi
 
 # Also clean up team state if present
-if [[ -f ".claude/vgl-team-active" ]]; then
-  rm -f ".claude/vgl-team-active"
-  rm -rf ".claude/vgl-sessions/"
+if [[ -f ".claude/gk-team-active" ]]; then
+  rm -f ".claude/gk-team-active"
+  rm -rf ".claude/gk-sessions/"
   echo ""
   echo "Team mode cancelled. Team state files removed:"
-  echo "  - .claude/vgl-team-active"
-  echo "  - .claude/vgl-sessions/"
+  echo "  - .claude/gk-team-active"
+  echo "  - .claude/gk-sessions/"
 fi
 
 # Unlock plan files

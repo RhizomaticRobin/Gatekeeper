@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # stop-hook.bats — tests for hooks/stop-hook.sh
-# Verifies VGL loop controller behavior: passthrough, iteration, token matching,
+# Verifies Gatekeeper loop controller behavior: passthrough, iteration, token matching,
 # and resilience integration (record-failure, check-all, record-success/reset).
 
 setup() {
@@ -27,7 +27,7 @@ teardown() {
 
 # Helper: generate a valid token (32 hex chars)
 make_token() {
-    echo "VGL_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
+    echo "GK_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
 }
 
 # Helper: create a valid state file with given iteration and max
@@ -70,7 +70,7 @@ create_transcript() {
 # --- Test 2: Team mode active, exit 0 ---
 @test "team mode active — exit 0 passthrough" {
     create_state
-    touch "$TEST_DIR/.claude/vgl-team-active"
+    touch "$TEST_DIR/.claude/gk-team-active"
     run bash -c 'echo '"'"'{"transcript_path":"/dev/null"}'"'"' | bash "'"$HOOK"'" 2>&1'
     assert_success
 }
@@ -487,7 +487,7 @@ metadata:
   project: "test-project"
   stuck_threshold: 3
   circuit_breaker_threshold: 5
-  max_vgl_iterations: 50
+  max_gatekeeper_iterations: 50
   timeout_hours: 8
 phases:
   - id: 1

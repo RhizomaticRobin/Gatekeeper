@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# End-to-End Smoke Test for GSD-VGL
+# End-to-End Smoke Test for Gatekeeper
 #
 # Verifies: plan validation, task dispatch, state transitions, and completion token.
 # Uses tests/fixtures/sample-project/ as the base fixture.
@@ -39,8 +39,8 @@ setup() {
     TEST_DIR="$(mktemp -d)"
     cp -r "$FIXTURE_DIR/." "$TEST_DIR/"
 
-    # Test token for VGL completion gating
-    TEST_TOKEN="VGL_COMPLETE_00000000000000000000000000000000"
+    # Test token for Gatekeeper completion gating
+    TEST_TOKEN="GK_COMPLETE_00000000000000000000000000000000"
     echo "$TEST_TOKEN" > "$TEST_DIR/.claude/verifier-token.secret"
 }
 
@@ -86,7 +86,7 @@ teardown() {
 # -------------------------------------------------------------------
 @test "e2e: fetch-completion-token reveals token on passing tests" {
     # Set up a session directory with the required files
-    SESSION_DIR="$TEST_DIR/.claude/vgl-sessions/task-1.1"
+    SESSION_DIR="$TEST_DIR/.claude/gk-sessions/task-1.1"
     mkdir -p "$SESSION_DIR"
 
     # Create verifier-loop.local.md in session dir
@@ -115,7 +115,7 @@ TOKENEOF
     chmod 600 "$SESSION_DIR/verifier-token.secret"
 
     cd "$TEST_DIR"
-    run "$SCRIPTS_DIR/fetch-completion-token.sh" --session-dir ".claude/vgl-sessions/task-1.1"
+    run "$SCRIPTS_DIR/fetch-completion-token.sh" --session-dir ".claude/gk-sessions/task-1.1"
     assert_success
     # Token should be revealed
     echo "$output" | grep -q "smoke-test-token-xyz789"

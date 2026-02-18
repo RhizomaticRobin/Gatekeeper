@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared utilities for GSD-VGL plan orchestration.
+"""Shared utilities for Gatekeeper plan orchestration.
 
 Functions:
   load_plan(path)           — parse YAML, return dict
@@ -15,7 +15,7 @@ Functions:
   get_model_profile(plan) — get model_profile from metadata
 
 Also usable as CLI:
-  python3 plan_utils.py <plan.yaml> --complete-task <task_id> --token <VGL_TOKEN>
+  python3 plan_utils.py <plan.yaml> --complete-task <task_id> --token <GK_TOKEN>
   python3 plan_utils.py <plan.yaml> --start-task <task_id>
   python3 plan_utils.py <plan.yaml> --next-task
   python3 plan_utils.py <plan.yaml> --unblocked-tasks
@@ -47,12 +47,12 @@ def _plan_lock(plan_path):
     Uses the same lock file that Bash flock uses in transition-task.sh,
     ensuring mutual exclusion between Python and Bash writers.
 
-    When GSD_VGL_PLAN_LOCKED=1 is set in the environment (by a parent
+    When GATEKEEPER_PLAN_LOCKED=1 is set in the environment (by a parent
     Bash process that already holds the flock), this becomes a no-op
     to avoid deadlock between parent shell flock and child Python flock.
     """
     lock_path = plan_path + ".lock"
-    if os.environ.get("GSD_VGL_PLAN_LOCKED") == "1":
+    if os.environ.get("GATEKEEPER_PLAN_LOCKED") == "1":
         # Parent process already holds the lock -- skip to avoid deadlock
         yield lock_path
         return
@@ -259,10 +259,10 @@ def get_model_profile(plan):
 
 
 def validate_completion_token(plan_file, task_id, provided_token):
-    """Validate the VGL completion token before allowing task completion.
+    """Validate the Gatekeeper completion token before allowing task completion.
 
     Looks for verifier-token.secret in:
-      1. <project>/.claude/vgl-sessions/task-{id}/verifier-token.secret
+      1. <project>/.claude/gk-sessions/task-{id}/verifier-token.secret
       2. <project>/.claude/verifier-token.secret
 
     Returns (True, None) on success or (False, error_message) on failure.
@@ -270,8 +270,8 @@ def validate_completion_token(plan_file, task_id, provided_token):
     if not provided_token:
         return False, "No token provided. --token is required with --complete-task"
 
-    # Validate token format: VGL_COMPLETE_<32 hex chars>
-    if not re.match(r'^VGL_COMPLETE_[a-f0-9]{32}$', provided_token):
+    # Validate token format: GK_COMPLETE_<32 hex chars>
+    if not re.match(r'^GK_COMPLETE_[a-f0-9]{32}$', provided_token):
         return False, f"Invalid token format: {provided_token[:20]}..."
 
     # Derive project root from plan file path
@@ -280,7 +280,7 @@ def validate_completion_token(plan_file, task_id, provided_token):
 
     # Search for token file
     candidates = [
-        os.path.join(project_root, ".claude", "vgl-sessions", f"task-{task_id}", "verifier-token.secret"),
+        os.path.join(project_root, ".claude", "gk-sessions", f"task-{task_id}", "verifier-token.secret"),
         os.path.join(project_root, ".claude", "verifier-token.secret"),
     ]
 
@@ -340,15 +340,15 @@ def task_to_json(task):
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="GSD-VGL Plan Utilities")
+    parser = argparse.ArgumentParser(description="Gatekeeper Plan Utilities")
     parser.add_argument("plan_file", help="Path to plan.yaml")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--complete-task", metavar="TASK_ID",
                        help="Mark task as completed (requires --token)")
     group.add_argument("--start-task", metavar="TASK_ID",
                        help="Mark task as in_progress")
-    parser.add_argument("--token", metavar="VGL_TOKEN",
-                       help="VGL completion token (required with --complete-task)")
+    parser.add_argument("--token", metavar="GK_TOKEN",
+                       help="Gatekeeper completion token (required with --complete-task)")
     group.add_argument("--next-task", action="store_true",
                        help="Output next unblocked task as JSON")
     group.add_argument("--all-ids", action="store_true",

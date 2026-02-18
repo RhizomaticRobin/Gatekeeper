@@ -1,7 +1,7 @@
 # Plan: Gatekeeper Evolution Engine
 
 ## Overview
-Replace the static heuristic scripts (wave_sizer, task_router, failure_classifier, budget_scheduler, auto_fixer, dep_resolver, progress_advisor) with a genuine OpenEvolve-style evolutionary intelligence engine. The "program" being evolved is the approach/strategy addendum given to builder agents. Each VGL iteration becomes a generation — evaluate the attempt with multi-dimensional metrics, store in a MAP-Elites population, sample parent + inspirations from islands, and build rich evolution context for the next iteration.
+Replace the static heuristic scripts (wave_sizer, task_router, failure_classifier, budget_scheduler, auto_fixer, dep_resolver, progress_advisor) with a genuine OpenEvolve-style evolutionary intelligence engine. The "program" being evolved is the approach/strategy addendum given to builder agents. Each Gatekeeper iteration becomes a generation — evaluate the attempt with multi-dimensional metrics, store in a MAP-Elites population, sample parent + inspirations from islands, and build rich evolution context for the next iteration.
 
 ## Tech Stack
 - Language: Python (scripts) + Bash (hooks) — stdlib + PyYAML only
@@ -11,7 +11,7 @@ Replace the static heuristic scripts (wave_sizer, task_router, failure_classifie
 
 ## must_haves (Project-Level)
 ### Truths
-- VGL iterations use evolutionary selection instead of simple retry
+- Gatekeeper iterations use evolutionary selection instead of simple retry
 - Population of approaches grows across iterations with MAP-Elites quality-diversity
 - Parallel islands explore different strategies simultaneously
 - Successful approaches migrate between similar tasks via cross-pollination

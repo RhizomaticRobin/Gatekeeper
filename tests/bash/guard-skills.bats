@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # guard-skills.bats — tests for hooks/guard-skills.sh
-# Verifies skill gating behavior during active VGL loops.
+# Verifies skill gating behavior during active Gatekeeper loops.
 
 setup() {
     load 'test_helper/common-setup'
@@ -15,31 +15,31 @@ teardown() {
     fi
 }
 
-# --- Test 1: No VGL active, any skill exits 0 ---
-@test "no VGL active — any skill allowed (exit 0)" {
+# --- Test 1: No Gatekeeper active, any skill exits 0 ---
+@test "no Gatekeeper active — any skill allowed (exit 0)" {
     # No .claude/verifier-loop.local.md file exists
     run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:quest"}}'"'"' | bash "'"$HOOK"'"'
     assert_success
 }
 
-# --- Test 2: VGL active, cross-team allowed ---
-@test "VGL active — cross-team allowed (exit 0)" {
+# --- Test 2: Gatekeeper active, cross-team allowed ---
+@test "Gatekeeper active — cross-team allowed (exit 0)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
     run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:cross-team"}}'"'"' | bash "'"$HOOK"'"'
     assert_success
 }
 
-# --- Test 3: VGL active, progress allowed ---
-@test "VGL active — progress allowed (exit 0)" {
+# --- Test 3: Gatekeeper active, progress allowed ---
+@test "Gatekeeper active — progress allowed (exit 0)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
     run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:progress"}}'"'"' | bash "'"$HOOK"'"'
     assert_success
 }
 
-# --- Test 4: VGL active, quest blocked (exit 2) ---
-@test "VGL active — quest blocked (exit 2 with BLOCKED)" {
+# --- Test 4: Gatekeeper active, quest blocked (exit 2) ---
+@test "Gatekeeper active — quest blocked (exit 2 with BLOCKED)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
     run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:quest"}}'"'"' | bash "'"$HOOK"'" 2>&1'
@@ -47,24 +47,24 @@ teardown() {
     assert_output --partial "BLOCKED"
 }
 
-# --- Test 5: VGL active, bridge blocked ---
-@test "VGL active — bridge blocked (exit 2)" {
+# --- Test 5: Gatekeeper active, bridge blocked ---
+@test "Gatekeeper active — bridge blocked (exit 2)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
     run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:bridge"}}'"'"' | bash "'"$HOOK"'" 2>&1'
     assert_failure 2
 }
 
-# --- Test 6: VGL active, run-away blocked ---
-@test "VGL active — run-away blocked (exit 2)" {
+# --- Test 6: Gatekeeper active, run-away blocked ---
+@test "Gatekeeper active — run-away blocked (exit 2)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
     run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:run-away"}}'"'"' | bash "'"$HOOK"'" 2>&1'
     assert_failure 2
 }
 
-# --- Test 7: VGL active, new-project blocked ---
-@test "VGL active — new-project blocked (exit 2)" {
+# --- Test 7: Gatekeeper active, new-project blocked ---
+@test "Gatekeeper active — new-project blocked (exit 2)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
     run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:new-project"}}'"'"' | bash "'"$HOOK"'" 2>&1'

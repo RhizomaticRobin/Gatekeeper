@@ -158,4 +158,4 @@ Based on the current state, suggest the most appropriate next action:
 - If no `.claude/plan/plan.yaml` exists: "No project found. Run `gatekeeper:quest` to get started."
 - If plan.yaml exists but is malformed: attempt to reconstruct from other artifacts
 - If plan.yaml is missing: compute progress from requirements only (lower fidelity)
-- If a VGL loop is active: check for `.claude/verifier-loop.local.md` and report status
+- If a Gatekeeper loop is active: check for `.claude/verifier-loop.local.md` and report status

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Transition Task Script (GSD-VGL)
+# Transition Task Script (Gatekeeper)
 # Called by stop hook on PASS when plan file exists.
 #
 # 1. Reads current task_id from state file
@@ -31,7 +31,7 @@ fi
 # Read current task_id from state file frontmatter
 if [[ ! -f "$STATE_FILE" ]]; then
   echo "Error: State file not found: $STATE_FILE" >&2
-  echo "Try: Run /gatekeeper:cross-team to start a new VGL session." >&2
+  echo "Try: Run /gatekeeper:cross-team to start a new Gatekeeper session." >&2
   exit 1
 fi
 
@@ -67,23 +67,23 @@ flock -x 9
 
 # Tell child Python processes that we already hold the plan lock
 # so they skip their own flock (avoiding deadlock on same lock file)
-export GSD_VGL_PLAN_LOCKED=1
+export GATEKEEPER_PLAN_LOCKED=1
 
 # Read completion token — required for completing a task
 TOKEN_FILE=".claude/verifier-token.secret"
 # Try task-specific session dir first, then fall back to .claude/
-TASK_SESSION_DIR=".claude/vgl-sessions/task-${CURRENT_TASK_ID}"
+TASK_SESSION_DIR=".claude/gk-sessions/task-${CURRENT_TASK_ID}"
 if [[ -f "${TASK_SESSION_DIR}/verifier-token.secret" ]]; then
   TOKEN_FILE="${TASK_SESSION_DIR}/verifier-token.secret"
 fi
 
 if [[ ! -f "$TOKEN_FILE" ]]; then
-  echo "Error: Token file not found at $TOKEN_FILE — cannot complete task without VGL token" >&2
+  echo "Error: Token file not found at $TOKEN_FILE — cannot complete task without Gatekeeper token" >&2
   exit 1
 fi
 COMPLETION_TOKEN=$(head -1 "$TOKEN_FILE" | tr -d '\n')
 
-# Mark current task as completed (requires valid VGL token)
+# Mark current task as completed (requires valid Gatekeeper token)
 echo "Completing task: $CURRENT_TASK_ID" >&2
 python3 "${SCRIPTS_DIR}/plan_utils.py" "$PLAN_FILE" --complete-task "$CURRENT_TASK_ID" --token "$COMPLETION_TOKEN" >/dev/null
 
@@ -98,7 +98,7 @@ create_checkpoint() {
     return 0
   fi
 
-  # Stage plan.yaml and any VGL state changes
+  # Stage plan.yaml and any Gatekeeper state changes
   if ! git add .claude/plan/plan.yaml 2>&1; then
     echo "Checkpoint: failed to stage plan.yaml" >&2
     return 0
@@ -175,7 +175,7 @@ NEXT_JSON=$(python3 "${SCRIPTS_DIR}/next-task.py" "$PLAN_FILE")
 # Release the flock and clear the lock environment variable
 flock -u 9
 exec 9>&-
-unset GSD_VGL_PLAN_LOCKED
+unset GATEKEEPER_PLAN_LOCKED
 
 # Record history (non-blocking: if run_history.py fails or is missing, transition still works)
 HISTORY_DURATION=0

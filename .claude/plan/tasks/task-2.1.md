@@ -14,7 +14,7 @@
 - tests/bash/evo-stop-hook.bats
 
 ## Context
-This is the integration point where the evolutionary intelligence system connects to the existing VGL loop. The stop-hook fires after every Claude session exit. When verification fails (token not found/mismatched), the hook currently retries with the same prompt, optionally prefixed with learnings from learnings.py.
+This is the integration point where the evolutionary intelligence system connects to the existing Gatekeeper loop. The stop-hook fires after every Claude session exit. When verification fails (token not found/mismatched), the hook currently retries with the same prompt, optionally prefixed with learnings from learnings.py.
 
 This task replaces the learnings injection (around lines 186-228 of stop-hook.sh) with the evolution engine. After each failed iteration:
 1. The attempt is evaluated (evo_eval.py captures test metrics and artifacts)
@@ -107,8 +107,8 @@ NEXT_TASK_PROMPT="${EVOLUTION_PREFIX}${INTEGRATION_PREFIX}CRITICAL RULES..."
 - References to `learnings.py` and `LEARNINGS_STORAGE` variables
 
 ## Frontend Deliverables
-- System message includes evolution context indicator: "VGL iteration N | Evolution-guided"
-- stderr logging shows evolution actions: "VGL: Evaluating iteration attempt", "VGL: Stored in population", "VGL: Pollinating from similar tasks"
+- System message includes evolution context indicator: "Gatekeeper iteration N | Evolution-guided"
+- stderr logging shows evolution actions: "Gatekeeper: Evaluating iteration attempt", "Gatekeeper: Stored in population", "Gatekeeper: Pollinating from similar tasks"
 
 ## Tests to Write (TDD-First)
 
@@ -126,13 +126,13 @@ NEXT_TASK_PROMPT="${EVOLUTION_PREFIX}${INTEGRATION_PREFIX}CRITICAL RULES..."
 
 | Test | File | Depends On | Guidance |
 |------|------|-----------|----------|
-| T1 | tests/bash/evo-stop-hook.bats | -- | Modify hooks/stop-hook.sh to replace LEARNINGS_PREFIX with EVOLUTION_PREFIX and add evo_eval/evo_db calls on failure path. Create mock evo scripts (evo_eval.py, evo_db.py, evo_prompt.py, evo_pollinator.py) that echo expected JSON and log their invocations to a temp tracking file. Set up bats fixture with: state file (verifier-loop.local.md with frontmatter including task_id and test_command), token file (verifier-token.secret with VGL_COMPLETE_ token), transcript file (without matching token to trigger mismatch). Test by piping hook input JSON (with transcript_path) to stop-hook.sh and checking output JSON structure + side effects in tracking file. Follow pattern from existing tests/bash/stop-hook.bats. |
+| T1 | tests/bash/evo-stop-hook.bats | -- | Modify hooks/stop-hook.sh to replace LEARNINGS_PREFIX with EVOLUTION_PREFIX and add evo_eval/evo_db calls on failure path. Create mock evo scripts (evo_eval.py, evo_db.py, evo_prompt.py, evo_pollinator.py) that echo expected JSON and log their invocations to a temp tracking file. Set up bats fixture with: state file (verifier-loop.local.md with frontmatter including task_id and test_command), token file (verifier-token.secret with GK_COMPLETE_ token), transcript file (without matching token to trigger mismatch). Test by piping hook input JSON (with transcript_path) to stop-hook.sh and checking output JSON structure + side effects in tracking file. Follow pattern from existing tests/bash/stop-hook.bats. |
 
 Dispatch order:
 - Wave 1: T1
 
 ## Key Links
-- Integration target: hooks/stop-hook.sh (current VGL loop)
+- Integration target: hooks/stop-hook.sh (current Gatekeeper loop)
 - Token MATCH path: lines 132-320 (auto-transition, LEARNINGS_PREFIX for next task)
 - Token MISMATCH path: lines 322-361 (retry with same prompt)
 - Depends on: scripts/evo_eval.py (task 1.2), scripts/evo_db.py (task 1.1), scripts/evo_prompt.py (task 1.3), scripts/evo_pollinator.py (task 2.3)

@@ -1,7 +1,7 @@
 # Stack
 
 ## Languages
-- **Bash** — Primary scripting language for hooks, VGL scripts, autopilot (ralph.sh), and bin/ utilities. ~6,000 LOC across scripts/, hooks/, bin/.
+- **Bash** — Primary scripting language for hooks, Gatekeeper scripts, autopilot (ralph.sh), and bin/ utilities. ~6,000 LOC across scripts/, hooks/, bin/.
 - **Python 3** — Plan utilities, validation, evolutionary intelligence, history, learnings. ~3,500 LOC in scripts/*.py. Requires PyYAML.
 - **JavaScript/Node.js** (>=16.7.0) — Installer (bin/install.js), hook bundler (build-hooks.js), intel-index.js, progress-watcher, terminal-launcher. ~2,500 LOC.
 - **Markdown** — Agent definitions (9 .md files with YAML frontmatter), slash commands (15 .md files), workflow docs, reference docs, templates. These are executable prompts, not documentation.

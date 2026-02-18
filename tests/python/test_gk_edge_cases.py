@@ -1,4 +1,4 @@
-"""Tests for VGL edge case hardening.
+"""Tests for Gatekeeper edge case hardening.
 
 Covers:
 - Token file permissions (chmod 600)
@@ -116,7 +116,7 @@ class TestStaleDetectionLogic:
         stale_time = datetime.now(timezone.utc) - timedelta(hours=25)
         stale_timestamp = stale_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        token = "VGL_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
+        token = "GK_COMPLETE_0000000000000000ab54a98ceb1f0ad2"
 
         state_content = f"""---
 active: true

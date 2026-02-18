@@ -1,19 +1,19 @@
 ---
-description: "Cross the Bridge of Death — start a standalone Verifier-Gated Loop with TDD-first workflow for ad-hoc tasks"
+description: "Cross the Bridge of Death — start a standalone Gatekeeper loop with TDD-first workflow for ad-hoc tasks"
 argument-hint: "PROMPT --verification-criteria 'criteria' [--test-command 'cmd'] [--max-iterations N]"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-verifier-loop.sh:*)", "Bash(python3:*)"]
 ---
 
-Execute the setup script to initialize the Verifier-Gated Loop:
+Execute the setup script to initialize the Gatekeeper loop:
 
 ```!
-_VGL_JSON=$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/parse-args.py" <<'VGLEOF'
+_GK_JSON=$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/parse-args.py" <<'GKEOF'
 $ARGUMENTS
-VGLEOF
-) && "${CLAUDE_PLUGIN_ROOT}/scripts/setup-verifier-loop.sh" --from-json "$_VGL_JSON"
+GKEOF
+) && "${CLAUDE_PLUGIN_ROOT}/scripts/setup-verifier-loop.sh" --from-json "$_GK_JSON"
 ```
 
-Work on the task described above. This is a Verifier-Gated Loop where you CANNOT complete the loop directly — completion authority is delegated to a Verifier subagent.
+Work on the task described above. This is a Gatekeeper loop where you CANNOT complete the loop directly — completion authority is delegated to a Verifier subagent.
 
 Follow this TDD-first workflow:
 

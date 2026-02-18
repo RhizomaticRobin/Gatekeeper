@@ -1,4 +1,4 @@
-"""Shared logging helper for GSD-VGL Python scripts.
+"""Shared logging helper for Gatekeeper Python scripts.
 
 Usage:
     from gk_log import gk_error, gk_warn, gk_info

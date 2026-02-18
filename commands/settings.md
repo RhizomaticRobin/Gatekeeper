@@ -48,7 +48,7 @@ Present settings in a readable format:
 
 ```
 =============================================================
-  GSD-VGL SETTINGS
+  GATEKEEPER SETTINGS
 =============================================================
 
   Project:           {project_name or "(not set)"}

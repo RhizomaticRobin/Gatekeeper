@@ -16,7 +16,7 @@
 ## Context
 Tasks 1.1-1.3, 2.1-2.3, and 3.1 built and integrated the evolutionary intelligence engine. This task creates an end-to-end smoke test that exercises the full pipeline in a controlled fixture environment, verifying that all components work together.
 
-The fixture project simulates a real GSD-VGL workspace with a plan, task files, source code, tests, and pre-populated evolution data. Each E2E test copies this fixture to a temp directory and exercises the evo scripts in sequence.
+The fixture project simulates a real Gatekeeper workspace with a plan, task files, source code, tests, and pre-populated evolution data. Each E2E test copies this fixture to a temp directory and exercises the evo scripts in sequence.
 
 ## Backend Deliverables
 

@@ -21,7 +21,7 @@ fi
 if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
   if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
     gk_warn "Working tree has uncommitted changes"
-    echo "  Consider committing before starting VGL session" >&2
+    echo "  Consider committing before starting Gatekeeper session" >&2
   fi
 fi
 
@@ -137,13 +137,13 @@ echo "Safe to parallelize: $SAFE_COUNT task(s)"
 echo "Sequential fallback: $SEQ_COUNT task(s)"
 
 # 6. Create team state
-mkdir -p .claude/vgl-sessions
-date -u +%Y-%m-%dT%H:%M:%SZ > .claude/vgl-team-active
+mkdir -p .claude/gk-sessions
+date -u +%Y-%m-%dT%H:%M:%SZ > .claude/gk-team-active
 
 # Lock plan files — no agent (including orchestrator) can Write|Edit them during execution
 date -u +%Y-%m-%dT%H:%M:%SZ > .claude/plan-locked
 
-# 7. Set up per-task VGL sessions for parallelizable tasks
+# 7. Set up per-task Gatekeeper sessions for parallelizable tasks
 DISPATCH_TASKS=""
 SESSION_DIR_LIST=""
 
@@ -170,7 +170,7 @@ if [[ -z "$SAFE_IDS" ]]; then
 fi
 
 for TASK_ID in $SAFE_IDS; do
-  SESSION_DIR=".claude/vgl-sessions/task-${TASK_ID}"
+  SESSION_DIR=".claude/gk-sessions/task-${TASK_ID}"
   mkdir -p "$SESSION_DIR"
 
   TASK_JSON=$(python3 -c "
@@ -231,27 +231,27 @@ $TASK_PROMPT"
     gk_warn "Failed to update plan.yaml status for task $TASK_ID"
   }
 
-  export _VGL_TASK_PROMPT="$TASK_PROMPT"
-  export _VGL_RAW_TASK_PROMPT="$RAW_TASK_PROMPT"
-  export _VGL_TEST_CMD="$TEST_CMD"
-  export _VGL_QUAL_CRITERIA="$QUAL_CRITERIA"
-  export _VGL_TASK_ID="$TASK_ID"
-  export _VGL_TASK_JSON="$TASK_JSON"
-  export _VGL_SESSION_DIR="$SESSION_DIR"
+  export _GK_TASK_PROMPT="$TASK_PROMPT"
+  export _GK_RAW_TASK_PROMPT="$RAW_TASK_PROMPT"
+  export _GK_TEST_CMD="$TEST_CMD"
+  export _GK_QUAL_CRITERIA="$QUAL_CRITERIA"
+  export _GK_TASK_ID="$TASK_ID"
+  export _GK_TASK_JSON="$TASK_JSON"
+  export _GK_SESSION_DIR="$SESSION_DIR"
   SETUP_JSON=$(python3 << 'PYEOF'
 import json, os
 print(json.dumps({
-    "prompt": os.environ["_VGL_TASK_PROMPT"],
+    "prompt": os.environ["_GK_TASK_PROMPT"],
     "verification_criteria": "Quantitative: {} must pass\nQualitative:\n{}".format(
-        os.environ["_VGL_TEST_CMD"], os.environ["_VGL_QUAL_CRITERIA"]),
-    "test_command": os.environ["_VGL_TEST_CMD"],
+        os.environ["_GK_TEST_CMD"], os.environ["_GK_QUAL_CRITERIA"]),
+    "test_command": os.environ["_GK_TEST_CMD"],
     "verifier_model": "sonnet",
     "max_iterations": 0,
     "plan_mode": True,
-    "task_id": os.environ["_VGL_TASK_ID"],
-    "task_json": os.environ["_VGL_TASK_JSON"],
-    "task_prompt_content": os.environ["_VGL_RAW_TASK_PROMPT"],
-    "session_dir": os.environ["_VGL_SESSION_DIR"],
+    "task_id": os.environ["_GK_TASK_ID"],
+    "task_json": os.environ["_GK_TASK_JSON"],
+    "task_prompt_content": os.environ["_GK_RAW_TASK_PROMPT"],
+    "session_dir": os.environ["_GK_SESSION_DIR"],
 }))
 PYEOF
   ) || {
@@ -261,7 +261,7 @@ PYEOF
   }
 
   "${PLUGIN_ROOT}/scripts/setup-verifier-loop.sh" --from-json "$SETUP_JSON" 2>&1 || {
-    echo "WARNING: Failed to set up VGL for task $TASK_ID"
+    echo "WARNING: Failed to set up Gatekeeper for task $TASK_ID"
     continue
   }
 
@@ -280,6 +280,6 @@ echo "Tasks dispatched:$DISPATCH_TASKS"
 echo ""
 echo "Session directories:$SESSION_DIR_LIST"
 echo ""
-echo "Team marker: .claude/vgl-team-active"
+echo "Team marker: .claude/gk-team-active"
 echo ""
 echo "CROSS_TEAM_OK"
