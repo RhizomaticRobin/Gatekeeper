@@ -23,7 +23,7 @@ ${crimson}      ██████╗  █████╗ ███████�
     ██║  ███╗███████║   ██║   █████╗  █████╔╝ █████╗  █████╗  ██████╔╝█████╗  ██████╔╝
    ██║   ██║██╔══██║   ██║   ██╔══╝  ██╔═██╗ ██╔══╝  ██╔══╝  ██╔═══╝ ██╔══╝  ██╔══██╗
   ╚██████╔╝██║  ██║   ██║   ███████╗██║  ██╗███████╗███████╗██║     ███████╗██║  ██║
- ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝${reset}
+  ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝${reset}
 
   Gatekeeper ${dim}v${pkg.version}${reset}
   Visual verifier-gated compartmentalized TDD + evolutionary optimization
@@ -75,7 +75,7 @@ if (require.main === module) {
     ${crimson}-h, --help${reset}                Show this help message
 
   ${yellow}Examples:${reset}
-    ${dim}# Install to default ~/.claude/plugins/gatekeeper${reset}
+    ${dim}# Install to default ~/.claude/plugins/marketplaces/gatekeeper${reset}
     npx gatekeeper --global
 
     ${dim}# Install to custom config directory${reset}
@@ -151,6 +151,86 @@ function setupEvolveMcp(pluginDir) {
 }
 
 /**
+ * Register the gatekeeper marketplace in known_marketplaces.json.
+ */
+function registerMarketplace(claudeDir, marketplaceDir) {
+  const knownPath = path.join(claudeDir, 'plugins', 'known_marketplaces.json');
+  let known = {};
+  if (fs.existsSync(knownPath)) {
+    try {
+      known = JSON.parse(fs.readFileSync(knownPath, 'utf8'));
+    } catch {
+      known = {};
+    }
+  }
+
+  known['gatekeeper'] = {
+    source: { source: 'local' },
+    installLocation: marketplaceDir,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  fs.writeFileSync(knownPath, JSON.stringify(known, null, 2) + '\n');
+  console.log(`  ${green}✓${reset} Registered gatekeeper marketplace`);
+}
+
+/**
+ * Create the marketplace.json inside the marketplace directory.
+ */
+function createMarketplaceJson(marketplaceDir) {
+  const metaDir = path.join(marketplaceDir, '.claude-plugin');
+  fs.mkdirSync(metaDir, { recursive: true });
+
+  const manifest = {
+    name: 'gatekeeper',
+    description: 'Gatekeeper plugin marketplace',
+    owner: { name: 'RhizomaticRobin', email: 'atatle@proton.me' },
+    plugins: [
+      {
+        name: 'gatekeeper',
+        description: pkg.description,
+        version: pkg.version,
+        author: { name: 'RhizomaticRobin', email: 'atatle@proton.me' },
+        source: './plugins/gatekeeper',
+        category: 'development',
+      },
+    ],
+  };
+
+  fs.writeFileSync(
+    path.join(metaDir, 'marketplace.json'),
+    JSON.stringify(manifest, null, 2) + '\n'
+  );
+}
+
+/**
+ * Add "gatekeeper@gatekeeper" to enabledPlugins in settings.json.
+ */
+function enablePlugin(claudeDir, scope) {
+  const settingsPath = path.join(claudeDir, 'settings.json');
+  let settings = {};
+  if (fs.existsSync(settingsPath)) {
+    try {
+      settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    } catch {
+      settings = {};
+    }
+  }
+
+  if (!Array.isArray(settings.enabledPlugins)) {
+    settings.enabledPlugins = [];
+  }
+
+  const entry = 'gatekeeper@gatekeeper';
+  if (!settings.enabledPlugins.includes(entry)) {
+    settings.enabledPlugins.push(entry);
+  }
+
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
+  console.log(`  ${green}✓${reset} Enabled plugin in ${scope} settings`);
+}
+
+/**
  * Install the plugin to the resolved directory.
  */
 function install(isGlobal) {
@@ -162,12 +242,20 @@ function install(isGlobal) {
     ? (configDir || path.join(os.homedir(), '.claude'))
     : path.join(process.cwd(), '.claude');
 
-  const destDir = path.join(claudeDir, 'plugins', 'gatekeeper');
+  const marketplaceDir = path.join(claudeDir, 'plugins', 'marketplaces', 'gatekeeper');
+  const destDir = path.join(marketplaceDir, 'plugins', 'gatekeeper');
 
   const locationLabel = destDir.replace(os.homedir(), '~');
   console.log(`  Installing to ${crimson}${locationLabel}${reset}\n`);
 
-  // Remove existing installation (symlink or directory) for clean install
+  // Clean up old-style installation at plugins/gatekeeper (pre-marketplace)
+  const oldDestDir = path.join(claudeDir, 'plugins', 'gatekeeper');
+  if (fs.existsSync(oldDestDir) && !oldDestDir.includes('marketplaces')) {
+    fs.rmSync(oldDestDir, { recursive: true });
+    console.log(`  ${green}✓${reset} Removed old installation at plugins/gatekeeper`);
+  }
+
+  // Remove existing marketplace installation for clean install
   if (fs.existsSync(destDir) || isSymlink(destDir)) {
     const stat = fs.lstatSync(destDir);
     if (stat.isSymbolicLink()) {
@@ -178,6 +266,9 @@ function install(isGlobal) {
       console.log(`  ${green}✓${reset} Removed previous installation`);
     }
   }
+
+  // Create marketplace structure
+  createMarketplaceJson(marketplaceDir);
 
   // Copy plugin directory
   copyPluginDirectory(src, destDir);
@@ -197,6 +288,10 @@ function install(isGlobal) {
     process.exit(1);
   }
   console.log(`  ${green}✓${reset} Verified installation`);
+
+  // Register marketplace and enable plugin
+  registerMarketplace(claudeDir, marketplaceDir);
+  enablePlugin(claudeDir, isGlobal ? 'global' : 'local');
 
   // Set up opencode-mcp server (clone/build/register)
   setupMcpServer(destDir);
@@ -252,8 +347,8 @@ function promptLocation() {
 
   console.log(`  ${yellow}Where would you like to install?${reset}
 
-  ${crimson}1${reset}) Global ${dim}(${globalLabel}/plugins/gatekeeper)${reset} - available in all projects
-  ${crimson}2${reset}) Local  ${dim}(./.claude/plugins/gatekeeper)${reset} - this project only
+  ${crimson}1${reset}) Global ${dim}(${globalLabel}/plugins/marketplaces/gatekeeper)${reset} - available in all projects
+  ${crimson}2${reset}) Local  ${dim}(./.claude/plugins/marketplaces/gatekeeper)${reset} - this project only
 `);
 
   rl.question(`  Choice ${dim}[1]${reset}: `, (answer) => {
