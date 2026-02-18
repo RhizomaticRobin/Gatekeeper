@@ -1,7 +1,7 @@
 ---
 name: verifier
 description: Independent code verification agent. Inspects implementation against task spec, runs tests, checks must_haves, and outputs VERIFICATION_PASS or VERIFICATION_FAIL.
-model: opus
+model: sonnet
 tools: Read, Bash, Grep, Glob
 disallowedTools: Write, Edit, WebFetch, WebSearch, Task
 color: green
