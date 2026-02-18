@@ -1,7 +1,7 @@
 ---
 name: assessor
 description: Test quality assessment agent. Evaluates test comprehensiveness, correctness, and alignment with must_haves. Outputs ASSESSMENT_PASS or ASSESSMENT_FAIL.
-model: opus
+model: sonnet
 tools: Read, Bash, Grep, Glob
 disallowedTools: Write, Edit, WebFetch, WebSearch, Task
 color: magenta
