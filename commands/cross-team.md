@@ -123,10 +123,11 @@ The per-task flow is: **Tester** (writes tests) → **Assessor** (evaluates qual
    - Remove `.claude/plan-locked`
    - Report final status
 
-10. **Phase 5 — Superphase (optional)**:
-   - After all tasks are completed, check if `plan.yaml metadata.superphase: true`
+10. **Hyperphase N — Evolutionary Optimization (optional)**:
+   - Steps 1–9 above are **Hyperphase 1** (the main VGL pipeline)
+   - After all Hyperphase 1 tasks are completed, check if `plan.yaml metadata.hyperphase: true`
    - If enabled, follow Section 8 of the team-orchestrator-prompt (scout → optimize → verify)
-   - This is opt-in per project and can also be run standalone via `/gatekeeper:superphase`
+   - This is opt-in per project and can also be run standalone via `/gatekeeper:hyperphase`
 
 ### Critical Rules
 

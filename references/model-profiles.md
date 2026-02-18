@@ -89,8 +89,8 @@ The `metadata` section of `plan.yaml` supports required and optional fields.
 | `model_profile` | string | "default" | Which model profile to use (default/quality/balanced/budget) |
 | `test_framework` | string | — | Test framework in use (e.g., pytest, jest) |
 | `project_context` | dict | — | Discovery answers from the quest workflow (vision, users, tech stack, etc.) |
-| `superphase` | boolean | false | Enable evolutionary superphase after all tasks pass verification |
-| `superphase_candidates` | positive integer | 3 | Number of top-K hotspot candidates to optimize in superphase |
+| `hyperphase` | boolean | false | Enable Hyperphase N (evolutionary optimization) after all Hyperphase 1 tasks pass verification |
+| `hyperphase_candidates` | positive integer | 3 | Number of top-K hotspot candidates to optimize in Hyperphase N |
 
 ### Resilience Fields
 

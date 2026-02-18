@@ -569,7 +569,7 @@ npm install && npm run build:hooks
 
 ## Acknowledgments
 
-Gatekeeper builds on ideas and infrastructure from [TÂCHES](https://github.com/gsd-build/get-shit-done), a spec-driven development system for Claude Code. The evolutionary superphase is inspired by [OpenEvolve](https://github.com/algorithmicsuperintelligence/openevolve), an open-source implementation of AlphaEvolve-style LLM-driven code optimization.
+Gatekeeper builds on ideas and infrastructure from [TÂCHES](https://github.com/gsd-build/get-shit-done), a spec-driven development system for Claude Code. Hyperphase N (evolutionary optimization) is inspired by [OpenEvolve](https://github.com/algorithmicsuperintelligence/openevolve), an open-source implementation of AlphaEvolve-style LLM-driven code optimization.
 
 ## License
 

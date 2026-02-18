@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Function extraction, mutation, and replacement for evolutionary superphase.
+"""Function extraction, mutation, and replacement for Hyperphase N (evolutionary optimization).
 
 Provides operations on individual Python functions within files:
   --extract: Extract a function with EVOLVE-BLOCK-START/END markers
@@ -197,7 +197,7 @@ def create_backup(file_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Function extraction and mutation for evo superphase")
+    parser = argparse.ArgumentParser(description="Function extraction and mutation for Hyperphase N")
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--extract", action="store_true", help="Extract function with EVOLVE-BLOCK markers")

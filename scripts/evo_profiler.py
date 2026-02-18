@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hotspot profiler for evolutionary superphase.
+"""Hotspot profiler for Hyperphase N (evolutionary optimization).
 
 Profiles a test suite with cProfile, extracts slow functions from source
 directories, scores them by (time_pct × log(1 + complexity)), and outputs
@@ -158,7 +158,7 @@ def estimate_test_count(test_command, function_name):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Hotspot profiler for evolutionary superphase")
+    parser = argparse.ArgumentParser(description="Hotspot profiler for Hyperphase N")
     parser.add_argument("--test-command", required=True, help="Test command to profile")
     parser.add_argument("--source-dirs", required=True, help="Comma-separated source directories")
     parser.add_argument("--module", default="", help="Optional module path filter")

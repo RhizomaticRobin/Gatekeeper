@@ -288,16 +288,16 @@ When no pending tasks remain in plan.yaml:
 4. Remove `.claude/plan-locked` marker
 5. Report final status: which tasks completed, which failed, total time
 
-### 8. Superphase (if plan.yaml metadata.superphase: true)
+### 8. Hyperphase N (if plan.yaml metadata.hyperphase: true)
 
-After all tasks are completed (Section 7), check if superphase is enabled:
+Sections 1–7 above constitute **Hyperphase 1** (the main VGL pipeline). After all tasks are completed (Section 7), check if Hyperphase N is enabled:
 
 ```bash
-python3 {{PLUGIN_SCRIPTS}}/plan_utils.py {{PLAN_FILE}} --get-metadata superphase
+python3 {{PLUGIN_SCRIPTS}}/plan_utils.py {{PLAN_FILE}} --get-metadata hyperphase
 ```
 
 If "true":
-  K = metadata.superphase_candidates (default 3)
+  K = metadata.hyperphase_candidates (default 3)
 
   **Phase S1: Spawn evo-scouts per module in parallel**
   ```
@@ -331,7 +331,7 @@ If "true":
   Call population_best. If speedup ≥ 1.3: replace_function.
 
   **Phase S3:** Run {test_command}. If FAIL: revert_function all patched files.
-  Write superphase-results.md with per-function speedup summary.
+  Write hyperphase-results.md with per-function speedup summary.
 
 ## Important Constraints
 

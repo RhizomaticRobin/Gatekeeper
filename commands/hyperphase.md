@@ -1,29 +1,29 @@
 ---
-description: "Evolutionary superphase — optimize hot-spot functions for speed after all tasks pass verification"
+description: "Hyperphase N — evolutionary optimization of hot-spot functions for speed after Hyperphase 1 verification"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "Bash(cat:*)", "Read", "Task", "mcp__plugin_gatekeeper_evolve-mcp__extract_function", "mcp__plugin_gatekeeper_evolve-mcp__population_stats", "mcp__plugin_gatekeeper_evolve-mcp__population_migrate", "mcp__plugin_gatekeeper_evolve-mcp__population_best", "mcp__plugin_gatekeeper_evolve-mcp__replace_function", "mcp__plugin_gatekeeper_evolve-mcp__revert_function"]
 ---
 
-# Evolutionary Superphase
+# Hyperphase N — Evolutionary Optimization
 
-Run the evolutionary superphase to discover speed-optimized rewrites of hot-spot functions using MAP-Elites island-based optimization.
+Run Hyperphase N to discover speed-optimized rewrites of hot-spot functions using MAP-Elites island-based optimization. Hyperphase 1 is the main VGL pipeline (test → assess → execute → verify); Hyperphase N runs after all tasks pass verification.
 
 ## Prerequisites
 
-- All tasks in plan.yaml must have status `completed` (VERIFICATION_PASS)
-- `plan.yaml metadata.superphase: true` (opt-in)
+- All tasks in plan.yaml must have status `completed` (VERIFICATION_PASS) — i.e. Hyperphase 1 is complete
+- `plan.yaml metadata.hyperphase: true` (opt-in)
 
 ## Configuration
 
 Read plan.yaml for:
 - `test_command`: from the task test specs
 - `source_dirs`: project source directories
-- `metadata.superphase_candidates`: number of top-K candidates (default 3)
+- `metadata.hyperphase_candidates`: number of top-K candidates (default 3)
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --get-metadata superphase
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --get-metadata hyperphase
 ```
 
-If not "true", inform the user that superphase is not enabled and exit.
+If not "true", inform the user that Hyperphase N is not enabled and exit.
 
 ---
 
@@ -43,7 +43,7 @@ Output: SCOUT_DONE:{module}:{json_array_of_candidates}
 """)
 ```
 
-Collect all `SCOUT_DONE` outputs. Parse the JSON arrays. Merge all candidates into a single list. Rank by `score` descending. Select top K (from metadata.superphase_candidates, default 3).
+Collect all `SCOUT_DONE` outputs. Parse the JSON arrays. Merge all candidates into a single list. Rank by `score` descending. Select top K (from metadata.hyperphase_candidates, default 3).
 
 If no candidates found, report "No optimization candidates identified" and exit.
 
@@ -65,7 +65,7 @@ mcp__plugin_gatekeeper_evolve-mcp__extract_function(
 ### Step 2: Initialize Population DB
 
 ```
-db_path = ".planning/evolution/superphase/{candidate.function}/"
+db_path = ".planning/evolution/hyperphase/{candidate.function}/"
 mcp__plugin_gatekeeper_evolve-mcp__population_stats(db_path=db_path)
 ```
 
@@ -176,9 +176,9 @@ Run the full test suite:
 ```
 
 **If tests PASS:**
-- Write `superphase-results.md` with per-function speedup summary:
+- Write `hyperphase-results.md` with per-function speedup summary:
   ```markdown
-  # Superphase Results
+  # Hyperphase N Results
 
   | Function | File | Baseline (ms) | Optimized (ms) | Speedup | Island |
   |----------|------|---------------|----------------|---------|--------|
@@ -199,5 +199,5 @@ Run the full test suite:
 ## Integration with Team Orchestrator
 
 This command can be run:
-- **Standalone:** `/gatekeeper:superphase` (user manually triggers after verification)
-- **Automatic:** From team-orchestrator Section 8 when `metadata.superphase: true`
+- **Standalone:** `/gatekeeper:hyperphase` (user manually triggers after Hyperphase 1 completes)
+- **Automatic:** From team-orchestrator Section 8 when `metadata.hyperphase: true`
