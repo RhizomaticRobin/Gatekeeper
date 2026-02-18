@@ -24,7 +24,7 @@ Gatekeeper orchestrates software projects through a structured pipeline where no
 | **git** | any recent | Cloning, submodules |
 | **jq** | any recent | JSON parsing in hook scripts |
 | **Claude Code** | latest | The CLI tool that runs the plugin |
-| **OpenCode** | latest | Agent dispatch for gsd-builder agents |
+| **OpenCode** | latest | Agent dispatch for gk-builder agents |
 | **ANTHROPIC_API_KEY** | -- | Auto-detected from subscription or set manually (see below) |
 
 ### Authentication
@@ -369,7 +369,7 @@ Phase 5 ── Confirm & Summarize → "Run /cross-team to start execution"
 │   │  Read pre-written tests ──► parse Test Dependency Graph         │    │
 │   │                                                                 │    │
 │   │  Wave 1:  ┌──────────┐ ┌──────────┐ ┌──────────┐              │    │
-│   │           │gsd-builder│ │gsd-builder│ │gsd-builder│  concurrent │    │
+│   │           │gk-builder│ │gk-builder│ │gk-builder│  concurrent │    │
 │   │           │ T1 (new)  │ │ T2 (new)  │ │ T3 (new)  │             │    │
 │   │           └─────┬─────┘ └─────┬─────┘ └─────┬─────┘             │    │
 │   │                 └──────┬──────┘──────────────┘                   │    │
@@ -377,7 +377,7 @@ Phase 5 ── Confirm & Summarize → "Run /cross-team to start execution"
 │   │           wait_for_completion() ──► record sessionIds            │    │
 │   │                        ▼                                         │    │
 │   │  Wave 2+: ┌──────────────────┐ ┌──────────────────┐            │    │
-│   │           │gsd-builder T4    │ │gsd-builder T5    │  continue   │    │
+│   │           │gk-builder T4    │ │gk-builder T5    │  continue   │    │
 │   │           │(continue T1 sess)│ │(continue T2 sess)│  sessions   │    │
 │   │           └──────────────────┘ └──────────────────┘             │    │
 │   │                                                                 │    │
@@ -646,7 +646,7 @@ project/
 │   │   ├── {task_id}/                  Per-task evolution DB (Hyperphase 1 retries)
 │   │   └── hyperphase/{function}/      Per-function DB (Hyperphase N)
 │   └── debug/{slug}.md                 Persistent debug state
-└── opencode.json                       gsd-builder agent config (deployed at setup)
+└── opencode.json                       gk-builder agent config (deployed at setup)
 
 gatekeeper/                             Plugin directory
 ├── .claude-plugin/
@@ -702,7 +702,7 @@ Implementation uses a **Test Dependency Graph** from the task prompt:
 | T3   | tests/flow.test   | T1, T2     | Wire auth into API, test e2e      |
 ```
 
-- **Wave 1**: T1 and T2 launch as fresh gsd-builder opencode agents (concurrent)
+- **Wave 1**: T1 and T2 launch as fresh gk-builder opencode agents (concurrent)
 - **Wave 2**: T3 continues T2's session (most significant dependency) and reviews T1's work
 - Each agent gets exactly 1 test + specific implementation guidance
 - `wait_for_completion()` after each wave; handle `input_required` questions via session continuation
@@ -798,7 +798,7 @@ phases:
 | `phase-assessor` | Pre-phase format contracts + tester guidance (PAG token) | opus | Read, Write, Edit, Bash, Grep, Glob |
 | `tester` | Researches domain, writes comprehensive tests (TDD Red) | sonnet | WebSearch, WebFetch, Context7 |
 | `assessor` | Test quality gate + TQG token -- possibility, comprehensiveness, format compliance | opus | Read, Bash, Grep, Glob (read-only) |
-| `executor` | TDD-first implementation via parallel gsd-builder opencode agents | haiku | opencode MCP, Context7 |
+| `executor` | TDD-first implementation via parallel gk-builder opencode agents | haiku | opencode MCP, Context7 |
 | `verifier` | 16-point code inspection, must_haves verification, Playwright | opus | Read, Bash, Grep, Glob (read-only) |
 | `phase-verifier` | Phase-end integration verification + PVG token | opus | Read, Bash, Grep, Glob (read-only) |
 | **Planning** | | | |
@@ -816,9 +816,9 @@ phases:
 | `codebase-mapper` | Brownfield codebase analysis (7 dimensions) | sonnet | Read, Bash, Grep, Glob |
 | `debugger` | Scientific method debugging with persistent state | sonnet | Read, Write, Edit, Bash |
 
-### gsd-builder (opencode agent)
+### gk-builder (opencode agent)
 
-The opencode MCP server spawns agents using the `gsd-builder` profile defined in `templates/opencode.json`:
+The opencode MCP server spawns agents using the `gk-builder` profile defined in `templates/opencode.json`:
 
 - No web access (websearch/webfetch disabled)
 - **Context7 MCP server** for library documentation research
@@ -833,7 +833,7 @@ templates/opencode.json          Canonical config (checked into gatekeeper repo)
 <project>/opencode.json          Deployed to project root
        |
        v (opencode reads from cwd on spawn)
-opencode run --agent gsd-builder  Spawned by Better-OpenCodeMCP
+opencode run --agent gk-builder  Spawned by Better-OpenCodeMCP
        |
        v (opencode loads "mcp" section from opencode.json)
 Context7 MCP server started       npx -y @upstash/context7-mcp
@@ -862,7 +862,7 @@ Agent dispatch via the OpenCode CLI. Source: `Better-OpenCodeMCP/`.
 
 | Tool | Purpose |
 |------|---------|
-| `launch_opencode(task="...")` | Spawn a fresh gsd-builder agent |
+| `launch_opencode(task="...")` | Spawn a fresh gk-builder agent |
 | `launch_opencode(sessionId="...", task="...")` | Continue an existing agent's session |
 | `launch_opencode(tasks=[...])` | Batch-launch multiple agents |
 | `wait_for_completion(taskIds=[...])` | Block until agents finish |
@@ -949,7 +949,7 @@ gatekeeper/
 │   ├── onboarding.sh                First-run onboarding
 │   └── team-orchestrator-prompt.md  Lead orchestrator template (Sections 0.5-8)
 ├── templates/
-│   ├── opencode.json                gsd-builder agent + Context7 MCP config
+│   ├── opencode.json                gk-builder agent + Context7 MCP config
 │   ├── task-prompt.md               task-{id}.md template
 │   ├── plan-summary.md              Plan summary template
 │   └── codebase/                    7-dimension codebase analysis templates

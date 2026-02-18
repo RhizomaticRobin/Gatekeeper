@@ -82,7 +82,7 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
 3. **Phase 2 — Spawn executor agents** for each task that passed assessment:
    - One `Task(subagent_type='gatekeeper:executor')` per task (model: haiku, no web access)
    - Each executor gets: task prompt + session directory path
-   - Executors read pre-written tests, spawn gsd-builder opencode agents concurrently, run full test suite
+   - Executors read pre-written tests, spawn gk-builder opencode agents concurrently, run full test suite
    - Executors return `IMPLEMENTATION_READY:{task_id}` or `TASK_FAILED:{task_id}:{reason}`
 
 4. **Phase 2.5 — Verification gate** for each task with ready implementation:

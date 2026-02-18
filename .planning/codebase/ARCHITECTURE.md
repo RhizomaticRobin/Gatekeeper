@@ -25,7 +25,7 @@ User
  └─ /cross-team
      ├─ Single task -> Executor (model: opus)
      │    ├─ Writes all tests (TDD Red)
-     │    ├─ Dispatches gsd-builder opencode agents (1 per test, wave-based)
+     │    ├─ Dispatches gk-builder opencode agents (1 per test, wave-based)
      │    ├─ Runs full test suite (TDD Green)
      │    └─ Spawns Verifier (model: opus, read-only) -> PASS/FAIL
      │

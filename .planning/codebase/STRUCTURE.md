@@ -72,7 +72,7 @@ gatekeeper/
 │   ├── build-hooks.js             esbuild bundler for hook scripts
 │   └── team-orchestrator-prompt.md Lead orchestrator template
 ├── templates/                Template files for project initialization
-│   ├── opencode.json         gsd-builder agent config (deployed to project root)
+│   ├── opencode.json         gk-builder agent config (deployed to project root)
 │   ├── task-prompt.md        task-{id}.md template
 │   ├── plan-summary.md       Plan summary template
 │   ├── project.md            .planning/PROJECT.md template

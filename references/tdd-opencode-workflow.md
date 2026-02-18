@@ -95,7 +95,7 @@ opencode_sessions(status="active")
 
 ## Agent Questions During Execution
 
-gsd-builder agents can ask questions when they hit ambiguity. The opencode MCP
+gk-builder agents can ask questions when they hit ambiguity. The opencode MCP
 server detects questions automatically (text ending with "?" + 30s idle) and
 sets the task status to `input_required`.
 
@@ -126,9 +126,9 @@ transitions the task to input_required status. If the executor doesn't
 respond, the agent should make its best guess and document the assumption
 in a code comment.
 
-## gsd-builder Agent
+## gk-builder Agent
 
-The `gsd-builder` agent is a restricted opencode agent optimized for making
+The `gk-builder` agent is a restricted opencode agent optimized for making
 tests pass. It is defined in `templates/opencode.json` and deployed to the
 project root at setup time.
 

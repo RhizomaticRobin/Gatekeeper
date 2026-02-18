@@ -157,7 +157,7 @@ After the re-spawned tester outputs `TESTS_WRITTEN`, spawn assessor again. Maxim
 For each task where assessor returned `ASSESSMENT_PASS`, spawn an executor using `Task(subagent_type='gatekeeper:executor')`.
 Each executor is an **implementation** subagent (model: haiku, no web access) that:
 - Reads pre-written test files (already quality-gate approved)
-- Spawns concurrent gsd-builder opencode agents (one per test file)
+- Spawns concurrent gk-builder opencode agents (one per test file)
 - Waits for completion, answers agent questions
 - Runs full test suite (green phase)
 - Outputs `IMPLEMENTATION_READY:{task_id}`

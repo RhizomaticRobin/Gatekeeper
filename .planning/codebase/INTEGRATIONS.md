@@ -10,8 +10,8 @@
 - **Source:** Git submodule at `Better-OpenCodeMCP/`, GitHub: `RhizomaticRobin/Better-OpenCodeMCP`.
 - **Launch:** `bin/opencode-mcp.sh` auto-clones, installs, builds on first run. Declared in plugin.json as `opencode-mcp`.
 - **Tools exposed:** `launch_opencode(task, sessionId?)`, `wait_for_completion()`, `opencode_sessions`.
-- **Agent profile:** All spawned agents use `gsd-builder` profile (hardcoded server-side). Config deployed from `templates/opencode.json`.
-- **Model:** `zai-coding-plan/glm-4.7` for gsd-builder agents.
+- **Agent profile:** All spawned agents use `gk-builder` profile (hardcoded server-side). Config deployed from `templates/opencode.json`.
+- **Model:** `zai-coding-plan/glm-4.7` for gk-builder agents.
 
 ## Playwright (Visual Verification)
 - **Usage:** Verifier agent uses Playwright browser tools for qualitative verification.

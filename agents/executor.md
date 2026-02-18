@@ -25,7 +25,7 @@ You MUST use the opencode MCP tools for all agent dispatch. There is no `opencod
 
 | Tool | Purpose |
 |------|---------|
-| `launch_opencode(task="...")` | Spawn a fresh gsd-builder agent for a new task |
+| `launch_opencode(task="...")` | Spawn a fresh gk-builder agent for a new task |
 | `launch_opencode(sessionId="...", task="...")` | Continue an existing agent's session (for dependent tests) |
 | `launch_opencode(tasks=[...])` | Launch multiple agents in a single call (array of `{type:"new", task:"..."}` items) |
 | `wait_for_completion(taskIds=[...])` | Block until agents finish; returns accumulated output per task |
@@ -174,7 +174,7 @@ Read the **Test Dependency Graph** from the task prompt. This graph tells you:
    test, do NOT spawn a fresh agent — continue the session of the agent that
    completed the dependency. That agent already has context about the code it
    wrote.
-5. **Agents have Context7 MCP.** Each gsd-builder agent has access to the
+5. **Agents have Context7 MCP.** Each gk-builder agent has access to the
    Context7 MCP server for looking up library documentation. Tell agents to
    research the relevant libraries/APIs via Context7 before implementing.
    Include this in every agent prompt: "Before implementing, use Context7
