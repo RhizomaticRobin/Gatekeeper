@@ -17,7 +17,8 @@ Model profiles control which Claude model each GSD-VGL agent uses. This allows b
 | debugger | sonnet | opus | sonnet | sonnet |
 | codebase-mapper | haiku | sonnet | haiku | haiku |
 | plan-checker | sonnet | sonnet | sonnet | haiku |
-| integration-checker | sonnet | sonnet | sonnet | haiku |
+| phase-assessor | opus | opus | opus | sonnet |
+| phase-verifier | opus | opus | opus | sonnet |
 | evo-scout | haiku | haiku | haiku | haiku |
 | evo-optimizer (island 0,1,2,3) | haiku | sonnet | haiku | haiku |
 | evo-optimizer (island 4) | opus | opus | sonnet | haiku |

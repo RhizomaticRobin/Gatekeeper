@@ -7,11 +7,12 @@ A Claude Code plugin for spec-driven development with cryptographic verifier loo
 Gatekeeper orchestrates software projects through a structured pipeline where no task can be marked complete without passing independent verification:
 
 1. **Plan** (`/quest`) -- Deep discovery + plan.yaml with phases, tasks, must_haves, TDD test specs, and per-task prompt files
-2. **Test** -- Tester agent researches the domain (WebSearch + Context7), writes comprehensive tests, passes `assess_tests` quality gate
-3. **Execute** (`/cross-team`) -- TDD-first implementation with parallel opencode agents, wave-based dispatch, and session continuations
-4. **Verify** -- Independent verifier in a fresh context checks tests, inspects code, and runs Playwright visual verification. A 128-bit cryptographic token is issued only on full pass
-5. **Transition** -- Stop hook validates the token, marks the task complete, and auto-transitions to the next task
-6. **Iterate** -- Failed verifications loop back through execution with evolutionary intelligence informing retry strategies
+2. **Assess Phase** -- Phase assessor creates format contracts (API shapes, data structures, wiring) so independently-written tests produce compatible interfaces
+3. **Test** -- Tester agent researches the domain (WebSearch + Context7), writes comprehensive tests following format contracts, passes assessor quality gate (TQG token)
+4. **Execute** (`/cross-team`) -- TDD-first implementation with parallel opencode agents, wave-based dispatch, and session continuations
+5. **Verify** -- Independent verifier in a fresh context checks tests, inspects code, and runs Playwright visual verification. A 128-bit cryptographic VGL token is issued only on full pass
+6. **Verify Phase** -- Phase verifier checks integration contracts, cross-phase wiring, and end-to-end data flows. PVG token gates the next phase
+7. **Iterate** -- Failed verifications loop back through execution with evolutionary intelligence informing retry strategies
 
 ## Prerequisites
 
@@ -26,9 +27,9 @@ Gatekeeper orchestrates software projects through a structured pipeline where no
 | **OpenCode** | latest | Agent dispatch for gsd-builder agents |
 | **ANTHROPIC_API_KEY** | -- | Auto-detected from subscription or set manually (see below) |
 
-### Authentication for Verification Agents
+### Authentication
 
-The `verify_task` and `assess_tests` MCP tools spawn independent Claude Code subprocesses via the Agent SDK. Authentication is resolved automatically in this order:
+Assessor and verifier agents are spawned as Claude Code Task subagents. Authentication is resolved automatically:
 
 1. **`ANTHROPIC_API_KEY` env var** -- if set, used directly
 2. **OAuth token from `~/.claude/.credentials.json`** -- if you're logged in to Claude Code with a subscription (Pro/Max), the OAuth access token is read and used automatically
@@ -61,7 +62,7 @@ cd gatekeeper
 bash scripts/bootstrap.sh
 ```
 
-The bootstrap script checks prerequisites, builds both MCP servers, installs the plugin to Claude Code, and verifies the installation.
+The bootstrap script checks prerequisites, builds the MCP servers, installs the plugin to Claude Code, and verifies the installation.
 
 ### Manual Install (step by step)
 
@@ -117,16 +118,11 @@ cd ..
 
 Verify: `ls Better-OpenCodeMCP/dist/index.js` should exist.
 
-#### 5. Build the Verifier MCP server
+#### 5. Install the Evolve MCP server dependencies
 
 ```bash
-cd verifier-mcp
-npm install --production=false
-npm run build
-cd ..
+pip install fastmcp
 ```
-
-Verify: `ls verifier-mcp/dist/index.js` should exist.
 
 #### 6. Build hook scripts
 
@@ -182,7 +178,7 @@ Restart Claude Code (or start a new session), then:
 
 You should see:
 - `plugin:gatekeeper:opencode-mcp` -- tools: `launch_opencode`, `wait_for_completion`, `opencode_sessions`
-- `plugin:gatekeeper:verifier-mcp` -- tools: `verify_task`, `assess_tests`
+- `plugin:gatekeeper:evolve-mcp` -- tools: `population_sample`, `evaluate_timing`, `profile_hotspots`, etc.
 
 ```bash
 # Check commands are available
@@ -199,7 +195,7 @@ git pull --recurse-submodules
 
 # Rebuild MCP servers if source changed
 cd Better-OpenCodeMCP && npm install && npm run build && cd ..
-cd verifier-mcp && npm install && npm run build && cd ..
+pip install fastmcp  # for evolve-mcp
 
 # Rebuild hooks if changed
 npm run build:hooks
@@ -323,11 +319,28 @@ Phase 5 ── Confirm & Summarize → "Run /cross-team to start execution"
 │                    Only agent that updates plan.yaml.                    │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
+│   Phase 0.5 ── PHASE ASSESSOR (opus, write access for specs only)       │
+│   ┌─────────────────────────────────────────────────────────────────┐    │
+│   │  Reads all task specs for the phase                             │    │
+│   │  Creates format contracts:                                      │    │
+│   │    contracts/api-contracts.md ── endpoint shapes                 │    │
+│   │    contracts/data-contracts.md ── shared data structures         │    │
+│   │    contracts/wiring-contracts.md ── component connection map     │    │
+│   │    integration-test-spec.md ── integration test specifications   │    │
+│   │    tester-guidance-task-{id}.md ── per-task format guidance      │    │
+│   │                                                                 │    │
+│   │  Output: PHASE_ASSESSMENT_PASS:{phase_id}:{summary}             │    │
+│   │      or: PHASE_ASSESSMENT_FAIL:{phase_id}:{issues}              │    │
+│   └──────────────────────┬──────────────────────────────────────────┘    │
+│                          ▼                                               │
+│   Orchestrator generates PAG_COMPLETE_{32_hex} token                     │
+│                          ▼                                               │
 │   For each unblocked task (parallel when file_scope doesn't overlap):    │
 │                                                                          │
 │   ┌─────────────────────────────────────────────────────────────────┐    │
 │   │ Phase 1 ── TESTER (sonnet, web access)                         │    │
 │   │                                                                 │    │
+│   │  Receives format contracts from phase assessor                  │    │
 │   │  WebSearch ──► domain research                                  │    │
 │   │  Context7  ──► library API docs                                 │    │
 │   │  Write tests ──► confirm TDD Red (tests fail)                   │    │
@@ -342,10 +355,13 @@ Phase 5 ── Confirm & Summarize → "Run /cross-team to start execution"
 │   │  Comprehensiveness ──► happy/error/edge covered?  │ re-spawn │ │    │
 │   │  Quality ──► realistic data? meaningful asserts?  │ tester   │ │    │
 │   │  Alignment ──► every must_have has a test?        │ w/critic │ │    │
-│   │                                                   └────┬─────┘ │    │
-│   │  Output: ASSESSMENT_PASS:{summary}                     │       │    │
+│   │  Format contracts ──► matches phase assessor?     └────┬─────┘ │    │
+│   │                                                        │       │    │
+│   │  Output: ASSESSMENT_PASS:{tqg_token}:{summary}         │       │    │
 │   │      or: ASSESSMENT_FAIL:{issues} ─────────────────────┘       │    │
 │   └──────────────────────┬──────────────────────────────────────────┘    │
+│                          ▼                                               │
+│   Orchestrator writes TQG token to assessor-token.secret                 │
 │                          ▼                                               │
 │   ┌─────────────────────────────────────────────────────────────────┐    │
 │   │ Phase 2 ── EXECUTOR (haiku, no web)                             │    │
@@ -397,8 +413,22 @@ Phase 5 ── Confirm & Summarize → "Run /cross-team to start execution"
 │   │  plan_utils.py --complete-task {task_id} --token {vgl_token}     │    │
 │   └──────────────────────┬──────────────────────────────────────────┘    │
 │                          ▼                                               │
-│   Integration checkpoint? ──► spawn integration-checker if phase done    │
-│   Newly unblocked tasks? ──► dispatch next tester → assessor → ...       │
+│   ┌─────────────────────────────────────────────────────────────────┐    │
+│   │ Phase Verification Gate (when last task in phase completes)      │    │
+│   │                                                                  │    │
+│   │ PHASE VERIFIER (opus, read-only)                                 │    │
+│   │  Reads integration specs from phase assessor                     │    │
+│   │  Verifies contract compliance (API, data, wiring)                │    │
+│   │  Runs integration tests from spec                                │    │
+│   │  Checks cross-phase wiring + end-to-end data flow                │    │
+│   │                                                                  │    │
+│   │  Output: PHASE_VERIFICATION_PASS:{phase_id}                      │    │
+│   │      or: PHASE_VERIFICATION_FAIL:{phase_id}:{critique}           │    │
+│   │                                                                  │    │
+│   │  On PASS: orchestrator generates PVG_COMPLETE_{32_hex} token     │    │
+│   └──────────────────────┬──────────────────────────────────────────┘    │
+│                          ▼                                               │
+│   Newly unblocked tasks? ──► next phase starts at Phase 0.5             │
 │                                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
@@ -475,10 +505,12 @@ Done. Results in hyperphase-results.md
 │ plan-checker       │ sonnet │ green   │ Pre-execution 6-dimension QA gate            │
 │                    │        │         │                                              │
 │ HYPERPHASE 1       │        │         │                                              │
+│ phase-assessor     │ opus   │ magenta │ Pre-phase format contracts + tester guidance  │
 │ tester             │ sonnet │ cyan    │ Research + write tests (TDD Red)             │
-│ assessor           │ opus   │ magenta │ Test quality gate (read-only)                │
+│ assessor           │ opus   │ magenta │ Test quality gate + TQG token (read-only)    │
 │ executor           │ haiku  │ yellow  │ TDD implementation via opencode agents       │
-│ verifier           │ opus   │ green   │ 16-point code inspection + token (read-only) │
+│ verifier           │ opus   │ green   │ 16-point code inspection (read-only)         │
+│ phase-verifier     │ opus   │ green   │ Phase-end integration verification + PVG     │
 │                    │        │         │                                              │
 │ HYPERPHASE N       │        │         │                                              │
 │ evo-scout          │ haiku  │ cyan    │ cProfile hotspot identification              │
@@ -486,7 +518,6 @@ Done. Results in hyperphase-results.md
 │                    │        │         │ *island 4 uses opus                          │
 │                    │        │         │                                              │
 │ SUPPORT AGENTS     │        │         │                                              │
-│ integration-checker│ sonnet │ green   │ Cross-phase wiring verification              │
 │ project-researcher │ sonnet │ blue    │ Domain research (WebSearch)                  │
 │ phase-researcher   │ sonnet │ blue    │ Phase-specific technical deep dives          │
 │ codebase-mapper    │ sonnet │ blue    │ 7-dimension brownfield analysis              │
@@ -497,18 +528,24 @@ Done. Results in hyperphase-results.md
 ### Signal Flow
 
 ```
+Phase Assessor ── PHASE_ASSESSMENT_PASS:{phase_id}:{summary} ──► generate PAG token, spawn Testers
+               └─ PHASE_ASSESSMENT_FAIL:{phase_id}:{issues} ──► fix and retry
+
 Tester ─── TESTS_WRITTEN:{id} ───────────────► Orchestrator ──► spawn Assessor
        └── TESTS_WRITE_FAILED:{id}:{reason} ──► log, skip
 
-Assessor ── ASSESSMENT_PASS:{summary} ────────► Orchestrator ──► spawn Executor
-         └─ ASSESSMENT_FAIL:{issues} ─────────► re-spawn Tester (max 3)
+Assessor ── ASSESSMENT_PASS:{tqg_token}:{summary} ──► write TQG token, spawn Executor
+         └─ ASSESSMENT_FAIL:{issues} ────────────────► re-spawn Tester (max 3)
 
 Executor ── IMPLEMENTATION_READY:{id} ────────► Orchestrator ──► spawn Verifier
          └─ TASK_FAILED:{id}:{reason} ────────► log, retry or skip
 
-Verifier ── VERIFICATION_PASS ────────────────► generate token, mark complete
+Verifier ── VERIFICATION_PASS ────────────────► generate VGL token, mark complete
          └─ VERIFICATION_FAIL:{critique} ────► test_issue: re-spawn Tester (reassess)
                                                impl_issue: re-spawn Executor (max 3)
+
+Phase Verifier ── PHASE_VERIFICATION_PASS:{phase_id} ──► generate PVG token, next phase
+               └─ PHASE_VERIFICATION_FAIL:{phase_id}:{critique} ──► fix CRITICAL issues
 
 Evo-scout ── SCOUT_DONE:{module}:{json} ─────► rank, select top-K
 
@@ -541,11 +578,30 @@ Evo-optimizer ── OPTIMIZATION_PASS:{island}:{speedup}:{iter} ──► migra
 │  └─ Active when: .claude/verifier-loop.local.md exists          │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
-│  CRYPTOGRAPHIC TOKEN VALIDATION                                 │
+│  CRYPTOGRAPHIC TOKEN CHAIN (4 gates per phase)                  │
+│                                                                 │
+│  PAG ── Phase Assessment Gate                                   │
+│  ├─ Format: PAG_COMPLETE_{32_hex_chars} (128-bit)               │
+│  ├─ Generated: by orchestrator after PHASE_ASSESSMENT_PASS      │
+│  └─ Stored: .claude/vgl-sessions/phase-{id}/pag-token.secret    │
+│                                                                 │
+│  TQG ── Test Quality Gate                                       │
+│  ├─ Format: TQG_COMPLETE_{32_hex_chars} (128-bit)               │
+│  ├─ Generated: by assessor agent, included in ASSESSMENT_PASS   │
+│  └─ Stored: .claude/vgl-sessions/task-{id}/assessor-token.secret│
+│                                                                 │
+│  VGL ── Verifier-Gated Loop                                     │
 │  ├─ Format: VGL_COMPLETE_{32_hex_chars} (128-bit)               │
 │  ├─ Generated: by orchestrator after VERIFICATION_PASS          │
 │  ├─ Stored: .claude/vgl-sessions/task-{id}/verifier-token.secret│
 │  └─ Validated: plan_utils.py --complete-task --token             │
+│                                                                 │
+│  PVG ── Phase Verification Gate                                  │
+│  ├─ Format: PVG_COMPLETE_{32_hex_chars} (128-bit)               │
+│  ├─ Generated: by orchestrator after PHASE_VERIFICATION_PASS    │
+│  └─ Stored: .claude/vgl-sessions/phase-{id}/pvg-token.secret    │
+│                                                                 │
+│  Token chain per task: PAG → TQG → VGL → PVG                    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -562,9 +618,20 @@ project/
 │   │       └── task-1.2.md
 │   ├── plans/
 │   │   └── plan-summary.md             Condensed plan overview
-│   ├── vgl-sessions/                   Per-task VGL state (during execution)
+│   ├── vgl-sessions/                   Per-task/phase VGL state (during execution)
+│   │   ├── phase-1/
+│   │   │   ├── pag-token.secret        PAG token (phase assessment gate)
+│   │   │   ├── pvg-token.secret        PVG token (phase verification gate)
+│   │   │   └── integration-specs/      Format contracts from phase assessor
+│   │   │       ├── contracts/
+│   │   │       │   ├── api-contracts.md
+│   │   │       │   ├── data-contracts.md
+│   │   │       │   └── wiring-contracts.md
+│   │   │       ├── integration-test-spec.md
+│   │   │       └── tester-guidance-task-{id}.md
 │   │   └── task-1.1/
-│   │       ├── verifier-token.secret   Cryptographic completion token
+│   │       ├── verifier-token.secret   VGL token (task verification)
+│   │       ├── assessor-token.secret   TQG token (test quality gate)
 │   │       └── state.md                Session state
 │   ├── vgl-team-active                 Marker: team orchestration running
 │   └── plan-locked                     Marker: plan files locked
@@ -584,7 +651,7 @@ project/
 gatekeeper/                             Plugin directory
 ├── .claude-plugin/
 │   └── plugin.json                     MCP servers: opencode-mcp, evolve-mcp
-├── agents/           (16)              Agent definitions (.md with frontmatter)
+├── agents/           (17)              Agent definitions (.md with frontmatter)
 ├── commands/         (11)              Slash commands
 ├── hooks/            (7)               Event hooks + hooks.json
 ├── scripts/          (23)              CLI tools, setup scripts, evo engine
@@ -608,7 +675,7 @@ The executor cannot complete a task. Only the verifier can, and it runs in an in
 
 The token is written to `verifier-token.secret` and validated by `plan_utils.py --complete-task`. No valid token = task stays incomplete.
 
-### Test Quality Gate (Assessor)
+### Test Quality Gate (Assessor + TQG Token)
 
 Before implementation begins, the tester agent's tests must pass an independent opus-level assessment:
 
@@ -617,8 +684,9 @@ Before implementation begins, the tester agent's tests must pass an independent 
 - Is every must_have represented by test assertions?
 - Are assertions meaningful (not trivial `expect(true)`)?
 - Is test data realistic (not "foo", "bar")?
+- Do tests comply with format contracts from the phase assessor?
 
-The assessor returns PASS/FAIL with specific issues. Tests are iteratively fixed until they pass (max 3 rounds).
+On pass, the assessor generates a cryptographic TQG token (`TQG_COMPLETE_[32-hex]`) included in its output signal. The orchestrator extracts and stores it in `assessor-token.secret`. On fail, tests are iteratively fixed (max 3 rounds).
 
 ### TDD-First with Wave Dispatch
 
@@ -647,9 +715,13 @@ Verification checks three levels derived from the project goal:
 - **Artifacts** -- Files with real implementation, not stubs ("src/auth/route.ts exports POST handler")
 - **Key Links** -- Critical connections between components ("Login form POST /api/auth -> session cookie -> dashboard reads session")
 
-### Integration Checkpoints
+### Phase Gates (Assessor + Verifier)
 
-Phases in plan.yaml can set `integration_check: true`. When the last task in such a phase completes, an integration-checker agent is spawned before the next phase begins. It verifies cross-phase wiring: APIs consumed, data flows end-to-end, type contracts, no dead endpoints.
+Each phase is bookended by two phase-level gates:
+
+**Phase Assessor** (start of phase): Before testers run, a phase assessor reads all task specs and creates format contracts — API shapes, shared data structures, wiring maps, and per-task tester guidance. This ensures independently-written tests produce compatible interfaces.
+
+**Phase Verifier** (end of phase): When all tasks in a phase with `integration_check: true` pass verification, a phase verifier checks that integration contracts are satisfied, cross-phase wiring is intact, and end-to-end data flows work. Issues are categorized as CRITICAL (blocks next phase) or WARNING (can proceed).
 
 ### Evolutionary Intelligence
 
@@ -723,10 +795,12 @@ phases:
 | Agent | Role | Model | Key Tools |
 |-------|------|-------|-----------|
 | **Hyperphase 1** | | | |
+| `phase-assessor` | Pre-phase format contracts + tester guidance (PAG token) | opus | Read, Write, Edit, Bash, Grep, Glob |
 | `tester` | Researches domain, writes comprehensive tests (TDD Red) | sonnet | WebSearch, WebFetch, Context7 |
-| `assessor` | Test quality gate -- possibility, comprehensiveness, alignment | opus | Read, Bash, Grep, Glob (read-only) |
+| `assessor` | Test quality gate + TQG token -- possibility, comprehensiveness, format compliance | opus | Read, Bash, Grep, Glob (read-only) |
 | `executor` | TDD-first implementation via parallel gsd-builder opencode agents | haiku | opencode MCP, Context7 |
 | `verifier` | 16-point code inspection, must_haves verification, Playwright | opus | Read, Bash, Grep, Glob (read-only) |
+| `phase-verifier` | Phase-end integration verification + PVG token | opus | Read, Bash, Grep, Glob (read-only) |
 | **Planning** | | | |
 | `high-level-planner` | Designs phase outline from discovery + recon | opus | Read, Write, Bash |
 | `plan-refiner` | 7-dimension iterative outline improvement | opus | Read, Write, Bash |
@@ -737,7 +811,6 @@ phases:
 | `evo-scout` | cProfile hotspot identification | haiku | Read, Bash, evolve-mcp |
 | `evo-optimizer` | Island-based speed optimization (5 parallel islands) | haiku/opus | Bash, evolve-mcp (all tools) |
 | **Support** | | | |
-| `integration-checker` | Cross-phase wiring verification at phase boundaries | sonnet | Read, Bash, Grep, Glob |
 | `project-researcher` | Domain research -- tech stacks, patterns, pitfalls | sonnet | WebSearch, WebFetch |
 | `phase-researcher` | Phase-specific technical deep dives -- APIs, libraries | sonnet | WebSearch, WebFetch |
 | `codebase-mapper` | Brownfield codebase analysis (7 dimensions) | sonnet | Read, Bash, Grep, Glob |
@@ -832,7 +905,7 @@ gatekeeper/
 ├── evolve-mcp/                      FastMCP Python server (16 tools)
 │   ├── server.py                    MCP tool definitions
 │   └── requirements.txt             fastmcp dependency
-├── agents/                          16 agent definitions (.md with frontmatter)
+├── agents/                          17 agent definitions (.md with frontmatter)
 ├── bin/
 │   ├── install.js                   Plugin installer (npx gatekeeper)
 │   ├── install-lib.js               Installer library (copy, verify, setup)
@@ -874,7 +947,7 @@ gatekeeper/
 │   ├── resilience.py                Circuit breaker / stuck detection
 │   ├── run_history.py               Execution history tracking
 │   ├── onboarding.sh                First-run onboarding
-│   └── team-orchestrator-prompt.md  Lead orchestrator template (Sections 1-8)
+│   └── team-orchestrator-prompt.md  Lead orchestrator template (Sections 0.5-8)
 ├── templates/
 │   ├── opencode.json                gsd-builder agent + Context7 MCP config
 │   ├── task-prompt.md               task-{id}.md template

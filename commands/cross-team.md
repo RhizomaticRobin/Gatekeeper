@@ -53,7 +53,15 @@ prompt_template = open('${CLAUDE_PLUGIN_ROOT}/scripts/team-orchestrator-prompt.m
 
 ### Orchestration Workflow
 
-The per-task flow is: **Tester** (writes tests) → **Assessor** (evaluates quality) → **Executor** (implements to pass tests) → **Verifier** (inspects independently) → complete.
+The per-phase flow is: **Phase Assessor** (defines integration contracts + format specs) → per-task: **Tester** → **Assessor** (TQG token) → **Executor** → **Verifier** (VGL token) → all tasks done → **Phase Verifier** (PVG token) → next phase.
+
+0. **Phase 0.5 — Phase assessment gate** (once per phase, before testers):
+   - One `Task(subagent_type='gatekeeper:phase-assessor')` per phase (model: opus, HAS write access for specs)
+   - Reads all task specs for the phase, identifies cross-task integration points
+   - Creates format contracts (API shapes, data structures, wiring specs)
+   - Writes per-task tester guidance files with exact interface shapes
+   - Returns `PHASE_ASSESSMENT_PASS:{phase_id}:{summary}` with PAG token or `PHASE_ASSESSMENT_FAIL`
+   - On PASS: orchestrator generates `PAG_COMPLETE_{hex}` token, proceeds to spawn testers with format guidance injected
 
 1. **Phase 1 — Spawn tester agents** for each dispatched task:
    - One `Task(subagent_type='gatekeeper:tester')` per task (model: sonnet, HAS web access)
@@ -66,7 +74,9 @@ The per-task flow is: **Tester** (writes tests) → **Assessor** (evaluates qual
    - One `Task(subagent_type='gatekeeper:assessor')` per task (model: opus, NO write access)
    - Each assessor gets: task spec + session directory path
    - Assessors check test possibility, comprehensiveness, quality, and must_haves alignment
-   - Assessors return `ASSESSMENT_PASS:{summary}` or `ASSESSMENT_FAIL:{issues}`
+   - Assessors also verify tests comply with format contracts from the phase assessor
+   - Assessors return `ASSESSMENT_PASS:{tqg_token}:{summary}` or `ASSESSMENT_FAIL:{issues}`
+   - On PASS: orchestrator extracts TQG token, writes to `assessor-token.secret`
    - On FAIL: re-spawn tester with critique (max 3 rounds)
 
 3. **Phase 2 — Spawn executor agents** for each task that passed assessment:
@@ -100,15 +110,17 @@ The per-task flow is: **Tester** (writes tests) → **Assessor** (evaluates qual
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id} --token {vgl_token}
    ```
 
-7. **Check for integration checkpoints** after marking a task complete:
-   - If the completed task was the last task in its phase, check if that phase has `integration_check: true`
-   - If so, spawn an integration-checker before dispatching next-phase tasks:
+7. **Phase verification gate** after marking a task complete:
+   - If the completed task was the last task in its phase AND the phase has `integration_check: true`:
+   - Spawn a phase-verifier (model: opus, read-only) to verify integration contracts and cross-phase wiring:
      ```
-     Task(subagent_type='gatekeeper:integration-checker',
-          prompt='Verify integration between all completed phases. Check cross-phase links, data flows, type contracts, and dead endpoints. Report PASS or NEEDS_FIXES with details.')
+     Task(subagent_type='gatekeeper:phase-verifier', model='opus',
+          prompt='phase_id: {id}, integration_specs_dir: .claude/plan/phases/phase-{id}/integration-specs/, ...')
      ```
-   - If the checker reports NEEDS_FIXES with CRITICAL issues, fix them before spawning next-phase executors
+   - On `PHASE_VERIFICATION_PASS:{phase_id}`: orchestrator generates `PVG_COMPLETE_{hex}` token, writes to `phase-verifier-token.secret`
+   - On `PHASE_VERIFICATION_FAIL` with CRITICAL issues: fix before next phase
    - WARNING-level issues can be noted and addressed later
+   - Next phase starts with Phase 0.5 (phase assessor) before testers
 
 8. **Check for newly unblocked tasks** after each completion:
    ```bash
@@ -138,4 +150,5 @@ The per-task flow is: **Tester** (writes tests) → **Assessor** (evaluates qual
 - If an executor fails 3 times, skip the task and note it for the user
 - On verify failure, check category (test_issue vs impl_issue) to decide which agent to re-spawn
 - Verify must_haves (truths, artifacts, key_links) are satisfied before marking complete
-- The orchestrator generates and writes cryptographic tokens — no agent handles tokens
+- The orchestrator generates VGL/PAG/PVG tokens; the assessor generates TQG tokens in its output signal
+- Token chain per task: PAG (phase start) → TQG (test quality) → VGL (task verification) → PVG (phase end)
