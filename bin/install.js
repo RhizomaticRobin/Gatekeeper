@@ -165,7 +165,7 @@ function registerMarketplace(claudeDir, marketplaceDir) {
   }
 
   known['gatekeeper'] = {
-    source: { source: 'local' },
+    source: { source: 'github', repo: 'RhizomaticRobin/gsd-vgl' },
     installLocation: marketplaceDir,
     lastUpdated: new Date().toISOString(),
   };
