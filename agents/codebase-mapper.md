@@ -1,7 +1,7 @@
 ---
 name: codebase-mapper
 description: Codebase analysis agent. Maps existing codebases for brownfield projects — stack, architecture, structure, conventions, testing, integrations, concerns.
-model: sonnet
+model: haiku
 tools: Read, Bash, Glob, Grep
 disallowedTools: Write, Edit, WebFetch, WebSearch, Task
 color: blue
