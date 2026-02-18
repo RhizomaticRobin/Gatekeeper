@@ -5,7 +5,6 @@
 # When a Gatekeeper loop is active, block all gatekeeper skills except /cross-team.
 # This prevents the agent from:
 #   - Running /quest (would overwrite the plan mid-execution)
-#   - Running /bridge (would start a competing non-plan loop)
 #   - Running /run-away (only the user should cancel)
 #   - Running /help (unnecessary noise during loop)
 #
@@ -36,17 +35,12 @@ if [[ "$BARE_SKILL" == "cross-team" ]]; then
   exit 0
 fi
 
-# Allow /progress through — useful for status checks during loop
-if [[ "$BARE_SKILL" == "progress" ]]; then
-  exit 0
-fi
-
 # Block all other gatekeeper skills during active Gatekeeper loop
 case "$BARE_SKILL" in
-    quest|new-project|bridge|run-away|research|map-codebase|settings|verify-milestone|debug|help)
+    quest|new-project|run-away|research|map-codebase|settings|help)
     echo "BLOCKED: /$SKILL is not available during an active Gatekeeper loop." >&2
     echo "The Gatekeeper loop is running — focus on the current task." >&2
-    echo "Only /cross-team and /progress are allowed. To cancel, the USER must run /run-away." >&2
+    echo "Only /cross-team is allowed. To cancel, the USER must run /run-away." >&2
     exit 2
     ;;
 esac

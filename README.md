@@ -230,8 +230,8 @@ claude plugin enable gatekeeper
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              USER COMMANDS                                  │
-│  /quest          /cross-team        /hyperphase       /bridge  /debug ...   │
-│  (planning)      (execution)        (optimization)    (ad-hoc) (debug)      │
+│  /quest          /cross-team        /hyperphase                             │
+│  (planning)      (execution)        (optimization)                         │
 └──────┬──────────────┬───────────────────┬──────────────────────────────────-─┘
        │              │                   │
        ▼              ▼                   ▼
@@ -574,7 +574,7 @@ Evo-optimizer ── OPTIMIZATION_PASS:{island}:{speedup}:{iter} ──► migra
 │  └─ Active when: .claude/gk-team-active exists                 │
 │                                                                 │
 │  guard-skills.sh (PreToolUse: Skill)                            │
-│  ├─ Blocks: all /gatekeeper:* except /cross-team, /progress     │
+│  ├─ Blocks: all /gatekeeper:* except /cross-team                │
 │  └─ Active when: .claude/verifier-loop.local.md exists          │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
@@ -780,12 +780,8 @@ phases:
 | `/quest` | Plan a project -- 5-phase discovery that generates plan.yaml + task prompt files |
 | `/cross-team` | Hyperphase 1 -- execute tasks with TDD + Gatekeeper loop (single-task or parallel team orchestration) |
 | `/hyperphase` | Hyperphase N -- evolutionary optimization of hot-spot functions after verification |
-| `/bridge` | Standalone Gatekeeper loop for ad-hoc tasks outside a plan |
 | `/research` | Domain research before planning (parallel researcher agents) |
 | `/map-codebase` | Analyze existing codebase (7-dimension brownfield analysis) |
-| `/progress` | Project status dashboard with metrics |
-| `/verify-milestone` | Integration verification across phases |
-| `/debug` | Systematic debugging with persistent state (scientific method) |
 | `/settings` | Configure model profiles and preferences |
 | `/run-away` | Cancel the active Gatekeeper loop |
 | `/help` | Command reference |
@@ -936,7 +932,6 @@ gatekeeper/
 │   ├── get-unblocked-tasks.py       Find all unblocked tasks
 │   ├── check-file-conflicts.py      Detect file scope overlaps
 │   ├── next-task.py                 Find next unblocked task
-│   ├── parse-args.py                Argument parser for /bridge
 │   ├── build-hooks.js               esbuild bundler for hook scripts
 │   ├── evo_db.py                    MAP-Elites population database
 │   ├── evo_eval.py                  Cascade evaluation + timing

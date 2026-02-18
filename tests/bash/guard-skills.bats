@@ -30,15 +30,7 @@ teardown() {
     assert_success
 }
 
-# --- Test 3: Gatekeeper active, progress allowed ---
-@test "Gatekeeper active — progress allowed (exit 0)" {
-    mkdir -p .claude
-    touch .claude/verifier-loop.local.md
-    run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:progress"}}'"'"' | bash "'"$HOOK"'"'
-    assert_success
-}
-
-# --- Test 4: Gatekeeper active, quest blocked (exit 2) ---
+# --- Test 3: Gatekeeper active, quest blocked (exit 2) ---
 @test "Gatekeeper active — quest blocked (exit 2 with BLOCKED)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
@@ -47,15 +39,7 @@ teardown() {
     assert_output --partial "BLOCKED"
 }
 
-# --- Test 5: Gatekeeper active, bridge blocked ---
-@test "Gatekeeper active — bridge blocked (exit 2)" {
-    mkdir -p .claude
-    touch .claude/verifier-loop.local.md
-    run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:bridge"}}'"'"' | bash "'"$HOOK"'" 2>&1'
-    assert_failure 2
-}
-
-# --- Test 6: Gatekeeper active, run-away blocked ---
+# --- Test 4: Gatekeeper active, run-away blocked ---
 @test "Gatekeeper active — run-away blocked (exit 2)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md

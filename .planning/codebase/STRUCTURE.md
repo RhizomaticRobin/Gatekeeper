@@ -61,7 +61,6 @@ gatekeeper/
 │   ├── next-task.py               Find next unblocked task
 │   ├── get-unblocked-tasks.py     Find all unblocked tasks
 │   ├── check-file-conflicts.py    Detect file scope overlaps for safe parallelism
-│   ├── parse-args.py              Argument parser for /bridge
 │   ├── evo_db.py                  MAP-Elites population database
 │   ├── evo_eval.py                Cascade evaluation (3-stage: collect, partial, full)
 │   ├── evo_prompt.py              Evolution prompt builder (5-section markdown)

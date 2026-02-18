@@ -26,12 +26,6 @@ setup() {
     [ "$count" -eq 0 ]
 }
 
-@test "help_bridge_correct: help.md describes bridge as standalone Gatekeeper loop" {
-    # The bridge description should contain "standalone" somewhere in help.md
-    run grep -i "standalone" "$PLUGIN_ROOT/commands/help.md"
-    assert_success
-}
-
 @test "execute_phase_no_ralph: execute-phase.md does not reference ralph" {
     local count
     count=$(grep -ci "ralph" "$PLUGIN_ROOT/workflows/execute-phase.md" || true)

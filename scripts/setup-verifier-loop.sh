@@ -85,7 +85,7 @@ else
 Gatekeeper - Gatekeeper loop with TDD + opencode MCP
 
 USAGE:
-  /bridge [PROMPT...] [OPTIONS]
+  /cross-team [PROMPT...] [OPTIONS]
 
 ARGUMENTS:
   PROMPT...    Task description (can be multiple words)
@@ -156,7 +156,7 @@ HELP_EOF
 
   if [[ -z "$PROMPT" ]]; then
     echo "Error: No prompt provided" >&2
-    echo "Try: Pass a prompt as positional arguments, e.g.: /bridge 'Implement feature X'." >&2
+    echo "Try: Pass a prompt as positional arguments, e.g.: /cross-team 'Implement feature X'." >&2
     exit 1
   fi
 

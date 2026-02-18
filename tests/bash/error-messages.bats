@@ -135,9 +135,8 @@ EOF
     assert_failure 2
     # Must mention BLOCKED
     echo "$output" | grep -q "BLOCKED"
-    # Must list available alternatives: /cross-team and /progress
+    # Must list available alternative: /cross-team
     echo "$output" | grep -q "/cross-team"
-    echo "$output" | grep -q "/progress"
 }
 
 # =============================================================================

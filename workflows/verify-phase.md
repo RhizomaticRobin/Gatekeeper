@@ -1,7 +1,7 @@
 <purpose>
 Verify phase goal achievement through goal-backward analysis. Check that the codebase actually delivers what the phase promised, not just that tasks were completed.
 
-This workflow is executed by the verifier agent, either spawned from execute-phase.md or invoked directly via /verify-milestone.
+This workflow is executed by the verifier agent, spawned from execute-phase.md.
 </purpose>
 
 <core_principle>
@@ -555,7 +555,7 @@ Fill report sections:
 </step>
 
 <step name="return_to_orchestrator">
-**Return results to execute-phase orchestrator or /verify-milestone caller.**
+**Return results to execute-phase orchestrator.**
 
 **Return format:**
 
@@ -583,7 +583,7 @@ All must-haves verified. Phase goal achieved. Ready to proceed.
 
 ### Gatekeeper Loop
 
-Run `/verify-milestone` after fixes to re-verify.
+Run `/cross-team` after fixes to re-verify.
 
 {If human_needed:}
 ### Human Verification Required
@@ -614,5 +614,5 @@ The orchestrator will:
 - [ ] Overall status determined
 - [ ] Fix tasks generated (if gaps_found)
 - [ ] Verification report created with complete results
-- [ ] Results returned to orchestrator or /verify-milestone caller
+- [ ] Results returned to orchestrator
 </success_criteria>

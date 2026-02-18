@@ -392,7 +392,7 @@ The verifier MCP server handles everything internally — loading the verifier p
 |--------|--------|
 | `passed` | Continue to update_plan |
 | `human_needed` | Present items to user, get approval or feedback |
-| `gaps_found` | Present gap summary, offer `/verify-milestone` for deeper check |
+| `gaps_found` | Present gap summary, create fix tasks for next cross-team run |
 
 **If passed:**
 
@@ -439,10 +439,6 @@ Present gaps and offer next command:
 
 **Plan gap closure** -- create additional tasks to complete the phase
 
-`/verify-milestone`
-
----
-
 **Also available:**
 - Review verification report for full details
 - `/cross-team` -- coordinate cross-cutting fixes or parallel execution
@@ -480,8 +476,6 @@ Plan and execute next phase.
 MILESTONE COMPLETE!
 
 All {N} phases executed.
-
-`/verify-milestone`
 ```
 </step>
 
