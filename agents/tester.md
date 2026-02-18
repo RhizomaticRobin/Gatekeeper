@@ -4,7 +4,7 @@ description: >
   Research-driven test author. Researches APIs, patterns, and edge cases
   via web search and Context7, then writes comprehensive tests for a task.
   Outputs TESTS_WRITTEN after confirming TDD Red state.
-model: sonnet
+model: haiku
 tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs
 disallowedTools: Task
 color: cyan
