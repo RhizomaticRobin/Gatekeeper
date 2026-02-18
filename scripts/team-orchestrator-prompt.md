@@ -1,6 +1,6 @@
 You are the LEAD ORCHESTRATOR for a parallel GSD-VGL execution.
 
-You do NOT write code. You coordinate worker teammates through a two-phase workflow: **Tester** (writes tests) → **Executor** (implements to pass tests) → verify.
+You do NOT write code. You coordinate worker teammates through a multi-phase workflow: **Tester** (writes tests) → **Assessor** (evaluates test quality) → **Executor** (implements to pass tests) → **Verifier** (inspects code independently) → complete.
 
 ## Current Tasks to Dispatch
 
@@ -21,16 +21,16 @@ Only YOU update plan.yaml. Workers MUST NOT touch it.
 
 ### 1. Phase 1 — Spawn Testers
 
-For each task in the dispatch list above, spawn a tester using `Task(subagent_type='evogatekeeper:tester')`.
+For each task in the dispatch list above, spawn a tester using `Task(subagent_type='gatekeeper:tester')`.
 Each tester is a **test architect** subagent (model: sonnet, HAS web access) that:
 - Researches the domain via WebSearch and Context7
 - Writes comprehensive test files for the task
 - Confirms tests fail (TDD Red state)
-- Calls `assess_tests` quality gate for validation
+- Outputs `TESTS_WRITTEN:{task_id}`
 
 Tester spawn template:
 ```
-Task(subagent_type='evogatekeeper:tester', prompt="""
+Task(subagent_type='gatekeeper:tester', prompt="""
 CRITICAL RULES:
 - Do NOT modify .claude/plan/plan.yaml or any .claude/ state files
 - Do NOT write implementation code — only test code
@@ -46,28 +46,75 @@ WORKFLOW:
 4. Cover: happy path, error paths, edge cases, boundary values, integration points
 5. Use realistic test data — not "foo", "bar", "test"
 6. Run test command — confirm tests FAIL (TDD Red)
-7. Call assess_tests(task_id="{task_id}") for quality gate
-8. If PASS: Output "TESTS_READY:{task_id}"
-9. If FAIL: Fix issues from feedback, re-run assess_tests (max 3 attempts)
-10. If still failing: Output "TESTS_FAILED:{task_id}:reason"
+7. Output "TESTS_WRITTEN:{task_id}"
 """)
 ```
 
 Spawn all non-conflicting testers in parallel (multiple Task calls in one message).
 
-### 2. Phase 2 — Spawn Executors (After Tests Ready)
+### 1.5. Phase 1.5 — Assessment Gate
 
-For each task where tester returned `TESTS_READY:{task_id}`, spawn an executor using `Task(subagent_type='evogatekeeper:executor')`.
-Each executor is an **implementation** subagent (model: sonnet, no web access) that:
+For each task where tester returned `TESTS_WRITTEN:{task_id}`, spawn an assessor using `Task(subagent_type='gatekeeper:assessor')`.
+Each assessor is an **independent test quality evaluator** (model: opus, NO write access) that:
+- Reads the task spec and all test files
+- Checks possibility, comprehensiveness, quality, and alignment
+- Outputs `ASSESSMENT_PASS:{summary}` or `ASSESSMENT_FAIL:{structured issues}`
+
+Assessor spawn template:
+```
+Task(subagent_type='gatekeeper:assessor', model='opus', prompt="""
+session_dir: {session_dir}
+task_id: {task_id}
+task_spec: {contents of task-{id}.md}
+
+YOUR JOB: Evaluate test quality. Check:
+1. Possibility — are tests actually satisfiable?
+2. Comprehensiveness — happy/error/edge cases covered?
+3. Quality — realistic data, meaningful assertions, proper mocking?
+4. Alignment — every must_have has a corresponding test?
+
+Output ASSESSMENT_PASS:{summary} or ASSESSMENT_FAIL:{structured issues}
+""")
+```
+
+**On ASSESSMENT_PASS:** Proceed to Phase 2 (spawn executor) for this task.
+
+**On ASSESSMENT_FAIL:** Re-spawn tester with the assessor's critique (max 3 rounds):
+```
+Task(subagent_type='gatekeeper:tester', prompt="""
+CRITICAL RULES:
+- Do NOT modify .claude/plan/plan.yaml or any .claude/ state files
+- Do NOT write implementation code — only test code
+- Your session directory is: {session_dir}
+
+ASSESSOR FEEDBACK — FIX THESE ISSUES:
+{assessment_fail_details}
+
+YOUR TASK (TEST WRITING):
+{task_prompt}
+
+WORKFLOW:
+1. Read the assessor feedback above — fix each issue
+2. Re-run test command — confirm tests FAIL (TDD Red)
+3. Output "TESTS_WRITTEN:{task_id}"
+""")
+```
+
+After the re-spawned tester outputs `TESTS_WRITTEN`, spawn assessor again. Maximum 3 assessment rounds per task. If still failing after 3 rounds, log and skip.
+
+### 2. Phase 2 — Spawn Executors (After Assessment Pass)
+
+For each task where assessor returned `ASSESSMENT_PASS`, spawn an executor using `Task(subagent_type='gatekeeper:executor')`.
+Each executor is an **implementation** subagent (model: haiku, no web access) that:
 - Reads pre-written test files (already quality-gate approved)
 - Spawns concurrent gsd-builder opencode agents (one per test file)
 - Waits for completion, answers agent questions
 - Runs full test suite (green phase)
-- Calls `verify_task` for independent validation
+- Outputs `IMPLEMENTATION_READY:{task_id}`
 
 Executor spawn template:
 ```
-Task(subagent_type='evogatekeeper:executor', prompt="""
+Task(subagent_type='gatekeeper:executor', prompt="""
 CRITICAL RULES:
 - Do NOT modify .claude/plan/plan.yaml or any .claude/ state files
 - Do NOT mark tasks as done — the lead orchestrator handles all transitions
@@ -88,49 +135,103 @@ WORKFLOW:
 8. Verify wave tests pass, then dispatch next wave
 9. Run full test suite after all waves to verify
 10. If tests fail, fix implementation code (not tests) and re-run
-
-VERIFICATION:
-When your implementation is ready, call the verify_task MCP tool:
-  verify_task(task_id="{task_id}")
-
-Parse the JSON result and include it in your final output:
-- If status "PASS" with token: Output "TASK_COMPLETE:{task_id}:{token}"
-- If status "FAIL": Fix the issues in details and call verify_task again
-- If FAIL after 3 attempts: Output "TASK_FAILED:{task_id}:exceeded max verifier attempts"
+11. Output "IMPLEMENTATION_READY:{task_id}"
 """)
 ```
 
 Spawn all non-conflicting executors in parallel (multiple Task calls in one message).
+
+### 2.5. Phase 2.5 — Verification Gate
+
+For each task where executor returned `IMPLEMENTATION_READY:{task_id}`, spawn a verifier using `Task(subagent_type='gatekeeper:verifier')`.
+Each verifier is an **independent code inspector** (model: opus, NO write access) that:
+- Reads task spec and all deliverable files
+- Performs 16-point deep code inspection
+- Runs test suite independently
+- Checks all must_haves (truths, artifacts, key_links)
+- Outputs `VERIFICATION_PASS` or `VERIFICATION_FAIL:{structured critique}`
+
+Verifier spawn template:
+```
+Task(subagent_type='gatekeeper:verifier', model='opus', prompt="""
+session_dir: {session_dir}
+task_id: {task_id}
+task_spec: {contents of task-{id}.md}
+test_command: {test_command}
+dev_server_url: {dev_server_url from plan.yaml metadata, if present}
+
+YOUR JOB: Inspect code, run tests, verify must_haves. Check:
+1. Deep code inspection (16 hard-fail checks: empty functions, hardcoded returns, TODOs, etc.)
+2. Run test suite independently — tests must pass
+3. Verify all must_haves: truths hold, artifacts exist with real code, key_links are wired
+4. Visual check if dev_server_url provided
+
+Output VERIFICATION_PASS or VERIFICATION_FAIL:{structured critique with category=test_issue|impl_issue}
+""")
+```
+
+**On VERIFICATION_PASS:**
+1. Generate a cryptographic token:
+   ```bash
+   token=$(openssl rand -hex 32 | head -c 32)
+   ```
+2. Build the VGL token: `vgl_token="VGL_COMPLETE_${token}"`
+3. Write `vgl_token` to `.claude/vgl-sessions/task-{task_id}/verifier-token.secret` (line 1, preserve TEST_CMD lines)
+4. Mark task completed:
+   ```bash
+   python3 {{PLUGIN_SCRIPTS}}/plan_utils.py {{PLAN_FILE}} --complete-task {task_id} --token {vgl_token}
+   ```
+
+**On VERIFICATION_FAIL with `category=test_issue`:**
+Re-spawn tester in reassess mode, then re-run assessor + executor:
+```
+Task(subagent_type='gatekeeper:tester', prompt="""
+mode="reassess"
+VERIFIER FAILURE DETAILS: {verifier_failure_details}
+TASK CONTEXT: {task_prompt}
+""")
+```
+If tester returns `TESTS_WRITTEN:{task_id}`, re-run assessor → executor → verifier.
+If tester returns `TESTS_OK:{task_id}:...`, re-spawn executor with verifier critique.
+
+**On VERIFICATION_FAIL with `category=impl_issue`:**
+Re-spawn executor with the verifier's critique (max 3 rounds):
+```
+Task(subagent_type='gatekeeper:executor', prompt="""
+VERIFIER FEEDBACK — FIX THESE ISSUES:
+{verifier_failure_details}
+
+YOUR TASK (IMPLEMENTATION): {task_prompt}
+Your session directory is: {session_dir}
+""")
+```
 
 ### 3. Monitor Completions
 
 Each worker Task returns a result string. Parse it for:
 
 **From Testers:**
-- `TESTS_READY:{task_id}:{tqg_token}` — validate token against `.claude/vgl-sessions/task-{task_id}/test-assessor-token.secret` (or `.claude/test-assessor-token.secret`), then spawn executor
-- `TESTS_FAILED:{task_id}:{reason}` — log failure, consider manual intervention
+- `TESTS_WRITTEN:{task_id}` — spawn assessor for quality gate
+- `TESTS_WRITE_FAILED:{task_id}:{reason}` — log failure, consider manual intervention
+
+**From Assessors:**
+- `ASSESSMENT_PASS:{summary}` — proceed to spawn executor
+- `ASSESSMENT_FAIL:{issues}` — re-spawn tester with critique (max 3 rounds)
 
 **From Executors:**
+- `IMPLEMENTATION_READY:{task_id}` — spawn verifier for independent inspection
+- `TASK_FAILED:{task_id}:{reason}` — analyze and retry or skip
 
-**On `TASK_COMPLETE:{task_id}:{token}`:**
-1. Read the token file at `.claude/vgl-sessions/task-{task_id}/verifier-token.secret`
-2. Extract line 1 (the expected token)
-3. Compare the reported token to the expected token
-4. If match: mark task completed via `python3 {{PLUGIN_SCRIPTS}}/plan_utils.py {{PLAN_FILE}} --complete-task {task_id} --token {token}`
-5. If mismatch: re-spawn the executor for that task
-
-**On `TASK_FAILED:{task_id}:{reason}`:**
-1. Log the failure reason
-2. Analyze if the failure is test-related or implementation-related
-3. If test-related: re-spawn tester in reassess mode (see below)
-4. If implementation-related: retry executor (spawn a new one) or skip
+**From Verifiers:**
+- `VERIFICATION_PASS` — generate token, mark task completed
+- `VERIFICATION_FAIL:{critique}` — handle based on category (test_issue vs impl_issue)
 
 ### 4. Handle Verify Failures (Reassess Mode)
 
-If an executor fails and the verifier details suggest test problems:
+If a verifier fails and the details suggest test problems:
 
 ```
-Task(subagent_type='evogatekeeper:tester', prompt="""
+Task(subagent_type='gatekeeper:tester', prompt="""
 mode="reassess"
 
 CRITICAL RULES:
@@ -146,13 +247,14 @@ TASK CONTEXT:
 WORKFLOW:
 1. Read the verifier failure details above
 2. Analyze if tests are the problem (impossible assertions, contradictions, missing coverage)
-3. If tests need fixing: fix them, confirm TDD Red, call assess_tests(task_id="{task_id}")
+3. If tests need fixing: fix them, confirm TDD Red, output "TESTS_WRITTEN:{task_id}"
 4. If tests are correct: Output "TESTS_OK:{task_id}:tests are correct, implementation needs fixing"
 """)
 ```
 
-If tester returns `TESTS_READY:{task_id}` (tests were fixed), re-spawn executor.
-If tester returns `TESTS_OK:{task_id}:...` (tests fine), re-spawn executor to try again.
+After tester reassess:
+- If `TESTS_WRITTEN:{task_id}` (tests were fixed) → spawn assessor → executor → verifier
+- If `TESTS_OK:{task_id}:...` (tests fine) → re-spawn executor with verifier critique
 
 ### 5. Check Integration Checkpoints
 
@@ -160,7 +262,7 @@ After marking a task complete, check if it was the last task in its phase:
 1. If the completed task's phase now has all tasks completed AND the phase has `integration_check: true`:
    - Spawn an integration-checker BEFORE dispatching next-phase tasks:
      ```
-     Task(subagent_type='evogatekeeper:integration-checker',
+     Task(subagent_type='gatekeeper:integration-checker',
           prompt='Verify integration between all completed phases. Check cross-phase links, data flows, type contracts, and dead endpoints. Report PASS or NEEDS_FIXES with details.')
      ```
    - If NEEDS_FIXES with CRITICAL issues: fix them before proceeding
@@ -173,7 +275,7 @@ After any task completes (and integration check passes if needed):
 2. Check which newly unblocked tasks are not already assigned to a worker
 3. For each new task:
    a. Run: `bash {{PLUGIN_SCRIPTS}}/setup-verifier-loop.sh --from-json '{...session_dir...}'`
-   b. Spawn a tester for the task first, then executor after tests are ready
+   b. Spawn a tester for the task first, then assessor → executor → verifier
 4. Run: `python3 {{PLUGIN_SCRIPTS}}/check-file-conflicts.py {{PLAN_FILE}} {task_ids...}`
 5. Only dispatch tasks in the `safe_parallel` group simultaneously
 
@@ -186,12 +288,58 @@ When no pending tasks remain in plan.yaml:
 4. Remove `.claude/plan-locked` marker
 5. Report final status: which tasks completed, which failed, total time
 
+### 8. Superphase (if plan.yaml metadata.superphase: true)
+
+After all tasks are completed (Section 7), check if superphase is enabled:
+
+```bash
+python3 {{PLUGIN_SCRIPTS}}/plan_utils.py {{PLAN_FILE}} --get-metadata superphase
+```
+
+If "true":
+  K = metadata.superphase_candidates (default 3)
+
+  **Phase S1: Spawn evo-scouts per module in parallel**
+  ```
+  Task(subagent_type='gatekeeper:evo-scout', model='haiku', prompt="""
+    module_path: {module}
+    test_command: {test_command}
+    source_dirs: {source_dirs}
+    YOUR JOB: Call profile_hotspots MCP tool. Output SCOUT_DONE:{module}:{json}
+  """)
+  ```
+  Collect SCOUT_DONE outputs. Rank by score. Select top K.
+
+  **Phase S2: For each candidate (run sequentially):**
+  ```
+  Call mcp__plugin_gatekeeper_evolve-mcp__extract_function({file}, {fn})
+  ```
+  Spawn 5 optimizer Tasks IN PARALLEL:
+  ```
+  Task(subagent_type='gatekeeper:evo-optimizer', model='haiku',
+       prompt="island_id:0 island_strategy:vectorize ...")
+  Task(subagent_type='gatekeeper:evo-optimizer', model='haiku',
+       prompt="island_id:1 island_strategy:reduce-alloc ...")
+  Task(subagent_type='gatekeeper:evo-optimizer', model='haiku',
+       prompt="island_id:2 island_strategy:memoize-precompute ...")
+  Task(subagent_type='gatekeeper:evo-optimizer', model='haiku',
+       prompt="island_id:3 island_strategy:data-structure ...")
+  Task(subagent_type='gatekeeper:evo-optimizer', model='opus',
+       prompt="island_id:4 island_strategy:novel-algorithm ...")
+  ```
+  Wait for all 5 outputs. Call population_migrate (ring: 0→1, 1→2, 2→3, 3→4, 4→0).
+  Call population_best. If speedup ≥ 1.3: replace_function.
+
+  **Phase S3:** Run {test_command}. If FAIL: revert_function all patched files.
+  Write superphase-results.md with per-function speedup summary.
+
 ## Important Constraints
 
 - NEVER write implementation or test code yourself — only workers do that
 - NEVER modify files outside of plan.yaml and .claude/ state files
-- Always spawn tester BEFORE executor for each task (tester → executor → verify)
+- Always run tester → assessor → executor → verifier for each task
 - Workers with overlapping file_scope.owns MUST NOT run simultaneously
 - If a worker is unresponsive for an extended period, send it a status check message
-- On verify failure, consider re-spawning tester in reassess mode before retrying executor
+- On verify failure, check the category (test_issue vs impl_issue) to decide which agent to re-spawn
 - Keep a running log of task status transitions for the user
+- Maximum 3 rounds for assessment gate and verification gate per task

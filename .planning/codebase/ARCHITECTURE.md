@@ -1,7 +1,7 @@
 # Architecture
 
 ## System Purpose
-EvoGatekeeper is a Claude Code plugin that orchestrates software projects through spec-driven development with cryptographic verification. No task can be marked complete without passing independent verification by a Verifier agent in a fresh context.
+Gatekeeper is a Claude Code plugin that orchestrates software projects through spec-driven development with cryptographic verification. No task can be marked complete without passing independent verification by a Verifier agent in a fresh context.
 
 ## Core Pipeline (5 Stages)
 ```

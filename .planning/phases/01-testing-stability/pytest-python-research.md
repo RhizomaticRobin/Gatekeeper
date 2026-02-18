@@ -11,8 +11,8 @@
 
 This document covers pytest best practices for testing the two Python scripts central to GSD-VGL's plan orchestration:
 
-- **`/home/user/gsd-vgl/scripts/plan_utils.py`** -- Shared utilities: YAML loading/saving, task lookup, dependency resolution, topological sort, CLI via argparse.
-- **`/home/user/gsd-vgl/scripts/validate-plan.py`** -- Validates a plan.yaml file structure, checks for required fields, invalid statuses, broken dependency references, and dependency cycles. CLI entry point uses raw `sys.argv`.
+- **`/home/user/gatekeeper/scripts/plan_utils.py`** -- Shared utilities: YAML loading/saving, task lookup, dependency resolution, topological sort, CLI via argparse.
+- **`/home/user/gatekeeper/scripts/validate-plan.py`** -- Validates a plan.yaml file structure, checks for required fields, invalid statuses, broken dependency references, and dependency cycles. CLI entry point uses raw `sys.argv`.
 
 Both scripts are file-I/O heavy (reading/writing YAML), produce JSON output to stdout/stderr, and use `sys.exit()` for error signaling. pytest provides purpose-built fixtures for all of these patterns.
 
@@ -30,7 +30,7 @@ Both scripts are file-I/O heavy (reading/writing YAML), produce JSON output to s
 The project currently has no tests directory, no `conftest.py`, no `pyproject.toml`, and no `pytest.ini`. pytest is not yet installed. Here is the recommended structure:
 
 ```
-gsd-vgl/
+gatekeeper/
   scripts/
     plan_utils.py
     validate-plan.py

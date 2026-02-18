@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# EvoGatekeeper (GSD-VGL) Bootstrap Installer
+# Gatekeeper Bootstrap Installer
 # Checks prerequisites, builds MCP servers, installs the plugin to Claude Code.
 #
 # Usage:
-#   git clone --recurse-submodules https://github.com/RhizomaticRobin/gsd-vgl.git
-#   cd gsd-vgl
+#   git clone --recurse-submodules https://github.com/RhizomaticRobin/gatekeeper.git
+#   cd gatekeeper
 #   bash scripts/bootstrap.sh [--local]
 #
 # Options:
@@ -240,7 +240,7 @@ if command -v claude &>/dev/null; then
     claude plugin marketplace add "$PLUGIN_ROOT" 2>&1 | while read -r line; do
       echo -e "    ${DIM}${line}${RESET}"
     done
-    claude plugin install evogatekeeper@gsd-vgl --scope local 2>&1 | while read -r line; do
+    claude plugin install gatekeeper --scope local 2>&1 | while read -r line; do
       echo -e "    ${DIM}${line}${RESET}"
     done
     echo -e "  ${GREEN}✓${RESET} Installed locally to ./.claude/plugins/"
@@ -249,7 +249,7 @@ if command -v claude &>/dev/null; then
     claude plugin marketplace add "$PLUGIN_ROOT" 2>&1 | while read -r line; do
       echo -e "    ${DIM}${line}${RESET}"
     done
-    claude plugin install evogatekeeper@gsd-vgl --scope user 2>&1 | while read -r line; do
+    claude plugin install gatekeeper --scope user 2>&1 | while read -r line; do
       echo -e "    ${DIM}${line}${RESET}"
     done
     echo -e "  ${GREEN}✓${RESET} Installed globally to ~/.claude/plugins/"
@@ -302,8 +302,8 @@ if [[ "$VERIFY_PASS" == "true" ]]; then
   echo -e "  ${BOLD}Next steps:${RESET}"
   echo -e "  1. Restart Claude Code (or start a new session)"
   echo -e "  2. Run ${RED}/mcp${RESET} to verify MCP servers are loaded"
-  echo -e "  3. Run ${RED}/gsd-vgl:help${RESET} to see available commands"
-  echo -e "  4. Run ${RED}/gsd-vgl:quest${RESET} to plan your first project"
+  echo -e "  3. Run ${RED}/gatekeeper:help${RESET} to see available commands"
+  echo -e "  4. Run ${RED}/gatekeeper:quest${RESET} to plan your first project"
   echo ""
   if ! command -v claude &>/dev/null; then
     echo -e "  ${YELLOW}Reminder:${RESET} Install Claude Code before using the plugin:"

@@ -1,4 +1,4 @@
-# v1 Roadmap — EvoGatekeeper
+# v1 Roadmap — Gatekeeper
 
 ## Phase 1: Foundation — Testing & Stability
 - **Goal:** Establish test coverage for existing code before adding new capabilities
@@ -50,7 +50,7 @@
 - **Integration Check:** Yes — full pipeline smoke test validates everything works together
 
 ## Phase 5: UX, Polish & Rename
-- **Goal:** Rename to EvoGatekeeper, improve error messages, add onboarding
+- **Goal:** Rename to Gatekeeper, improve error messages, add onboarding
 - **Requirements:** R-018, R-019, R-020
 - **Tasks:** ~4 tasks
 - **Deliverables:**

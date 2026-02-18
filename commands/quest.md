@@ -6,7 +6,7 @@ allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "B
 
 You are now running the **GSD Quest Planner** for the Verifier-Gated Loop system.
 
-Your job is to guide the user through a structured discovery process, then generate a complete VGL plan with must_haves, TDD-first task prompts, and opencode concurrency instructions. Follow these 6 phases IN ORDER. Do not skip phases. Do not combine phases.
+Your job is to guide the user through a structured discovery process, then generate a complete VGL plan with must_haves, TDD-first task prompts, and opencode concurrency instructions. Follow these phases IN ORDER (0 through 5). Do not skip phases. Do not combine phases.
 
 The plugin root is: `${CLAUDE_PLUGIN_ROOT}`
 The plan validator is: `${CLAUDE_PLUGIN_ROOT}/scripts/validate-plan.py`
@@ -108,7 +108,7 @@ If brownfield is detected, **immediately spawn a `codebase-mapper` agent** to pe
 
 ```python
 Task(
-    subagent_type='evogatekeeper:codebase-mapper',
+    subagent_type='gatekeeper:codebase-mapper',
     prompt="""Analyze the codebase at the current directory and produce comprehensive documentation.
 
     Project type: {detected type from manifest}
@@ -181,7 +181,7 @@ For each topic, spawn a `project-researcher` agent in parallel:
 
 ```python
 Task(
-    subagent_type='evogatekeeper:project-researcher',
+    subagent_type='gatekeeper:project-researcher',
     prompt="""You are a project-researcher investigating: {topic}
 
     Project context:
@@ -223,229 +223,295 @@ Feed all research findings into Phase 4 task design — they inform architecture
 
 ---
 
-## Phase 4: Design Task Graph with must_haves
+## Phase 4: Hierarchical Plan Generation
 
-Now design the full task breakdown with goal-backward must_haves. Follow these rules STRICTLY:
+Phase 4 uses a hierarchy of specialized subagents to build the plan with full context preservation. Each subagent operates on a focused scope, preventing context overflow and fidelity loss.
 
-### must_haves Structure
+**Architecture**: High-level planner → Sequential refinement → Per-phase decomposition → Assembly
 
-Every phase AND every task gets a `must_haves` block with three fields:
-- **truths**: Invariants that must hold true when the phase/task is complete. These are testable assertions about system state. Example: "All API endpoints return JSON with consistent error format", "Auth middleware rejects expired tokens with 401"
-- **artifacts**: Concrete files, outputs, or deliverables that must exist. Example: "src/db/schema.prisma with User and Session models", "tests/auth.test.ts with >= 5 test cases"
-- **key_links**: References to docs, design decisions, or upstream dependencies. Example: "NextAuth v5 migration guide", "Prisma schema reference"
+### Step 4.0: Ensure `.planning/PROJECT.md` Exists
 
-Design must_haves goal-backward: start from the desired end state and work backward to determine what truths, artifacts, and links each task needs.
-
-### Task Structure Rules
-
-1. **Vertical slices**: Every task MUST have BOTH `deliverables.backend` AND `deliverables.frontend`. No "backend-only" or "frontend-only" tasks. If a task is mostly backend, the frontend deliverable can be a status page, admin view, or smoke-test UI.
-
-2. **Testable**: Every task MUST have:
-   - `tests.quantitative.command` — a shell command that exits 0 on success (e.g., `pytest tests/test_auth.py`, `npm test -- --run tests/auth.test.ts`)
-   - `tests.qualitative.criteria` — a list of observable UI behaviors for Playwright verification (e.g., "Login form appears at /login with email and password fields", "After submitting valid credentials, user is redirected to /dashboard")
-
-3. **Task IDs**: Use `{phase}.{sequence}` format (e.g., `1.1`, `1.2`, `2.1`)
-
-4. **DAG ordering**: `depends_on` must form a Directed Acyclic Graph. No cycles. Earlier phases complete before later phases start.
-
-5. **Scope**: Each task should be completable in 1-3 VGL iterations (roughly 1 focused feature per task)
-
-6. **Prompt files**: Each task gets a `tasks/task-{id}.md` file with a detailed prompt
-
-7. **File scope** (recommended for parallelism): Each task SHOULD have a `file_scope` field listing directories/files it owns exclusively. Tasks with non-overlapping scopes can run in parallel via `/gsd-vgl:cross-team`. Format: `file_scope: { owns: ["src/app/menu/", "tests/menu.test.ts"], reads: ["src/db/schema.ts"] }`
-
-8. **Wave assignments**: Group tasks into waves for parallel execution. Tasks in the same wave have no dependencies on each other and non-overlapping file scopes. Format: `wave: 1`
-
-9. **Integration checkpoints**: Each phase gets an `integration_check` field (boolean). Set it to `true` when the phase introduces components that must integrate with prior phases' work. After all tasks in a phase with `integration_check: true` complete, the executor automatically spawns the integration-checker agent before moving to the next phase.
-
-### When to set `integration_check: true`
-- The phase consumes APIs, types, or components built in a prior phase
-- The phase introduces a new system boundary (e.g., auth middleware now used by feature routes)
-- Multiple parallel tasks in the phase touch shared interfaces
-- The phase is a natural seam: foundation complete, core features complete, etc.
-
-### When to set `integration_check: false`
-- First phase (nothing to integrate with yet)
-- Phase only adds isolated features with no cross-phase dependencies
-- Phase is purely additive (new pages, new tests) with no wiring changes
-
-### Task Graph Design Process
-
-1. Define end-state must_haves for the entire project
-2. Decompose into phase-level must_haves (what must be true after each phase)
-3. Decompose phase must_haves into task-level must_haves
-4. Identify the foundational setup (Phase 1 tasks): DB schema, auth, base layout
-5. Identify core features (Phase 2+ tasks): Each feature is one task
-6. Order by dependencies — what must exist before what?
-7. Assign waves for parallelism within phases
-8. Verify every task has both backend + frontend deliverables
-9. Write specific, measurable qualitative criteria
-
-Do NOT output the task graph to the user yet — generate it directly in Phase 5.
-
----
-
-## Phase 5: Generate Artifacts
-
-Generate three sets of files. Create the directory structure first:
+Check for the project intent file:
 
 ```bash
-mkdir -p .claude/plan/tasks .claude/plans
+ls .planning/PROJECT.md 2>/dev/null
 ```
 
-**CRITICAL — exact file paths (relative to project root):**
-- Plan file -> `.claude/plan/plan.yaml` (NOT `plan.yaml`, NOT `.claude/plan.yaml`)
-- Task prompts -> `.claude/plan/tasks/task-{id}.md` (e.g., `.claude/plan/tasks/task-1.1.md`)
-- Plan summary -> `.claude/plans/plan-summary.md`
+**If missing**, create it:
+```bash
+mkdir -p .planning
+```
 
-Use the Write tool with these exact paths. The rest of the plugin expects these locations — wrong paths will break `/gsd-vgl:cross-team`.
+Then generate `.planning/PROJECT.md` using the Write tool, following the template at `${CLAUDE_PLUGIN_ROOT}/templates/project.md`. Populate it from:
+- `project_context` (if Deep Discovery was used in Phase 0)
+- Project description + codebase recon findings (if Quick mode)
+- User answers from Phase 2
 
-### Artifact 1: `.claude/plan/plan.yaml`
+**If exists**, read it for use as the intent anchor in all subsequent subagent prompts.
 
-Write this file to **`.claude/plan/plan.yaml`**. Generate valid YAML matching this schema:
+Store the contents of `.planning/PROJECT.md` in a variable `PROJECT_INTENT` for injection into subagent prompts.
+
+### Step 4.1: Spawn High-Level Planner (Opus 4.6)
+
+Create output directories:
+```bash
+mkdir -p .claude/plan/tasks .claude/plan/phases .claude/plans
+```
+
+Spawn the high-level-planner agent:
+
+```python
+Task(
+    subagent_type='gatekeeper:high-level-planner',
+    model='opus',
+    prompt="""
+## PROJECT INTENT
+{PROJECT_INTENT — full contents of .planning/PROJECT.md}
+
+## PROJECT DESCRIPTION
+{project description from Phase 0}
+
+## CODEBASE RECON SUMMARY
+{all findings from Phase 1 — frameworks, existing code, packages, dev server, etc.}
+{if brownfield: include summary of codebase-mapper findings from .planning/codebase/*.md}
+
+## RESEARCH FINDINGS
+{synthesized results from Phase 3 parallel research agents}
+
+## INSTRUCTIONS
+Design the high-level phase outline for this project. Write it to .claude/plan/high-level-outline.yaml.
+Follow your agent instructions for schema, methodology, and constraints.
+Keep under 200 lines of YAML. Phase-level only — no individual tasks.
+"""
+)
+```
+
+**Wait for completion.** Then verify the outline was created:
+```bash
+ls .claude/plan/high-level-outline.yaml
+```
+
+Read the outline contents for use in subsequent steps.
+
+### Step 4.2: Sequential Plan Refinement (1-2 passes)
+
+Run 2 sequential refinement passes. Each pass reads the current outline and improves it.
+
+**Pass 1:**
+```python
+Task(
+    subagent_type='gatekeeper:plan-refiner',
+    model='opus',
+    prompt="""
+## PROJECT INTENT
+{PROJECT_INTENT — full contents of .planning/PROJECT.md}
+
+## CURRENT OUTLINE
+{full contents of .claude/plan/high-level-outline.yaml}
+
+## REFINEMENT PASS NUMBER
+1
+
+## PREVIOUS REFINEMENT NOTES
+(none — this is the first pass)
+
+## INSTRUCTIONS
+Evaluate and improve the outline across all 7 dimensions.
+Overwrite .claude/plan/high-level-outline.yaml with the improved version.
+Append refinement_notes documenting all changes.
+"""
+)
+```
+
+**Wait.** Read back the updated outline.
+
+**Pass 2:**
+```python
+Task(
+    subagent_type='gatekeeper:plan-refiner',
+    model='opus',
+    prompt="""
+## PROJECT INTENT
+{PROJECT_INTENT — full contents of .planning/PROJECT.md}
+
+## CURRENT OUTLINE
+{full contents of UPDATED .claude/plan/high-level-outline.yaml after pass 1}
+
+## REFINEMENT PASS NUMBER
+2
+
+## PREVIOUS REFINEMENT NOTES
+{refinement_notes section from pass 1 output}
+
+## INSTRUCTIONS
+Evaluate and improve the outline across all 7 dimensions.
+Focus on issues the previous pass identified but didn't fully resolve.
+Overwrite .claude/plan/high-level-outline.yaml with the improved version.
+Append refinement_notes documenting all changes.
+"""
+)
+```
+
+**Wait.** Read back the final outline. Parse it to get the list of phases for Step 4.3.
+
+### Step 4.3: Per-Phase Task Decomposition (Sequential with Full Context Injection)
+
+**CRITICAL**: Phase-planner agents run SEQUENTIALLY. Each one receives the FULL contents of all prior phases' outputs — both the YAML fragments AND the complete task-{id}.md files. This ensures no granularity is lost between phases.
+
+Initialize an accumulator for prior phase context:
+
+```
+completed_phases_context = ""
+```
+
+For each phase in the outline (sorted by ID):
+
+```python
+# Before spawning, build the full prior-phase context by reading ALL files
+# produced by prior phase-planner agents
+
+prior_context_parts = []
+for prev_phase_id in completed_phase_ids:
+    # Read the phase YAML fragment
+    phase_yaml = read(f".claude/plan/phases/phase-{prev_phase_id}.yaml")
+    prior_context_parts.append(f"### Phase {prev_phase_id} YAML Fragment\n```yaml\n{phase_yaml}\n```")
+
+    # Read EVERY task .md file from that phase (the full content, not just names)
+    for task_file in glob(f".claude/plan/tasks/task-{prev_phase_id}.*.md"):
+        task_content = read(task_file)
+        prior_context_parts.append(f"### {task_file}\n```markdown\n{task_content}\n```")
+
+completed_phases_context = "\n\n".join(prior_context_parts)
+
+Task(
+    subagent_type='gatekeeper:phase-planner',
+    model='opus',
+    prompt="""
+## ASSIGNED PHASE
+Phase {id}: {name}
+Goal: {goal}
+Integration check: {integration_check}
+Must-haves:
+  Truths: {truths}
+  Artifacts: {artifacts}
+  Key links: {key_links}
+Estimated tasks: {estimated_tasks}
+Dependencies: {dependencies}
+
+## PROJECT INTENT
+{PROJECT_INTENT — full contents of .planning/PROJECT.md}
+
+## FULL HIGH-LEVEL OUTLINE
+{full contents of refined .claude/plan/high-level-outline.yaml}
+
+## TASK ID PREFIX
+{phase_id} (your tasks will be {phase_id}.1, {phase_id}.2, etc.)
+
+## PRIOR PHASES' COMPLETE TASK CONTEXT
+This section contains the FULL output from all prior phase-planner agents.
+Read it carefully — it tells you exactly what files, APIs, types, and test
+infrastructure exist when your phase begins executing. Your tasks MUST
+build on this foundation. Only reference task IDs that appear here.
+
+{completed_phases_context}
+
+(If this is Phase 1, this section will be empty — you have no prior tasks.)
+
+## CODEBASE SUMMARY
+{key findings from Phase 1 recon — frameworks, existing code, packages}
+{if brownfield: codebase-mapper dimension summaries}
+
+## INSTRUCTIONS
+Decompose this phase into concrete tasks. Write:
+1. .claude/plan/phases/phase-{id}.yaml — phase fragment with all tasks
+2. .claude/plan/tasks/task-{id}.{seq}.md — one prompt file per task
+
+Follow your agent instructions for task design rules, output format, and success criteria.
+Reference prior task outputs by specific file path and function/class name.
+"""
+)
+```
+
+**Wait for completion.** Then:
+1. Read the newly created `phases/phase-{id}.yaml`
+2. Read ALL newly created `tasks/task-{id}.*.md` files
+3. Append their FULL contents to `completed_phases_context` for the next phase
+4. Continue to the next phase
+
+**The context accumulation is the key mechanism**: by the time Phase N runs, its planner has seen the complete task specifications (not just IDs) from Phases 1 through N-1. This preserves full granularity of dependency information, artifact locations, API surfaces, and test infrastructure across phase boundaries.
+
+### Step 4.4: Assemble Final plan.yaml
+
+The quest orchestrator (not a subagent) assembles the final artifacts:
+
+1. **Read** `high-level-outline.yaml` for metadata and project_must_haves
+2. **Read** each `phases/phase-{id}.yaml` (sorted by phase ID)
+3. **Merge** into a single `.claude/plan/plan.yaml` with schema:
 
 ```yaml
 metadata:
   project: "Project name"
   description: "One-line description"
-  dev_server_command: "npm run dev"
-  dev_server_url: "http://localhost:3000"
-  test_framework: "vitest"
-  model_profile: "sonnet"
+  dev_server_command: "..."
+  dev_server_url: "..."
+  test_framework: "..."
+  model_profile: "..."
   created_at: "YYYY-MM-DD"
-  project_context:       # Only include if Deep Discovery was used in Phase 0
-    vision: "..."
-    primary_user: "..."
-    problem: "..."
-    success_criteria: "..."
-    core_features: ["..."]
-    out_of_scope: ["..."]
-    future_features: ["..."]
-    greenfield: true
-    tech_constraints: "..."
-    integrations: ["..."]
-    deploy_target: "..."
-    quality_preference: "quality"
+  project_context: { ... }  # if available from Phase 0
 
 phases:
   - id: 1
-    name: "Foundation"
-    goal: "Establish core infrastructure and base layout"
-    integration_check: false          # No check needed — first phase, nothing to integrate with yet
-    must_haves:
-      truths:
-        - "Database schema is migrated and seeded"
-        - "Auth flow works end-to-end"
-      artifacts:
-        - "src/db/schema.prisma"
-        - "src/auth/middleware.ts"
-      key_links:
-        - "Prisma docs: https://www.prisma.io/docs"
+    name: "..."
+    goal: "..."
+    integration_check: true|false
+    must_haves: { truths: [], artifacts: [], key_links: [] }
     tasks:
       - id: "1.1"
-        name: "Task name"
+        name: "..."
         status: "pending"
         depends_on: []
-        deliverables:
-          backend: "Description of backend work"
-          frontend: "Description of frontend work"
+        deliverables: { backend: "...", frontend: "..." }
         tests:
-          quantitative:
-            command: "npm test -- --run tests/feature.test.ts"
-          qualitative:
-            criteria:
-              - "Observable UI behavior 1"
-              - "Observable UI behavior 2"
-        must_haves:
-          truths:
-            - "Invariant that must hold after this task"
-          artifacts:
-            - "src/path/to/created-file.ts"
-            - "tests/feature.test.ts"
-          key_links:
-            - "Relevant documentation or reference"
+          quantitative: { command: "..." }
+          qualitative: { criteria: ["..."] }
+        must_haves: { truths: [], artifacts: [], key_links: [] }
         prompt_file: "tasks/task-1.1.md"
-        file_scope:
-          owns: ["src/app/feature/", "tests/feature.test.ts"]
-          reads: ["src/db/schema.ts"]
+        file_scope: { owns: [], reads: [] }
         wave: 1
+  # ... remaining phases merged from phase fragments
 ```
 
-### Artifact 2: `.claude/plan/tasks/task-{id}.md` (one per task)
-
-Write each file to **`.claude/plan/tasks/task-{id}.md`** (e.g., `.claude/plan/tasks/task-1.1.md`). Each task prompt file must contain:
-
-```markdown
-# Task {id}: {name}
-
-## Goal (from must_haves)
-State the truths that must hold and artifacts that must exist when this task is complete.
-Reference must_haves.truths and must_haves.artifacts from plan.yaml.
-
-## Context
-What this task builds on (completed dependencies, existing code, key_links references)
-
-## Backend Deliverables
-- Specific files to create/modify
-- API endpoints with method, path, request/response shapes
-- Database models/migrations
-- Business logic
-
-## Frontend Deliverables
-- Specific components to create/modify
-- Pages/routes to add
-- UI interactions and state management
-- How it connects to the backend
-
-## Tests to Write (TDD-First)
-Write ALL of these tests BEFORE any implementation code:
-- Test file path
-- Specific test cases to implement
-- What the quantitative test command checks
-- Edge cases and error conditions
-
-## Test Dependency Graph
-Each test becomes a single opencode agent dispatch. The executor assigns
-exactly 1 test per agent with the guidance below. Tests with no dependencies
-run concurrently; dependent tests wait for their prerequisite's agent to finish.
-
-| Test | File | Depends On | Guidance |
-|------|------|-----------|----------|
-| T1 | {test_file_1} | — | {files to create/modify, patterns, imports, approach} |
-| T2 | {test_file_2} | — | {files to create/modify, patterns, imports, approach} |
-| T3 | {test_file_3} | T1 | {depends on T1's output — what exists after T1, what to build on} |
-
-Dispatch order:
-- Wave 1 (concurrent): T1, T2
-- Wave 2 (after wave 1): T3
-
-### Guidance Rules
-- Each guidance entry MUST specify: target files to create/modify, relevant imports, patterns from the codebase to follow, and the specific approach to making that test pass
-- If a test depends on another, the guidance MUST describe what the prerequisite produces and how to build on it
-- Guidance should be detailed enough that the opencode agent needs no other context
-
-## Qualitative Verification (Playwright)
-What a human (or Playwright) should see when navigating the app:
-- Page-by-page walkthrough of expected behavior
-- Form interactions and their results
-- Error states and edge cases visible in UI
-
-## Key Links
-- Links from must_haves.key_links
-- Relevant documentation
-- Upstream dependency references
-
-## Technical Notes
-- Any framework-specific patterns to follow
-- Packages to use (from recon findings)
-- Known constraints or gotchas
+4. **Validate** the assembled plan:
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/validate-plan.py" .claude/plan/plan.yaml
 ```
 
-The prompt must be detailed enough that a fresh Claude agent with NO prior context can implement the task correctly using TDD-first methodology.
+If validation fails, fix errors in plan.yaml and re-validate. Do NOT proceed until validation passes.
 
-### Artifact 3: `.claude/plans/plan-summary.md`
+5. **Spawn plan-checker** for post-assembly quality gate:
 
-Write this file to **`.claude/plans/plan-summary.md`**. A condensed summary of the entire plan, under 200 lines. This file is used as context when running in plan mode. Format:
+```python
+Task(
+    subagent_type='gatekeeper:plan-checker',
+    prompt="""Verify the assembled plan at .claude/plan/plan.yaml and task files at .claude/plan/tasks/.
+
+    Project intent: {PROJECT_INTENT summary}
+
+    Run all 6 verification dimensions:
+    1. Requirement coverage — every project must_have maps to task(s)
+    2. Task completeness — all required fields present
+    3. Dependency integrity — DAG valid, no orphans, references real task IDs
+    4. Test quality — specific commands, observable criteria
+    5. File scope safety — parallel waves have non-overlapping owns
+    6. Context budget — no oversized tasks
+
+    Return PASS or NEEDS_REVISION with specific issues."""
+)
+```
+
+If verdict is **NEEDS_REVISION** with blockers, fix the issues in plan.yaml and task files, then re-run the checker. Do NOT proceed until PASS.
+
+6. **Generate** `.claude/plans/plan-summary.md` (under 200 lines) using the Write tool:
 
 ```markdown
 # Plan: {Project Name}
@@ -456,61 +522,50 @@ Write this file to **`.claude/plans/plan-summary.md`**. A condensed summary of t
 ## Tech Stack
 - Framework: ...
 - Database: ...
-- Auth: ...
 - Testing: ...
 
 ## must_haves (Project-Level)
 ### Truths
 - {Global invariant 1}
-- {Global invariant 2}
 
 ### Artifacts
 - {Key deliverable 1}
-- {Key deliverable 2}
 
 ## Task Graph
 
 | ID | Task | Wave | Depends On | must_haves | Status |
 |----|------|------|------------|------------|--------|
 | 1.1 | ... | 1 | — | truths: ..., artifacts: ... | pending |
-| 1.2 | ... | 1 | 1.1 | truths: ..., artifacts: ... | pending |
 
 ## Architecture Decisions
 - {Key decision 1}: {rationale}
-- {Key decision 2}: {rationale}
 
 ## Dev Server
 Command: `{command}`
 URL: {url}
 ```
 
-### After generating all files, validate:
-
-First, verify files exist at the correct paths:
-
-```bash
-ls -la .claude/plan/plan.yaml .claude/plans/plan-summary.md .claude/plan/tasks/task-*.md
-```
-
-If any file is missing from these paths, you wrote it to the wrong location. Move or rewrite it to the correct path before continuing.
-
-Then run the plan validator:
-
-```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/validate-plan.py" .claude/plan/plan.yaml
-```
-
-If validation fails, fix the errors and re-validate. Do NOT proceed until validation passes.
-
-Also verify the summary is under 200 lines:
-
+7. **Verify** the summary length:
 ```bash
 wc -l .claude/plans/plan-summary.md
 ```
 
+8. **Verify** all files exist at correct paths:
+```bash
+ls -la .claude/plan/plan.yaml .claude/plans/plan-summary.md .claude/plan/tasks/task-*.md
+```
+
+### Step 4.5: Cleanup (Optional)
+
+Optionally remove intermediate files to reduce clutter:
+- `high-level-outline.yaml` — incorporated into plan.yaml
+- `phases/` directory — incorporated into plan.yaml
+
+Keep these if you want to preserve the planning audit trail. The assembled `plan.yaml` and `tasks/task-*.md` files are the authoritative artifacts.
+
 ---
 
-## Phase 6: Confirm and Summarize
+## Phase 5: Confirm and Summarize
 
 Present a final summary to the user:
 
@@ -542,7 +597,7 @@ Present a final summary to the user:
 | ... | ... | ... | ... |
 
 ### Next Step
-Run `/gsd-vgl:cross-team` to start executing tasks with TDD-first workflow.
+Run `/gatekeeper:cross-team` to start executing tasks with TDD-first workflow.
 It will automatically parallelize if multiple tasks in Wave 1 are unblocked, or run a single task if only one is ready.
 ```
 
@@ -563,5 +618,5 @@ It will automatically parallelize if multiple tasks in Wave 1 are unblocked, or 
 11. Qualitative criteria must describe observable UI behavior (what you'd see in a browser)
 12. Use `$ARGUMENTS` as the project description if provided
 13. Design must_haves goal-backward: end state first, then decompose
-14. Assign wave numbers to enable parallel execution via `/gsd-vgl:cross-team`
+14. Assign wave numbers to enable parallel execution via `/gatekeeper:cross-team`
 15. Set `integration_check` on each phase — true at natural seams where cross-phase wiring matters

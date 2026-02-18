@@ -1,9 +1,9 @@
 {
-  "name": "evogatekeeper",
+  "name": "gatekeeper",
   "version": "1.0.0",
-  "description": "EvoGatekeeper — Spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrency.",
+  "description": "Gatekeeper — Spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrency.",
   "bin": {
-    "gsd-vgl": "bin/install.js"
+    "gatekeeper": "bin/install.js"
   },
   "files": [
     "commands",
@@ -12,7 +12,8 @@
     "scripts",
     "templates",
     "references",
-    "workflows"
+    "workflows",
+    "evolve-mcp"
   ],
   "keywords": [
     "claude",

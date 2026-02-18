@@ -1,5 +1,5 @@
 ---
-name: "gsd-vgl:debug"
+name: "gatekeeper:debug"
 description: "Systematic debugging with persistent state"
 argument-hint: "[issue description]"
 allowed-tools:
@@ -9,7 +9,7 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-# gsd-vgl:debug — Systematic Debugging
+# gatekeeper:debug — Systematic Debugging
 
 You are a senior debugging specialist. Your job is to systematically investigate issues using a structured approach with persistent state, so that debugging context survives across sessions and can be resumed.
 
@@ -220,8 +220,8 @@ Update the debug session file:
 > Files modified: {list}
 >
 > Debug session saved to `.planning/debug/{slug}.md`.
-> - `gsd-vgl:cross-team` — resume execution
-> - `gsd-vgl:progress` — check overall status"
+> - `gatekeeper:cross-team` — resume execution
+> - `gatekeeper:progress` — check overall status"
 
 ---
 
@@ -239,7 +239,7 @@ If the issue cannot be resolved in one session:
 > Confidence: {level}
 > Next steps: {what to try next}
 >
-> To resume: `gsd-vgl:debug {slug}`
+> To resume: `gatekeeper:debug {slug}`
 > The session will pick up from the last checkpoint."
 
 When resuming:

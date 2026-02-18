@@ -1,10 +1,10 @@
-# EvoGatekeeper (GSD-VGL)
+# Gatekeeper
 
 A Claude Code plugin for spec-driven development with cryptographic verifier loops, TDD-first execution, and concurrent opencode agents.
 
 ## How It Works
 
-EvoGatekeeper orchestrates software projects through a structured pipeline where no task can be marked complete without passing independent verification:
+Gatekeeper orchestrates software projects through a structured pipeline where no task can be marked complete without passing independent verification:
 
 1. **Plan** (`/quest`) -- Deep discovery + plan.yaml with phases, tasks, must_haves, TDD test specs, and per-task prompt files
 2. **Test** -- Tester agent researches the domain (WebSearch + Context7), writes comprehensive tests, passes `assess_tests` quality gate
@@ -56,8 +56,8 @@ echo $ANTHROPIC_API_KEY  # Optional if logged in via subscription
 ### Quick Install (automated)
 
 ```bash
-git clone --recurse-submodules https://github.com/RhizomaticRobin/gsd-vgl.git
-cd gsd-vgl
+git clone --recurse-submodules https://github.com/RhizomaticRobin/gatekeeper.git
+cd gatekeeper
 bash scripts/bootstrap.sh
 ```
 
@@ -96,8 +96,8 @@ OpenCode installs to `~/.opencode/bin/`. Make sure it's on your PATH.
 #### 3. Clone the repository
 
 ```bash
-git clone --recurse-submodules https://github.com/RhizomaticRobin/gsd-vgl.git
-cd gsd-vgl
+git clone --recurse-submodules https://github.com/RhizomaticRobin/gatekeeper.git
+cd gatekeeper
 ```
 
 If you already cloned without `--recurse-submodules`:
@@ -143,15 +143,15 @@ Verify: `ls hooks/dist/intel-index.js` should exist.
 
 ```bash
 # From inside Claude Code
-/plugin marketplace add /path/to/gsd-vgl
-/plugin install evogatekeeper@gsd-vgl
+/plugin marketplace add /path/to/gatekeeper
+/plugin install gatekeeper
 ```
 
 Or via the CLI:
 
 ```bash
-claude plugin marketplace add /path/to/gsd-vgl
-claude plugin install evogatekeeper@gsd-vgl --scope user
+claude plugin marketplace add /path/to/gatekeeper
+claude plugin install gatekeeper --scope user
 ```
 
 Use `--scope project` for a single project, or `--scope local` for project-local (gitignored).
@@ -159,16 +159,16 @@ Use `--scope project` for a single project, or `--scope local` for project-local
 **Option B: Via the legacy npx installer**
 
 ```bash
-# From the gsd-vgl directory
+# From the gatekeeper directory
 node bin/install.js --global
 ```
 
-This copies the plugin to `~/.claude/plugins/gsd-vgl/`, builds MCP servers, and makes scripts executable.
+This copies the plugin to `~/.claude/plugins/gatekeeper/`, builds MCP servers, and makes scripts executable.
 
 **Option C: Via npm (from any directory)**
 
 ```bash
-npx gsd-vgl --global
+npx gatekeeper --global
 ```
 
 #### 8. Verify the installation
@@ -181,12 +181,12 @@ Restart Claude Code (or start a new session), then:
 ```
 
 You should see:
-- `plugin:evogatekeeper:opencode-mcp` -- tools: `launch_opencode`, `wait_for_completion`, `opencode_sessions`
-- `plugin:evogatekeeper:verifier-mcp` -- tools: `verify_task`, `assess_tests`
+- `plugin:gatekeeper:opencode-mcp` -- tools: `launch_opencode`, `wait_for_completion`, `opencode_sessions`
+- `plugin:gatekeeper:verifier-mcp` -- tools: `verify_task`, `assess_tests`
 
 ```bash
 # Check commands are available
-/gsd-vgl:help
+/gatekeeper:help
 ```
 
 ### Updating
@@ -194,7 +194,7 @@ You should see:
 After pulling new changes:
 
 ```bash
-cd gsd-vgl
+cd gatekeeper
 git pull --recurse-submodules
 
 # Rebuild MCP servers if source changed
@@ -205,7 +205,7 @@ cd verifier-mcp && npm install && npm run build && cd ..
 npm run build:hooks
 
 # Update the installed plugin
-claude plugin update evogatekeeper@gsd-vgl
+claude plugin update gatekeeper
 ```
 
 Then restart Claude Code for MCP servers to reload.
@@ -213,18 +213,18 @@ Then restart Claude Code for MCP servers to reload.
 ### Uninstalling
 
 ```bash
-claude plugin uninstall evogatekeeper@gsd-vgl
-claude plugin marketplace remove gsd-vgl
+claude plugin uninstall gatekeeper
+claude plugin marketplace remove gatekeeper
 ```
 
 ### Other plugin commands
 
 ```bash
 # Disable without uninstalling
-claude plugin disable evogatekeeper@gsd-vgl
+claude plugin disable gatekeeper
 
 # Re-enable
-claude plugin enable evogatekeeper@gsd-vgl
+claude plugin enable gatekeeper
 ```
 
 ## Architecture
@@ -326,7 +326,7 @@ Phases in plan.yaml can set `integration_check: true`. When the last task in suc
 
 ### Evolutionary Intelligence
 
-EvoGatekeeper uses an evolutionary approach to improve execution strategies across iterations and tasks:
+Gatekeeper uses an evolutionary approach to improve execution strategies across iterations and tasks:
 
 - **MAP-Elites Population Database** (`evo_db.py`) -- Stores diverse approaches in a multi-dimensional grid indexed by island and behavioral descriptors
 - **Island-Based Parallel Exploration** -- On retry iterations with sufficient population (>= 3 approaches), the executor samples strategies from different islands and spawns parallel agents
@@ -416,7 +416,7 @@ The opencode MCP server spawns agents using the `gsd-builder` profile defined in
 #### How Context7 MCP gets to opencode agents
 
 ```
-templates/opencode.json          Canonical config (checked into gsd-vgl repo)
+templates/opencode.json          Canonical config (checked into gatekeeper repo)
        |
        v (copied at setup time by cross-team-setup.sh / setup-verifier-loop.sh)
 <project>/opencode.json          Deployed to project root
@@ -445,7 +445,7 @@ resolve-library-id, query-docs    Agent can research any library docs
 
 ## MCP Servers
 
-### opencode-mcp (`plugin:evogatekeeper:opencode-mcp`)
+### opencode-mcp (`plugin:gatekeeper:opencode-mcp`)
 
 Agent dispatch via the OpenCode CLI. Source: `Better-OpenCodeMCP/`.
 
@@ -457,7 +457,7 @@ Agent dispatch via the OpenCode CLI. Source: `Better-OpenCodeMCP/`.
 | `wait_for_completion(taskIds=[...])` | Block until agents finish |
 | `opencode_sessions(status="active")` | Check running agents |
 
-### verifier-mcp (`plugin:evogatekeeper:verifier-mcp`)
+### verifier-mcp (`plugin:gatekeeper:verifier-mcp`)
 
 Verification and test assessment. Source: `verifier-mcp/`.
 
@@ -471,7 +471,7 @@ Both MCP servers auto-install dependencies and auto-build on first launch via th
 ## Project Structure
 
 ```
-gsd-vgl/
+gatekeeper/
 ├── .claude-plugin/
 │   ├── plugin.json                  Plugin manifest + MCP server declarations
 │   └── marketplace.json             Self-contained marketplace definition
@@ -489,7 +489,7 @@ gsd-vgl/
 │   └── dist/index.js                Built MCP entry point
 ├── agents/                          10 agent definitions (.md with frontmatter)
 ├── bin/
-│   ├── install.js                   Plugin installer (npx gsd-vgl)
+│   ├── install.js                   Plugin installer (npx gatekeeper)
 │   ├── install-lib.js               Installer library (copy, verify, setup)
 │   ├── opencode-mcp.sh              OpenCode MCP launcher (auto-clone/build)
 │   └── verifier-mcp.sh              Verifier MCP launcher (auto-build)
@@ -556,7 +556,7 @@ gsd-vgl/
 
 1. Hooks require `jq` for JSON parsing: `jq --version`
 2. All `.sh` files must be executable: `find . -name "*.sh" -exec chmod +x {} \;`
-3. Check hook debug log: `cat /tmp/gsd-vgl-stop-hook.debug.log`
+3. Check hook debug log: `cat /tmp/gatekeeper-stop-hook.debug.log`
 
 ### Build failures
 
@@ -566,6 +566,10 @@ cd Better-OpenCodeMCP && rm -rf node_modules dist && npm install && npm run buil
 cd verifier-mcp && rm -rf node_modules dist && npm install && npm run build && cd ..
 npm install && npm run build:hooks
 ```
+
+## Acknowledgments
+
+Gatekeeper builds on ideas and infrastructure from [TÂCHES](https://github.com/gsd-build/get-shit-done), a spec-driven development system for Claude Code. The evolutionary superphase is inspired by [OpenEvolve](https://github.com/algorithmicsuperintelligence/openevolve), an open-source implementation of AlphaEvolve-style LLM-driven code optimization.
 
 ## License
 

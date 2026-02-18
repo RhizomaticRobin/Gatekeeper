@@ -123,10 +123,10 @@ Template for `.planning/codebase/structure.md` - captures physical file organiza
 ## Directory Layout
 
 ```
-gsd-vgl/
+gatekeeper/
 ├── bin/                # Executable entry points
 ├── commands/           # Slash command definitions
-│   └── gsd-vgl/      # GSD-VGL-specific commands
+│   └── gatekeeper/      # GSD-VGL-specific commands
 ├── templates/          # File templates
 ├── references/         # Principle documents
 ├── workflows/          # Multi-step procedures
@@ -144,7 +144,7 @@ gsd-vgl/
 - Key files: install.js - handles npx installation
 - Subdirectories: None
 
-**commands/gsd-vgl/**
+**commands/gatekeeper/**
 - Purpose: Slash command definitions for the agent
 - Contains: *.md files (one per command)
 - Key files: new-project.md, plan-phase.md, execute-task.md
@@ -198,7 +198,7 @@ gsd-vgl/
 ## Where to Add New Code
 
 **New Slash Command:**
-- Primary code: `commands/gsd-vgl/{command-name}.md`
+- Primary code: `commands/gatekeeper/{command-name}.md`
 - Tests: `tests/commands/{command-name}.test.js` (if testing implemented)
 - Documentation: Update `README.md` with new command
 

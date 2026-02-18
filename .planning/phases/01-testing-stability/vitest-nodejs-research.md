@@ -84,7 +84,7 @@ export default defineConfig({
 **Note on `"type": "module"`:** The vitest.config.js file uses `import` syntax.
 If the project's package.json does NOT have `"type": "module"`, rename the config
 to `vitest.config.mjs`. Test files can use `.mjs` extension or the project can add
-`"type": "module"` to package.json. Since gsd-vgl currently has no `"type"` field
+`"type": "module"` to package.json. Since gatekeeper currently has no `"type"` field
 (defaults to CJS), the simplest approach is:
 
 - Use `vitest.config.mjs` for the config file, OR
@@ -101,7 +101,7 @@ since the source files are organized by function (bin/, hooks/, commands/) rathe
 as a library with src/:
 
 ```
-gsd-vgl/
+gatekeeper/
   bin/
     install.js              # Source under test
   hooks/

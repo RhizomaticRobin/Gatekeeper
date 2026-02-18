@@ -18,7 +18,7 @@ teardown() {
 # --- Test 1: No VGL active, any skill exits 0 ---
 @test "no VGL active — any skill allowed (exit 0)" {
     # No .claude/verifier-loop.local.md file exists
-    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:quest"}}'"'"' | bash "'"$HOOK"'"'
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:quest"}}'"'"' | bash "'"$HOOK"'"'
     assert_success
 }
 
@@ -26,7 +26,7 @@ teardown() {
 @test "VGL active — cross-team allowed (exit 0)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
-    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:cross-team"}}'"'"' | bash "'"$HOOK"'"'
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:cross-team"}}'"'"' | bash "'"$HOOK"'"'
     assert_success
 }
 
@@ -34,7 +34,7 @@ teardown() {
 @test "VGL active — progress allowed (exit 0)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
-    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:progress"}}'"'"' | bash "'"$HOOK"'"'
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:progress"}}'"'"' | bash "'"$HOOK"'"'
     assert_success
 }
 
@@ -42,7 +42,7 @@ teardown() {
 @test "VGL active — quest blocked (exit 2 with BLOCKED)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
-    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:quest"}}'"'"' | bash "'"$HOOK"'" 2>&1'
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:quest"}}'"'"' | bash "'"$HOOK"'" 2>&1'
     assert_failure 2
     assert_output --partial "BLOCKED"
 }
@@ -51,7 +51,7 @@ teardown() {
 @test "VGL active — bridge blocked (exit 2)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
-    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:bridge"}}'"'"' | bash "'"$HOOK"'" 2>&1'
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:bridge"}}'"'"' | bash "'"$HOOK"'" 2>&1'
     assert_failure 2
 }
 
@@ -59,7 +59,7 @@ teardown() {
 @test "VGL active — run-away blocked (exit 2)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
-    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:run-away"}}'"'"' | bash "'"$HOOK"'" 2>&1'
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:run-away"}}'"'"' | bash "'"$HOOK"'" 2>&1'
     assert_failure 2
 }
 
@@ -67,12 +67,12 @@ teardown() {
 @test "VGL active — new-project blocked (exit 2)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
-    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:new-project"}}'"'"' | bash "'"$HOOK"'" 2>&1'
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:new-project"}}'"'"' | bash "'"$HOOK"'" 2>&1'
     assert_failure 2
 }
 
-# --- Test 8: Non-gsd-vgl skill always allowed ---
-@test "non-gsd-vgl skill — allowed (exit 0)" {
+# --- Test 8: Non-gatekeeper skill always allowed ---
+@test "non-gatekeeper skill — allowed (exit 0)" {
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
     run bash -c 'echo '"'"'{"tool_input":{"skill":"some-other-plugin:do-stuff"}}'"'"' | bash "'"$HOOK"'"'

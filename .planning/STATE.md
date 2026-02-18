@@ -44,13 +44,13 @@ NOT_STARTED
 ## Phase 5 Task Summary
 | Task | Description | Tests |
 |------|-------------|-------|
-| 5.1 | Rename to EvoGatekeeper | 10 |
+| 5.1 | Rename to Gatekeeper | 10 |
 | 5.2 | Error message audit and improvement | 5+ |
 | 5.3 | First-run onboarding | 6 |
 
 ## Implementation Changes (Phase 5)
-- package.json, plugin.json, marketplace.json: Rebranded to "evogatekeeper"
-- README.md, commands/help.md: Updated branding to EvoGatekeeper
+- package.json, plugin.json, marketplace.json: Rebranded to "gatekeeper"
+- README.md, commands/help.md: Updated branding to Gatekeeper
 - scripts/ and hooks/: Standardized error format with "Error:" + "Try:" recovery
 - scripts/onboarding.sh: First-run welcome with .planning/.initialized marker
 
@@ -107,7 +107,7 @@ NOT_STARTED
 
 ## Notes
 Project initialized on 2026-02-11.
-Evolving existing Gatekeeper (gsd-vgl) into EvoGatekeeper.
+Evolving existing Gatekeeper (gatekeeper) into Gatekeeper.
 Brownfield — existing codebase with 9 agents, 14 commands, 4 hooks, 13 scripts.
 Quality profile — Opus for all agents.
 Phase 1 research: 4,411 lines across 5 research documents + synthesis.

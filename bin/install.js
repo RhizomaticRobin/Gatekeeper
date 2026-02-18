@@ -26,8 +26,8 @@ ${crimson} ██████╗  █████╗ ████████╗
  ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝${reset}
 
   Gatekeeper ${dim}v${pkg.version}${reset}
-  Verifier Gated Loop — spec-driven development
-  system for Claude Code by TÂCHES.
+  Visual verifier-gated compartmentalized TDD + evolutionary optimization
+  for Claude Code by RhizomaticRobin.
 `;
 
 // Parse args
@@ -66,7 +66,7 @@ if (require.main === module) {
 
   // Show help if requested
   if (hasHelp) {
-    console.log(`  ${yellow}Usage:${reset} npx gsd-vgl [options]
+    console.log(`  ${yellow}Usage:${reset} npx gatekeeper [options]
 
   ${yellow}Options:${reset}
     ${crimson}-g, --global${reset}              Install globally (to Claude plugins directory)
@@ -75,17 +75,17 @@ if (require.main === module) {
     ${crimson}-h, --help${reset}                Show this help message
 
   ${yellow}Examples:${reset}
-    ${dim}# Install to default ~/.claude/plugins/gsd-vgl${reset}
-    npx gsd-vgl --global
+    ${dim}# Install to default ~/.claude/plugins/gatekeeper${reset}
+    npx gatekeeper --global
 
     ${dim}# Install to custom config directory${reset}
-    npx gsd-vgl --global --config-dir ~/.claude-bc
+    npx gatekeeper --global --config-dir ~/.claude-bc
 
     ${dim}# Using environment variable${reset}
-    CLAUDE_CONFIG_DIR=~/.claude-bc npx gsd-vgl --global
+    CLAUDE_CONFIG_DIR=~/.claude-bc npx gatekeeper --global
 
     ${dim}# Install to current project only${reset}
-    npx gsd-vgl --local
+    npx gatekeeper --local
 
   ${yellow}Notes:${reset}
     Gatekeeper is a Claude Code plugin. The installer copies the plugin
@@ -146,6 +146,10 @@ function setupMcpServer(pluginDir) {
   return lib.setupMcpServer(fs, execSync, pluginDir);
 }
 
+function setupEvolveMcp(pluginDir) {
+  return lib.setupEvolveMcp(fs, execSync, pluginDir);
+}
+
 /**
  * Install the plugin to the resolved directory.
  */
@@ -158,7 +162,7 @@ function install(isGlobal) {
     ? (configDir || path.join(os.homedir(), '.claude'))
     : path.join(process.cwd(), '.claude');
 
-  const destDir = path.join(claudeDir, 'plugins', 'gsd-vgl');
+  const destDir = path.join(claudeDir, 'plugins', 'gatekeeper');
 
   const locationLabel = destDir.replace(os.homedir(), '~');
   console.log(`  Installing to ${crimson}${locationLabel}${reset}\n`);
@@ -197,8 +201,11 @@ function install(isGlobal) {
   // Set up opencode-mcp server (clone/build/register)
   setupMcpServer(destDir);
 
+  // Set up evolve-mcp server (install fastmcp Python dependency)
+  setupEvolveMcp(destDir);
+
   console.log(`
-  ${green}Done!${reset} Launch Claude Code and run ${crimson}/gsd-vgl:help${reset}.
+  ${green}Done!${reset} Launch Claude Code and run ${crimson}/gatekeeper:help${reset}.
 `);
 }
 
@@ -245,8 +252,8 @@ function promptLocation() {
 
   console.log(`  ${yellow}Where would you like to install?${reset}
 
-  ${crimson}1${reset}) Global ${dim}(${globalLabel}/plugins/gsd-vgl)${reset} - available in all projects
-  ${crimson}2${reset}) Local  ${dim}(./.claude/plugins/gsd-vgl)${reset} - this project only
+  ${crimson}1${reset}) Global ${dim}(${globalLabel}/plugins/gatekeeper)${reset} - available in all projects
+  ${crimson}2${reset}) Local  ${dim}(./.claude/plugins/gatekeeper)${reset} - this project only
 `);
 
   rl.question(`  Choice ${dim}[1]${reset}: `, (answer) => {
@@ -258,7 +265,7 @@ function promptLocation() {
 }
 
 // Export functions for testing
-module.exports = { copyPluginDirectory, verifyInstallation, setupMcpServer };
+module.exports = { copyPluginDirectory, verifyInstallation, setupMcpServer, setupEvolveMcp };
 
 // Main — only run when executed directly (not when required/imported for testing)
 if (require.main === module) {

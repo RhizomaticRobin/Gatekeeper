@@ -1,5 +1,5 @@
 ---
-name: "gsd-vgl:progress"
+name: "gatekeeper:progress"
 description: "Show project status and progress dashboard"
 allowed-tools:
   - Read
@@ -7,7 +7,7 @@ allowed-tools:
   - Glob
 ---
 
-# gsd-vgl:progress — Status Dashboard
+# gatekeeper:progress — Status Dashboard
 
 You are a project status reporter. Your job is to read all planning and execution state files, compute progress metrics, and present a clear, actionable dashboard to the user.
 
@@ -126,36 +126,36 @@ Based on the current state, suggest the most appropriate next action:
 
 ### If NOT_STARTED:
 > "Project is planned but execution hasn't begun.
-> - `gsd-vgl:cross-team` — launch autonomous execution
-> - `gsd-vgl:research 1` — research Phase 1 before starting"
+> - `gatekeeper:cross-team` — launch autonomous execution
+> - `gatekeeper:research 1` — research Phase 1 before starting"
 
 ### If IN_PROGRESS:
 > "Execution is active on Phase {N}.
-> - `gsd-vgl:cross-team` — resume execution if it's stopped
-> - `gsd-vgl:debug` — if you're hitting issues"
+> - `gatekeeper:cross-team` — resume execution if it's stopped
+> - `gatekeeper:debug` — if you're hitting issues"
 
 ### If PHASE_COMPLETE (and more phases remain):
 > "Phase {N} is complete. {remaining} phases to go.
-> - `gsd-vgl:verify-milestone` — audit the completed phase
-> - `gsd-vgl:research {N+1}` — research the next phase
-> - `gsd-vgl:cross-team` — continue to next phase"
+> - `gatekeeper:verify-milestone` — audit the completed phase
+> - `gatekeeper:research {N+1}` — research the next phase
+> - `gatekeeper:cross-team` — continue to next phase"
 
 ### If ALL PHASES COMPLETE:
 > "All phases complete! {completed}/{total} requirements met.
-> - `gsd-vgl:verify-milestone` — final audit
+> - `gatekeeper:verify-milestone` — final audit
 > - Review `.claude/plan/` for full project documentation"
 
 ### If BLOCKED:
 > "Execution is blocked:
 > - **Blocker:** {description from plan.yaml}
-> - `gsd-vgl:debug` — investigate the issue
-> - Fix the blocker, then `gsd-vgl:cross-team` to resume"
+> - `gatekeeper:debug` — investigate the issue
+> - Fix the blocker, then `gatekeeper:cross-team` to resume"
 
 ---
 
 ## Edge Cases
 
-- If no `.claude/plan/plan.yaml` exists: "No project found. Run `gsd-vgl:quest` to get started."
+- If no `.claude/plan/plan.yaml` exists: "No project found. Run `gatekeeper:quest` to get started."
 - If plan.yaml exists but is malformed: attempt to reconstruct from other artifacts
 - If plan.yaml is missing: compute progress from requirements only (lower fidelity)
 - If a VGL loop is active: check for `.claude/verifier-loop.local.md` and report status

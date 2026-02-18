@@ -1,4 +1,4 @@
-# Hook Testing Research -- EvoGatekeeper (GSD-VGL Plugin)
+# Hook Testing Research -- Gatekeeper (GSD-VGL Plugin)
 
 Phase 1: Testing & Stability | Requirements: R-003, R-005
 Researched: 2026-02-11
@@ -53,9 +53,9 @@ Sources:
 
 ---
 
-## 2. EvoGatekeeper Hook Inventory
+## 2. Gatekeeper Hook Inventory
 
-From `/home/user/gsd-vgl/hooks/hooks.json`:
+From `/home/user/gatekeeper/hooks/hooks.json`:
 
 | Event       | Matcher      | Script                | Purpose                                  |
 |-------------|-------------|-----------------------|------------------------------------------|
@@ -242,7 +242,7 @@ echo "Results: $PASS passed, $FAIL failed"
   "hook_event_name": "PreToolUse",
   "tool_name": "Skill",
   "tool_input": {
-    "skill": "gsd-vgl:quest",
+    "skill": "gatekeeper:quest",
     "args": ""
   },
   "tool_use_id": "toolu_01ABC123"
@@ -274,7 +274,7 @@ The guard-skills hook has this decision tree:
 3. Skill is "cross" or "cross-team" -> exit 0 (allowed during loop)
 4. Skill is "progress" -> exit 0 (allowed during loop)
 5. Skill is on blocklist (quest, bridge, run-away, etc.) -> exit 2 (block)
-6. Not a gsd-vgl skill -> exit 0 (allow)
+6. Not a gatekeeper skill -> exit 0 (allow)
 
 #### Example Test Cases
 
@@ -292,7 +292,7 @@ session_id: "test"
 Test prompt
 EOF
 
-FIXTURE='{"tool_name":"Skill","tool_input":{"skill":"gsd-vgl:quest"},"hook_event_name":"PreToolUse"}'
+FIXTURE='{"tool_name":"Skill","tool_input":{"skill":"gatekeeper:quest"},"hook_event_name":"PreToolUse"}'
 cd "$TEST_DIR"
 STDOUT=$(echo "$FIXTURE" | bash "$HOOK_SCRIPT" 2>/tmp/hook-stderr)
 EXIT_CODE=$?
@@ -305,7 +305,7 @@ assert_exit 2 "should block with exit 2"
 
 # Test: Allow /cross-team during active loop
 echo "Test: Allow /cross-team during active VGL loop"
-FIXTURE='{"tool_name":"Skill","tool_input":{"skill":"gsd-vgl:cross-team"},"hook_event_name":"PreToolUse"}'
+FIXTURE='{"tool_name":"Skill","tool_input":{"skill":"gatekeeper:cross-team"},"hook_event_name":"PreToolUse"}'
 cd "$TEST_DIR"
 STDOUT=$(echo "$FIXTURE" | bash "$HOOK_SCRIPT" 2>/tmp/hook-stderr)
 EXIT_CODE=$?
@@ -315,7 +315,7 @@ assert_exit 0 "should allow with exit 0"
 # Test: Allow any skill when no VGL loop active
 echo "Test: Allow /quest when no VGL loop"
 TEST_DIR2=$(mktemp -d)
-FIXTURE='{"tool_name":"Skill","tool_input":{"skill":"gsd-vgl:quest"},"hook_event_name":"PreToolUse"}'
+FIXTURE='{"tool_name":"Skill","tool_input":{"skill":"gatekeeper:quest"},"hook_event_name":"PreToolUse"}'
 cd "$TEST_DIR2"
 STDOUT=$(echo "$FIXTURE" | bash "$HOOK_SCRIPT" 2>/dev/null)
 EXIT_CODE=$?
@@ -336,7 +336,7 @@ rm -rf "$TEST_DIR" "$TEST_DIR2"
 | VGL active + /run-away           | 2            | "BLOCKED"              |
 | VGL active + /cross-team         | 0            | (empty)                |
 | VGL active + /progress           | 0            | (empty)                |
-| VGL active + non-gsd-vgl skill   | 0            | (empty)                |
+| VGL active + non-gatekeeper skill   | 0            | (empty)                |
 
 ---
 
@@ -354,7 +354,7 @@ rm -rf "$TEST_DIR" "$TEST_DIR2"
   "hook_event_name": "PostToolUse",
   "tool_name": "Skill",
   "tool_input": {
-    "skill": "gsd-vgl:cross-team",
+    "skill": "gatekeeper:cross-team",
     "args": ""
   },
   "tool_response": { "success": true },
@@ -384,7 +384,7 @@ The output is plain text (not JSON), shown in verbose mode.
 ```bash
 # Test: Non-cross skill -> early exit, no output
 echo "Test: Non-cross skill ignored"
-FIXTURE='{"tool_name":"Skill","tool_input":{"skill":"gsd-vgl:quest"},"hook_event_name":"PostToolUse"}'
+FIXTURE='{"tool_name":"Skill","tool_input":{"skill":"gatekeeper:quest"},"hook_event_name":"PostToolUse"}'
 STDOUT=$(echo "$FIXTURE" | bash "$HOOK_SCRIPT" 2>/dev/null)
 EXIT_CODE=$?
 assert_exit 0 "should exit 0"
@@ -639,7 +639,7 @@ session_id: "test"
 Test prompt
 EOF
   cd "$TEST_DIR"
-  run bash -c 'echo "{\"tool_name\":\"Skill\",\"tool_input\":{\"skill\":\"gsd-vgl:quest\"}}" | bash '"$HOOK"
+  run bash -c 'echo "{\"tool_name\":\"Skill\",\"tool_input\":{\"skill\":\"gatekeeper:quest\"}}" | bash '"$HOOK"
   [ "$status" -eq 2 ]
   [[ "$output" == *"BLOCKED"* ]]
 }
@@ -654,7 +654,7 @@ session_id: "test"
 Test prompt
 EOF
   cd "$TEST_DIR"
-  run bash -c 'echo "{\"tool_name\":\"Skill\",\"tool_input\":{\"skill\":\"gsd-vgl:cross-team\"}}" | bash '"$HOOK"
+  run bash -c 'echo "{\"tool_name\":\"Skill\",\"tool_input\":{\"skill\":\"gatekeeper:cross-team\"}}" | bash '"$HOOK"
   [ "$status" -eq 0 ]
 }
 ```
@@ -765,7 +765,7 @@ generate_fixture() {
 # Usage:
 FIXTURE=$(generate_fixture "$PRETOOLUSE_TEMPLATE" \
   "CWD" "/tmp/testdir" \
-  "SKILL_NAME" "gsd-vgl:quest")
+  "SKILL_NAME" "gatekeeper:quest")
 ```
 
 ---
@@ -774,7 +774,7 @@ FIXTURE=$(generate_fixture "$PRETOOLUSE_TEMPLATE" \
 
 ### 8.1 stdin Buffering and `cat` vs Line-by-Line Reading
 
-All four EvoGatekeeper hooks use one of two patterns:
+All four Gatekeeper hooks use one of two patterns:
 
 - **Bash hooks**: `INPUT=$(cat)` -- reads all of stdin into a variable at once
 - **Node.js hook**: `process.stdin.on('data', chunk => ...)` -- event-driven
@@ -917,7 +917,7 @@ run my_hook_runner
 
 ---
 
-## 9. Recommended Test Plan for EvoGatekeeper Hooks
+## 9. Recommended Test Plan for Gatekeeper Hooks
 
 ### Priority Order
 

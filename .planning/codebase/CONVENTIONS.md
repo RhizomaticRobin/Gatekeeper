@@ -23,7 +23,7 @@
 All scripts follow: `Error:` line + `Try:` recovery line
 ```bash
 echo "Error: Plan file not found at $PLAN_FILE" >&2
-echo "Try: Run /gsd-vgl:quest to generate a plan." >&2
+echo "Try: Run /gatekeeper:quest to generate a plan." >&2
 ```
 
 ## Import Patterns
@@ -41,7 +41,7 @@ echo "Try: Run /gsd-vgl:quest to generate a plan." >&2
 - Shell: Double quotes around variables, `[[ ]]` for conditionals, `|| true` for grep under pipefail
 - Python: Type hints on class attributes and function signatures, dataclasses for structured data
 - Markdown prompts: Structured with headers, code blocks, critical rules sections, numbered steps
-- Debug logging: `debug()` function writing to `/tmp/gsd-vgl-stop-hook.debug.log`
+- Debug logging: `debug()` function writing to `/tmp/gatekeeper-stop-hook.debug.log`
 - stderr for user-visible status messages, stdout for machine-parseable output (JSON, status codes)
 
 ## CLI Patterns

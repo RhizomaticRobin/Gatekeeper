@@ -2,7 +2,7 @@
 
 # Guard Skills Hook (PreToolUse: Skill) — GSD-VGL
 #
-# When a VGL loop is active, block all gsd-vgl skills except /cross-team.
+# When a VGL loop is active, block all gatekeeper skills except /cross-team.
 # This prevents the agent from:
 #   - Running /quest (would overwrite the plan mid-execution)
 #   - Running /bridge (would start a competing non-plan loop)
@@ -28,8 +28,8 @@ if [[ ! -f "$STATE_FILE" ]]; then
   exit 0
 fi
 
-# Normalize skill name — strip "gsd-vgl:" prefix if present
-BARE_SKILL="${SKILL#gsd-vgl:}"
+# Normalize skill name — strip "gatekeeper:" prefix if present
+BARE_SKILL="${SKILL#gatekeeper:}"
 
 # Allow /cross-team through — needed for auto-transition and recovery
 if [[ "$BARE_SKILL" == "cross-team" ]]; then
@@ -41,7 +41,7 @@ if [[ "$BARE_SKILL" == "progress" ]]; then
   exit 0
 fi
 
-# Block all other gsd-vgl skills during active VGL
+# Block all other gatekeeper skills during active VGL
 case "$BARE_SKILL" in
     quest|new-project|bridge|run-away|research|map-codebase|settings|verify-milestone|debug|help)
     echo "BLOCKED: /$SKILL is not available during an active VGL loop." >&2
@@ -51,5 +51,5 @@ case "$BARE_SKILL" in
     ;;
 esac
 
-# Not a gsd-vgl skill — allow it
+# Not a gatekeeper skill — allow it
 exit 0

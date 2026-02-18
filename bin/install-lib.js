@@ -151,4 +151,59 @@ function setupMcpServer(fs, execSync, pluginDir) {
   }
 }
 
-module.exports = { copyPluginDirectory, verifyInstallation, setupMcpServer, EXCLUDE };
+/**
+ * Set up the evolve-mcp server: install fastmcp Python dependency.
+ * evolve-mcp is a FastMCP Python server bundled with the plugin.
+ * It auto-installs fastmcp on first launch via bin/evolve-mcp.sh,
+ * but we pre-install here for a better experience.
+ */
+function setupEvolveMcp(fs, execSync, pluginDir) {
+  const mcpDir = path.join(pluginDir, 'evolve-mcp');
+  const serverPy = path.join(mcpDir, 'server.py');
+  const launcherScript = path.join(pluginDir, 'bin', 'evolve-mcp.sh');
+
+  // Verify source exists (bundled with plugin)
+  if (!fs.existsSync(serverPy)) {
+    console.error(`  ${yellow}evolve-mcp source not found at ${mcpDir}${reset}`);
+    console.error(`  ${dim}This is bundled with the plugin — reinstall may be needed${reset}`);
+    return;
+  }
+
+  // Install fastmcp Python dependency
+  console.log(`  ${dim}Installing evolve-mcp dependencies (fastmcp)...${reset}`);
+  try {
+    execSync('pip install fastmcp', { stdio: 'pipe' });
+    console.log(`  ${green}✓${reset} Installed fastmcp Python dependency`);
+  } catch (err) {
+    // Try pip3 as fallback
+    try {
+      execSync('pip3 install fastmcp', { stdio: 'pipe' });
+      console.log(`  ${green}✓${reset} Installed fastmcp Python dependency`);
+    } catch (err2) {
+      console.error(`  ${yellow}Could not install fastmcp automatically${reset}`);
+      console.error(`  ${dim}${err2.stderr ? err2.stderr.toString().trim() : err2.message}${reset}`);
+      console.error(`  ${yellow}Run manually:${reset} pip install fastmcp`);
+      console.error(`  ${dim}The evolve-mcp launcher will also auto-install on first use${reset}`);
+    }
+  }
+
+  // Deregister old verifier-mcp if it exists
+  console.log(`  ${dim}Cleaning up old verifier-mcp registration...${reset}`);
+  try {
+    execSync('claude mcp remove verifier-mcp', { stdio: 'pipe' });
+    console.log(`  ${green}✓${reset} Removed old verifier-mcp MCP server`);
+  } catch {
+    // Not registered — that's fine
+  }
+
+  // Make launcher executable
+  try {
+    fs.chmodSync(launcherScript, 0o755);
+  } catch {
+    // Already executable or chmod not needed
+  }
+
+  console.log(`  ${green}✓${reset} evolve-mcp ready (auto-starts via plugin.json)`);
+}
+
+module.exports = { copyPluginDirectory, verifyInstallation, setupMcpServer, setupEvolveMcp, EXCLUDE };

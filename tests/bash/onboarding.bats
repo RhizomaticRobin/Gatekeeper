@@ -30,7 +30,7 @@ teardown() {
     [ ! -d "$TEST_DIR/.planning" ]
     run bash "$SCRIPTS_DIR/onboarding.sh"
     assert_success
-    assert_output --partial "Welcome to EvoGatekeeper"
+    assert_output --partial "Welcome to Gatekeeper"
     assert_output --partial "quest"
 }
 
@@ -42,7 +42,7 @@ teardown() {
     touch "$TEST_DIR/.planning/.initialized"
     run bash "$SCRIPTS_DIR/onboarding.sh"
     assert_success
-    refute_output --partial "Welcome to EvoGatekeeper"
+    refute_output --partial "Welcome to Gatekeeper"
 }
 
 # =============================================================================
@@ -52,18 +52,18 @@ teardown() {
     mkdir -p "$TEST_DIR/.planning"
     run bash "$SCRIPTS_DIR/onboarding.sh"
     assert_success
-    refute_output --partial "Welcome to EvoGatekeeper"
+    refute_output --partial "Welcome to Gatekeeper"
 }
 
 # =============================================================================
 # Test 4: welcome includes help reference
 # =============================================================================
-@test "welcome includes help reference — output contains /gsd-vgl:help" {
+@test "welcome includes help reference — output contains /gatekeeper:help" {
     # No .planning/ directory — first run
     [ ! -d "$TEST_DIR/.planning" ]
     run bash "$SCRIPTS_DIR/onboarding.sh"
     assert_success
-    assert_output --partial "/gsd-vgl:help"
+    assert_output --partial "/gatekeeper:help"
 }
 
 # =============================================================================

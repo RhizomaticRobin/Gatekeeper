@@ -1015,7 +1015,7 @@ async function regenerateEntitySummary() {
  * Uses read-modify-write pattern with synchronous operations
  *
  * IMPORTANT: Only runs if .planning/intel/ already exists (opt-in behavior).
- * Directory is created by /gsd-vgl:quest or /gsd-vgl:map-codebase.
+ * Directory is created by /gatekeeper:quest or /gatekeeper:map-codebase.
  */
 function updateIndex(filePath, exports, imports) {
   const intelDir = path.join(process.cwd(), '.planning', 'intel');

@@ -266,7 +266,7 @@ Tasks with `autonomous: false` require user interaction.
 
 1. **Spawn agent for checkpoint task:**
    ```
-   Task(prompt="{subagent-task-prompt}", subagent_type="evogatekeeper:executor", model="{executor_model}")
+   Task(prompt="{subagent-task-prompt}", subagent_type="gatekeeper:executor", model="{executor_model}")
    ```
 
 2. **Agent runs until checkpoint:**
@@ -304,7 +304,7 @@ Tasks with `autonomous: false` require user interaction.
    ```
    Task(
      prompt=filled_continuation_template,
-     subagent_type="evogatekeeper:executor",
+     subagent_type="gatekeeper:executor",
      model="{executor_model}"
    )
    ```

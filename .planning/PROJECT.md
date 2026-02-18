@@ -1,7 +1,7 @@
-# Project: EvoGatekeeper
+# Project: Gatekeeper
 
 ## Vision
-Evolve Gatekeeper from a structured TDD/VGL plugin into a self-improving, autonomously-learning development system. EvoGatekeeper retains the cryptographic verification core but adds adaptive orchestration, cross-project learning, and end-to-end autonomy — reducing human intervention from "guide every task" to "describe what you want."
+Evolve Gatekeeper from a structured TDD/VGL plugin into a self-improving, autonomously-learning development system. Gatekeeper retains the cryptographic verification core but adds adaptive orchestration, cross-project learning, and end-to-end autonomy — reducing human intervention from "guide every task" to "describe what you want."
 
 ## Primary User
 Software developers using Claude Code for complex, multi-task projects.
@@ -29,5 +29,5 @@ Current Gatekeeper orchestrates well but doesn't learn. Every project starts fro
 - Git (checkpoint commits, autopilot)
 
 ## Deployment
-- npm package (`npx gsd-vgl`)
-- Claude Code marketplace (`/plugin marketplace add RhizomaticRobin/gsd-vgl`)
+- npm package (`npx gatekeeper`)
+- Claude Code marketplace (`/plugin marketplace add RhizomaticRobin/gatekeeper`)

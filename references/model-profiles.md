@@ -4,36 +4,45 @@ Model profiles control which Claude model each GSD-VGL agent uses. This allows b
 
 ## Profile Definitions
 
-| Agent | `quality` | `balanced` | `budget` |
-|-------|-----------|------------|----------|
-| planner | opus | opus | sonnet |
-| roadmapper | opus | sonnet | sonnet |
-| executor | opus | sonnet | sonnet |
-| phase-researcher | opus | sonnet | haiku |
-| project-researcher | opus | sonnet | haiku |
-| research-synthesizer | sonnet | sonnet | haiku |
-| debugger | opus | sonnet | sonnet |
-| codebase-mapper | sonnet | haiku | haiku |
-| verifier | sonnet | sonnet | haiku |
-| plan-checker | sonnet | sonnet | haiku |
-| integration-checker | sonnet | sonnet | haiku |
+| Agent | `default` | `quality` | `balanced` | `budget` |
+|-------|-----------|-----------|------------|----------|
+| orchestrator | sonnet | opus | sonnet | sonnet |
+| planner | opus | opus | opus | sonnet |
+| verifier | opus | opus | opus | sonnet |
+| assessor | opus | opus | opus | sonnet |
+| tester | sonnet | opus | sonnet | haiku |
+| executor | haiku | opus | sonnet | haiku |
+| phase-researcher | sonnet | opus | sonnet | haiku |
+| project-researcher | sonnet | opus | sonnet | haiku |
+| debugger | sonnet | opus | sonnet | sonnet |
+| codebase-mapper | haiku | sonnet | haiku | haiku |
+| plan-checker | sonnet | sonnet | sonnet | haiku |
+| integration-checker | sonnet | sonnet | sonnet | haiku |
+| evo-scout | haiku | haiku | haiku | haiku |
+| evo-optimizer (island 0,1,2,3) | haiku | sonnet | haiku | haiku |
+| evo-optimizer (island 4) | opus | opus | sonnet | haiku |
 
 ## Profile Philosophy
 
+**default** - Smart allocation with strong verification
+- Opus for planning and verification (where architecture decisions and quality gates happen)
+- Sonnet for orchestration, testing, and research (follows explicit instructions)
+- Haiku for execution (follows detailed task-{id}.md prompts)
+- Use when: normal development, strong quality gates with efficient execution
+
 **quality** - Maximum reasoning power
 - Opus for all decision-making agents
-- Sonnet for read-only verification
+- Sonnet for read-only verification and mapping
 - Use when: quota available, critical architecture work
 
-**balanced** (default) - Smart allocation
+**balanced** - Moderate allocation
 - Opus only for planning (where architecture decisions happen)
-- Sonnet for execution and research (follows explicit instructions)
-- Sonnet for verification (needs reasoning, not just pattern matching)
-- Use when: normal development, good balance of quality and cost
+- Sonnet for execution, verification, and research
+- Use when: good balance of quality and cost
 
 **budget** - Minimal Opus usage
-- Sonnet for anything that writes code
-- Haiku for research and verification
+- Sonnet for anything that writes code or verifies
+- Haiku for research, execution, and mapping
 - Use when: conserving quota, high-volume work, less critical phases
 
 ## Resolution Logic
@@ -42,19 +51,19 @@ Orchestrators resolve model before spawning:
 
 ```
 1. Read plan.yaml metadata
-2. Get model_profile (default: "balanced")
+2. Get model_profile (default: "default")
 3. Look up agent in table above
 4. Pass model parameter to Task call
 ```
 
 ## Switching Profiles
 
-Runtime: `/gsd-vgl:set-profile <profile>`
+Runtime: `/gatekeeper:set-profile <profile>`
 
 Per-project default: Set in `plan.yaml` metadata:
 ```yaml
 metadata:
-  model_profile: "balanced"
+  model_profile: "default"
 ```
 
 ## Plan Metadata Schema
@@ -77,9 +86,11 @@ The `metadata` section of `plan.yaml` supports required and optional fields.
 | `timeout_hours` | positive integer | 8 | Maximum hours before timeout |
 | `stuck_threshold` | positive integer | 3 | Number of retries on the same task before marking stuck |
 | `circuit_breaker_threshold` | positive integer | 5 | Consecutive failures before circuit breaker trips |
-| `model_profile` | string | "default" | Which model profile to use (quality/balanced/budget) |
+| `model_profile` | string | "default" | Which model profile to use (default/quality/balanced/budget) |
 | `test_framework` | string | — | Test framework in use (e.g., pytest, jest) |
 | `project_context` | dict | — | Discovery answers from the quest workflow (vision, users, tech stack, etc.) |
+| `superphase` | boolean | false | Enable evolutionary superphase after all tasks pass verification |
+| `superphase_candidates` | positive integer | 3 | Number of top-K hotspot candidates to optimize in superphase |
 
 ### Resilience Fields
 
@@ -99,11 +110,17 @@ Task-level `deliverables` has one required and one optional field:
 **Why Opus for planner?**
 Planning involves architecture decisions, goal decomposition, and task design. This is where model quality has the highest impact.
 
-**Why Sonnet for executor?**
-Executors follow explicit task-{id}.md instructions. The task already contains the reasoning; execution is implementation.
+**Why Haiku for executor in default?**
+Executors follow explicit task-{id}.md instructions with detailed test dependency graphs and guidance. The task already contains the reasoning; execution is implementation that follows directions.
 
-**Why Sonnet (not Haiku) for verifiers in balanced?**
-Verification requires goal-backward reasoning - checking if code *delivers* what the phase promised, not just pattern matching. Sonnet handles this well; Haiku may miss subtle gaps.
+**Why Opus for verifier and assessor?**
+Verification and assessment require goal-backward reasoning — checking if code *delivers* what the phase promised, spotting subtle gaps, impossible test assertions, and missing wiring. This is where Opus catches what Sonnet misses.
 
 **Why Haiku for codebase-mapper?**
 Read-only exploration and pattern extraction. No reasoning required, just structured output from file contents.
+
+**Why Haiku for evo-scout?**
+Scouts call a profiler MCP tool and filter results. Minimal reasoning needed — just data collection.
+
+**Why Opus for evo-optimizer island 4?**
+Island 4 focuses on novel algorithmic breakthroughs (reduced complexity class, mathematical reformulation). This requires the deepest reasoning — discovering fundamentally better algorithms, not just tweaking existing ones. The haiku islands (0-3) handle mechanical optimizations (vectorization, allocation reduction, memoization, data structures).

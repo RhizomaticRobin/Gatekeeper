@@ -409,6 +409,24 @@ def main():
         default=300,
         help="Timeout in seconds for the full test run (default: 300)",
     )
+    parser.add_argument(
+        "--time-function",
+        type=str,
+        default=None,
+        help="Function name to time for speedup measurement",
+    )
+    parser.add_argument(
+        "--module-path",
+        type=str,
+        default=None,
+        help="Module path containing the function to time",
+    )
+    parser.add_argument(
+        "--baseline-ms",
+        type=float,
+        default=None,
+        help="Baseline timing in milliseconds for speedup calculation",
+    )
 
     args = parser.parse_args()
 
@@ -420,7 +438,89 @@ def main():
         source_dirs = [d.strip() for d in args.source_dirs.split(",")]
 
     result = evaluator.evaluate(args.evaluate, source_dirs=source_dirs)
+
+    # Timing stage: measure function speedup if all three timing args provided
+    if (args.time_function and args.module_path and args.baseline_ms is not None
+            and result.get("test_pass_rate", 0.0) == 1.0
+            and result.get("stage") == 3):
+        timing_result = _measure_function_timing(
+            args.time_function, args.module_path, args.baseline_ms
+        )
+        result.update(timing_result)
+
     print(json.dumps(result, indent=2))
+
+
+def _measure_function_timing(function_name, module_path, baseline_ms):
+    """Measure function timing via timeit subprocess.
+
+    Runs 5 repetitions, takes median, computes speedup_ratio.
+
+    Args:
+        function_name: Name of the function to time.
+        module_path: Python module path (e.g., 'src/utils.py').
+        baseline_ms: Baseline timing in milliseconds.
+
+    Returns:
+        dict with speedup_ratio and timing_ms, or error info.
+    """
+    # Convert file path to module import path
+    mod_path = module_path.replace("/", ".").replace("\\", ".")
+    if mod_path.endswith(".py"):
+        mod_path = mod_path[:-3]
+
+    # Build timeit command: import the module and call the function
+    setup_code = f"from {mod_path} import {function_name}"
+    stmt_code = f"{function_name}()"
+
+    timings = []
+    for _ in range(5):
+        cmd = [
+            sys.executable, "-m", "timeit",
+            "-n", "1", "-r", "1",
+            "-s", setup_code,
+            stmt_code,
+        ]
+        try:
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if proc.returncode != 0:
+                continue
+            # Parse timeit output: "1 loop, best of 1: X.XX msec per loop" or similar
+            output = proc.stdout.strip()
+            # Try multiple formats
+            m = re.search(r"([\d.]+)\s*(msec|usec|sec)\s*per loop", output)
+            if m:
+                val = float(m.group(1))
+                unit = m.group(2)
+                if unit == "usec":
+                    val /= 1000.0
+                elif unit == "sec":
+                    val *= 1000.0
+                timings.append(val)
+        except subprocess.TimeoutExpired:
+            continue
+
+    if not timings:
+        return {
+            "speedup_ratio": 0.0,
+            "timing_ms": 0.0,
+            "timing_error": "Could not measure function timing",
+        }
+
+    # Median timing
+    timings.sort()
+    median_ms = timings[len(timings) // 2]
+    speedup_ratio = baseline_ms / (median_ms + 1e-9)
+
+    return {
+        "speedup_ratio": round(speedup_ratio, 4),
+        "timing_ms": round(median_ms, 4),
+    }
 
 
 if __name__ == "__main__":

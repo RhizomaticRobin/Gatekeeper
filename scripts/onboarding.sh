@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# onboarding.sh — First-run onboarding for EvoGatekeeper
+# onboarding.sh — First-run onboarding for Gatekeeper
 #
 # Detects first run by absence of .claude/plan/ directory.
 # Shows a welcome message (3 lines max) and creates a marker file.
@@ -16,8 +16,8 @@ if [[ -d "${PROJECT_DIR}/.claude/plan" ]]; then
 fi
 
 # First run — show welcome message (3 lines max)
-echo "Welcome to EvoGatekeeper! Start with /gsd-vgl:quest to plan your project."
-echo "Run /gsd-vgl:help for all available commands."
+echo "Welcome to Gatekeeper! Start with /gatekeeper:quest to plan your project."
+echo "Run /gatekeeper:help for all available commands."
 
 # Create marker directory so welcome is only shown once
 mkdir -p "${PROJECT_DIR}/.claude/plan"

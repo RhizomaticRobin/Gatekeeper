@@ -9,7 +9,7 @@
 #   - *-token.secret              (completion tokens)
 #   - *-prompt.local.md           (generated prompts)
 #   - .claude/plugins/            (plugin cache)
-#   - gsd-vgl/                    (plugin source, if present in project)
+#   - gatekeeper/                    (plugin source, if present in project)
 #   - verifier-mcp/               (MCP server source)
 #   - agents/                     (agent definitions)
 #   - hooks/                      (hook scripts)
@@ -53,7 +53,7 @@ if [[ "$TOOL" == "Read" ]]; then
       echo "BLOCKED: That directory is outside your working scope." >&2
       exit 2
       ;;
-    */gsd-vgl/*|*/gsd-vgl)
+    */gatekeeper/*|*/gatekeeper)
       echo "BLOCKED: That directory is outside your working scope." >&2
       exit 2
       ;;
@@ -111,7 +111,7 @@ if [[ "$TOOL" == "Bash" ]]; then
         echo "BLOCKED: That command accesses files outside your working scope." >&2
         exit 2
         ;;
-      *.claude/plugins*|*gsd-vgl/*|*verifier-mcp/*)
+      *.claude/plugins*|*gatekeeper/*|*verifier-mcp/*)
         echo "BLOCKED: That command accesses files outside your working scope." >&2
         exit 2
         ;;
@@ -140,7 +140,7 @@ if [[ "$TOOL" == "Grep" ]]; then
   fi
 
   case "$GREPPATH" in
-    */.claude/plugins/*|*/.claude/plugins|*/gsd-vgl/*|*/gsd-vgl|*/verifier-mcp/*|*/verifier-mcp|*/agents/*|*/hooks/*|*/hooks|*/commands/*|*/commands)
+    */.claude/plugins/*|*/.claude/plugins|*/gatekeeper/*|*/gatekeeper|*/verifier-mcp/*|*/verifier-mcp|*/agents/*|*/hooks/*|*/hooks|*/commands/*|*/commands)
       echo "BLOCKED: That path is outside your working scope." >&2
       exit 2
       ;;
@@ -164,7 +164,7 @@ if [[ "$TOOL" == "Glob" ]]; then
   fi
 
   case "$GLOBPATH" in
-    */.claude/plugins/*|*/.claude/plugins|*/gsd-vgl/*|*/gsd-vgl|*/verifier-mcp/*|*/verifier-mcp|*/agents/*|*/hooks/*|*/hooks|*/commands/*|*/commands)
+    */.claude/plugins/*|*/.claude/plugins|*/gatekeeper/*|*/gatekeeper|*/verifier-mcp/*|*/verifier-mcp|*/agents/*|*/hooks/*|*/hooks|*/commands/*|*/commands)
       echo "BLOCKED: That path is outside your working scope." >&2
       exit 2
       ;;

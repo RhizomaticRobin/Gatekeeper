@@ -39,6 +39,37 @@ from evo_db import Approach, EvolutionDB
 # Directive variations
 # ---------------------------------------------------------------------------
 
+_SPEED_DIRECTIVE_VARIATIONS = [
+    (
+        "Identify the mathematical bottleneck — apply a superior algorithm. "
+        "Current speedup: {speedup:.2f}x. Target: reduce time complexity."
+    ),
+    (
+        "Vectorize with numpy/list comprehensions — eliminate Python for-loops. "
+        "Current speedup: {speedup:.2f}x. Every Python loop is an opportunity."
+    ),
+    (
+        "Eliminate redundant computation — memoize or precompute invariants. "
+        "Current speedup: {speedup:.2f}x. What is being recalculated needlessly?"
+    ),
+    (
+        "Reduce allocations — use in-place ops, generators, avoid unnecessary copies. "
+        "Current speedup: {speedup:.2f}x. Memory allocation is often the hidden bottleneck."
+    ),
+    (
+        "Try a fundamentally different data structure (set for O(1) lookup, deque vs list). "
+        "Current speedup: {speedup:.2f}x. The right data structure can change everything."
+    ),
+    (
+        "Optimize the inner loop — the line that runs 1000× not the one that runs once. "
+        "Current speedup: {speedup:.2f}x. Profile mentally and focus on the hot path."
+    ),
+    (
+        "Reduce algorithmic complexity — O(n log n) or O(n) replacement for O(n²). "
+        "Current speedup: {speedup:.2f}x. Asymptotic wins beat constant-factor tuning."
+    ),
+]
+
 _DEFAULT_DIRECTIVE_VARIATIONS = [
     (
         "Your parent achieved a test pass rate of {score:.1%}. "
@@ -108,11 +139,12 @@ class EvolutionPromptBuilder:
         db_path: str,
         task_id: str,
         island_id: Optional[int] = None,
+        mode: str = "general",
     ) -> str:
         """Load the EvolutionDB and build a 5-section markdown prompt.
 
         Sections:
-            1. Evolution Context
+            1. Evolution Context (or Speed Optimization Context if mode='speed')
             2. Parent Approach
             3. What Went Wrong
             4. Inspiration Approaches
@@ -122,10 +154,17 @@ class EvolutionPromptBuilder:
             db_path: Path to the EvolutionDB directory.
             task_id: Task ID to filter approaches.
             island_id: Island to sample from (default: random).
+            mode: 'general' (default) or 'speed' for speed-optimization directives.
 
         Returns:
             Markdown string with all 5 sections.
         """
+        # Switch directives for speed mode
+        if mode == "speed":
+            self.directive_variations = list(_SPEED_DIRECTIVE_VARIATIONS)
+            self._speed_mode = True
+        else:
+            self._speed_mode = False
         db = EvolutionDB()
         db.load(db_path)
 
@@ -241,10 +280,11 @@ class EvolutionPromptBuilder:
     def _section_evolution_context(
         self, db: EvolutionDB, parent: Approach, task_id: str
     ) -> str:
-        """Section 1: Evolution Context."""
+        """Section 1: Evolution Context (or Speed Optimization Context)."""
         stats = db.stats()
+        header = "## Speed Optimization Context" if getattr(self, "_speed_mode", False) else "## Evolution Context"
         lines = [
-            "## Evolution Context",
+            header,
             "",
             f"- **Task:** {task_id}",
             f"- **Population size:** {stats['population_size']}",
@@ -320,9 +360,10 @@ class EvolutionPromptBuilder:
         """Section 5: Your Directive — varied instruction for the executor."""
         score = parent.metrics.get("test_pass_rate", 0.0)
         percent = score * 100.0
+        speedup = parent.metrics.get("speedup_ratio", 0.0)
 
         template = self._select_directive(parent.generation)
-        directive_text = template.format(score=score, percent=percent)
+        directive_text = template.format(score=score, percent=percent, speedup=speedup)
 
         lines = [
             "## Your Directive",
@@ -375,6 +416,13 @@ def main():
         default=None,
         help="Island ID to sample from (default: random)",
     )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["general", "speed"],
+        default="general",
+        help="Prompt mode: 'general' (default) or 'speed' for speed-optimization directives",
+    )
 
     args = parser.parse_args()
 
@@ -385,6 +433,7 @@ def main():
             db_path=db_path,
             task_id=task_id,
             island_id=args.island,
+            mode=args.mode,
         )
         print(prompt)
     else:

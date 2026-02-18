@@ -1,15 +1,15 @@
 {
-  "name": "evogatekeeper",
+  "name": "gatekeeper",
   "owner": {
     "name": "RhizomaticRobin",
     "email": "atatle@proton.me"
   },
   "metadata": {
-    "description": "EvoGatekeeper — spec-driven development with cryptographic verifier loops"
+    "description": "Gatekeeper — spec-driven development with cryptographic verifier loops"
   },
   "plugins": [
     {
-      "name": "evogatekeeper",
+      "name": "gatekeeper",
       "source": "./",
       "description": "Verifier-Gated Loop plugin: TDD-first execution, concurrent opencode agents, and cryptographic verification.",
       "version": "1.0.0"

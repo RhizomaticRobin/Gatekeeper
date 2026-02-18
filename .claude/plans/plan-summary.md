@@ -1,4 +1,4 @@
-# Plan: EvoGatekeeper Evolution Engine
+# Plan: Gatekeeper Evolution Engine
 
 ## Overview
 Replace the static heuristic scripts (wave_sizer, task_router, failure_classifier, budget_scheduler, auto_fixer, dep_resolver, progress_advisor) with a genuine OpenEvolve-style evolutionary intelligence engine. The "program" being evolved is the approach/strategy addendum given to builder agents. Each VGL iteration becomes a generation — evaluate the attempt with multi-dimensional metrics, store in a MAP-Elites population, sample parent + inspirations from islands, and build rich evolution context for the next iteration.

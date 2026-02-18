@@ -1,4 +1,4 @@
-# bats-core Research: Bash Script Testing for EvoGatekeeper
+# bats-core Research: Bash Script Testing for Gatekeeper
 
 **Phase:** 01 - Testing & Stability
 **Requirements:** R-002 (test shell scripts), R-003 (test hooks)
@@ -63,7 +63,7 @@ git submodule add https://github.com/bats-core/bats-file.git test/test_helper/ba
 
 Run via `./test/bats/bin/bats test/`.
 
-### 2d. Recommendation for EvoGatekeeper
+### 2d. Recommendation for Gatekeeper
 
 Use **npm** for bats-core itself (already a Claude Code plugin context) and **git submodules**
 for the helper libraries (bats-support, bats-assert, bats-file). This avoids npm packages
@@ -81,7 +81,7 @@ npm install --save-dev bats bats-support bats-assert
 ### 3a. Directory layout
 
 ```
-gsd-vgl/
+gatekeeper/
   hooks/
     stop-hook.sh
     guard-skills.sh
@@ -243,7 +243,7 @@ back to the test. If you need side effects (file creation, env vars), either:
 
 ---
 
-## 5. Example Test Patterns for EvoGatekeeper
+## 5. Example Test Patterns for Gatekeeper
 
 ### 5a. Testing guard-skills.sh (hook that reads JSON from stdin, checks state file)
 
@@ -305,14 +305,14 @@ teardown() {
     assert_success
 }
 
-@test "guard-skills: strips gsd-vgl: prefix from skill name" {
+@test "guard-skills: strips gatekeeper: prefix from skill name" {
     touch .claude/verifier-loop.local.md
-    INPUT='{"tool_input": {"skill": "gsd-vgl:quest"}}'
+    INPUT='{"tool_input": {"skill": "gatekeeper:quest"}}'
     run bash -c "echo '$INPUT' | $PROJECT_ROOT/hooks/guard-skills.sh"
     assert_failure 2
 }
 
-@test "guard-skills: allows non-gsd-vgl skills during VGL" {
+@test "guard-skills: allows non-gatekeeper skills during VGL" {
     touch .claude/verifier-loop.local.md
     INPUT='{"tool_input": {"skill": "some-other-plugin:thing"}}'
     run bash -c "echo '$INPUT' | $PROJECT_ROOT/hooks/guard-skills.sh"
@@ -590,7 +590,7 @@ setup() {
 }
 ```
 
-### 6d. Recommendation for EvoGatekeeper
+### 6d. Recommendation for Gatekeeper
 
 For most tests, **use real commands** (jq, python3, etc.) with controlled fixture data
 rather than mocking. The scripts are integration-style -- they read files, call tools, and
@@ -904,7 +904,7 @@ run my_pipe
 
 ### 10e. Stdin piping to scripts under test
 
-Many of the EvoGatekeeper hooks read from stdin (`INPUT=$(cat)`). To pipe data:
+Many of the Gatekeeper hooks read from stdin (`INPUT=$(cat)`). To pipe data:
 
 ```bash
 # Option 1: bash -c with echo

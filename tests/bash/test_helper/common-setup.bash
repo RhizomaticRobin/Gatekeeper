@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# common-setup.bash — shared bats test helper for gsd-vgl
+# common-setup.bash — shared bats test helper for gatekeeper
 
 # Resolve PLUGIN_ROOT to the project root (two levels up from test_helper/)
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../" && pwd)"

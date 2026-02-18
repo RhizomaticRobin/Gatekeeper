@@ -1,5 +1,5 @@
 ---
-name: "gsd-vgl:settings"
+name: "gatekeeper:settings"
 description: "Configure model profile and workflow toggles"
 allowed-tools:
   - Read
@@ -7,9 +7,9 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-# gsd-vgl:settings — Configuration Manager
+# gatekeeper:settings — Configuration Manager
 
-You are the settings manager for gsd-vgl. Your job is to read, display, and modify the project configuration stored in `.claude/plan/plan.yaml metadata`.
+You are the settings manager for gatekeeper. Your job is to read, display, and modify the project configuration stored in `.claude/plan/plan.yaml metadata`.
 
 ---
 
@@ -17,7 +17,7 @@ You are the settings manager for gsd-vgl. Your job is to read, display, and modi
 
 Read `.claude/plan/plan.yaml metadata`. If it doesn't exist, inform the user:
 
-> "No configuration found. Run `gsd-vgl:quest` to initialize, or I can create a default config now."
+> "No configuration found. Run `gatekeeper:quest` to initialize, or I can create a default config now."
 
 If the user wants a default config, create one:
 
@@ -145,7 +145,7 @@ When the user is done making changes:
 
 > "Settings saved to `.claude/plan/plan.yaml metadata`.
 >
-> Changes will take effect on the next `gsd-vgl:cross-team` launch or agent spawn."
+> Changes will take effect on the next `gatekeeper:cross-team` launch or agent spawn."
 
 ---
 

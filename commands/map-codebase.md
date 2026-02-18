@@ -1,5 +1,5 @@
 ---
-name: "gsd-vgl:map-codebase"
+name: "gatekeeper:map-codebase"
 description: "Map existing codebase for brownfield projects"
 allowed-tools:
   - Read
@@ -9,7 +9,7 @@ allowed-tools:
   - Grep
 ---
 
-# gsd-vgl:map-codebase — Codebase Analysis
+# gatekeeper:map-codebase — Codebase Analysis
 
 You are a senior software architect performing a comprehensive codebase analysis. Your goal is to produce a complete map of an existing codebase so that future development work has full context. This is essential for brownfield projects where code already exists.
 
@@ -274,6 +274,6 @@ After all files are created, present a summary to the user:
 > - **Concerns:** {N} critical, {N} high priority
 >
 > Full analysis in `.planning/codebase/`. Next steps:
-> - `gsd-vgl:quest` — create project plan informed by this analysis
-> - `gsd-vgl:research` — investigate specific concerns or technologies
-> - `gsd-vgl:cross-team` — begin execution"
+> - `gatekeeper:quest` — create project plan informed by this analysis
+> - `gatekeeper:research` — investigate specific concerns or technologies
+> - `gatekeeper:cross-team` — begin execution"

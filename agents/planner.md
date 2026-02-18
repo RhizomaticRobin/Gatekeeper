@@ -1,7 +1,7 @@
 ---
 name: planner
 description: Creates plan.yaml + task-{id}.md files with goal-backward must_haves, wave assignment, file_scope, and TDD test specifications.
-model: sonnet
+model: opus
 tools: Read, Write, Bash, Glob, Grep, WebFetch
 disallowedTools: Edit, WebSearch, Task
 color: green

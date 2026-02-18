@@ -11,7 +11,7 @@ INPUT=$(cat)
 SKILL=$(echo "$INPUT" | jq -r '.tool_input.skill // empty' 2>/dev/null)
 
 # Normalize — strip prefix
-BARE_SKILL="${SKILL#gsd-vgl:}"
+BARE_SKILL="${SKILL#gatekeeper:}"
 
 # Only act on /cross or /cross-team
 if [[ "$BARE_SKILL" != "cross" ]] && [[ "$BARE_SKILL" != "cross-team" ]]; then

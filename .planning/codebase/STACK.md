@@ -35,5 +35,5 @@
 - MCP server auto-builds on first launch via `bin/opencode-mcp.sh`.
 
 ## Distribution
-- **npm package** (`evogatekeeper` v1.0.0) — `npx gsd-vgl` for legacy install.
-- **Claude Code Marketplace** — `plugin marketplace add RhizomaticRobin/gsd-vgl`.
+- **npm package** (`gatekeeper` v1.0.0) — `npx gatekeeper` for legacy install.
+- **Claude Code Marketplace** — `plugin marketplace add RhizomaticRobin/gatekeeper`.

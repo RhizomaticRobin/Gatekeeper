@@ -2,7 +2,7 @@
 
 ## Top-Level Layout
 ```
-gsd-vgl/
+gatekeeper/
 ├── .claude-plugin/           Plugin manifest (Claude Code plugin system)
 │   ├── plugin.json           Name, version, MCP server declaration
 │   └── marketplace.json      Self-contained marketplace definition
@@ -22,7 +22,7 @@ gsd-vgl/
 │   └── learnings.jsonl       Extracted learnings from verifier feedback
 ├── agents/                   9 agent definitions (.md with YAML frontmatter)
 ├── bin/                      Entry points and runtime scripts
-│   ├── install.js            CLI installer (npx gsd-vgl)
+│   ├── install.js            CLI installer (npx gatekeeper)
 │   ├── install-lib.js        Extracted testable functions from install.js
 │   ├── opencode-mcp.sh       MCP server launcher (auto-builds submodule)
 │   ├── ralph.sh              Autopilot outer loop (~550 lines)

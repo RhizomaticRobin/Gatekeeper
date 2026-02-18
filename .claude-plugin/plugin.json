@@ -1,7 +1,7 @@
 {
-  "name": "evogatekeeper",
+  "name": "gatekeeper",
   "version": "1.0.0",
-  "description": "EvoGatekeeper — spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrent agents.",
+  "description": "Gatekeeper — spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrent agents.",
   "author": {
     "name": "RhizomaticRobin",
     "email": "atatle@proton.me"
@@ -21,8 +21,8 @@
       "command": "${CLAUDE_PLUGIN_ROOT}/bin/opencode-mcp.sh",
       "env": {}
     },
-    "verifier-mcp": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/verifier-mcp.sh",
+    "evolve-mcp": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/evolve-mcp.sh",
       "env": {}
     }
   }

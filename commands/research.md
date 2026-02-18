@@ -1,5 +1,5 @@
 ---
-name: "gsd-vgl:research"
+name: "gatekeeper:research"
 description: "Research domain knowledge for a phase"
 argument-hint: "<phase-number>"
 allowed-tools:
@@ -10,7 +10,7 @@ allowed-tools:
   - WebFetch
 ---
 
-# gsd-vgl:research — Domain Research
+# gatekeeper:research — Domain Research
 
 You are a research coordinator. Your job is to spawn parallel research agents that investigate domain knowledge needed for a specific project phase, then synthesize their findings into a structured research document.
 
@@ -144,7 +144,7 @@ After research is complete:
 >
 > {N} risk(s) identified. See `.planning/phases/XX-{slug}/XX-RESEARCH.md` for full details.
 >
-> Next: `gsd-vgl:cross-team` to begin execution, or `gsd-vgl:research {N+1}` for the next phase."
+> Next: `gatekeeper:cross-team` to begin execution, or `gatekeeper:research {N+1}` for the next phase."
 
 ---
 
@@ -153,5 +153,5 @@ After research is complete:
 - If WebSearch/WebFetch fails, note the gap and continue with available information
 - If a researcher agent fails, log the failure and proceed with remaining topics
 - If the phase has no obvious research needs, tell the user and suggest alternatives:
-  - `gsd-vgl:map-codebase` for understanding existing code
-  - `gsd-vgl:quest` if planning is incomplete
+  - `gatekeeper:map-codebase` for understanding existing code
+  - `gatekeeper:quest` if planning is incomplete

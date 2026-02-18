@@ -1,5 +1,5 @@
 metadata:
-  project: evogatekeeper-evolution
+  project: gatekeeper-evolution
   description: Replace static heuristics with OpenEvolve-style evolutionary intelligence
     for VGL task execution
   dev_server_command: echo ok

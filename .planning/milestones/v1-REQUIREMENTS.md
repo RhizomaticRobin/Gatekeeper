@@ -1,4 +1,4 @@
-# v1 Requirements — EvoGatekeeper
+# v1 Requirements — Gatekeeper
 
 ## Stability & Testing
 
@@ -130,12 +130,12 @@
 
 ## UX & Polish
 
-### R-018: Rename to EvoGatekeeper
-- **Description:** Rename the project from gsd-vgl to EvoGatekeeper across all files, marketplace, and npm package
+### R-018: Rename to Gatekeeper
+- **Description:** Rename the project from gatekeeper to Gatekeeper across all files, marketplace, and npm package
 - **Acceptance Criteria:**
   - [ ] Package name updated in package.json
   - [ ] Plugin name updated in plugin.json and marketplace.json
-  - [ ] All command prefixes remain `/gsd-vgl:` (backward compat) or migrate to new prefix
+  - [ ] All command prefixes remain `/gatekeeper:` (backward compat) or migrate to new prefix
   - [ ] README and help updated
 
 ### R-019: Improved error messages
@@ -149,7 +149,7 @@
 - **Description:** When plugin loads for the first time, show a brief welcome with key commands
 - **Acceptance Criteria:**
   - [ ] Detects first run (no `.planning/` directory)
-  - [ ] Shows 3-line welcome with `/gsd-vgl:help` pointer
+  - [ ] Shows 3-line welcome with `/gatekeeper:help` pointer
   - [ ] Non-intrusive (doesn't block workflow)
 
 ## Out of Scope

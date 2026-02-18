@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-DEBUG_LOG="/tmp/gsd-vgl-stop-hook.debug.log"
+DEBUG_LOG="/tmp/gatekeeper-stop-hook.debug.log"
 debug() { echo "[$(date +%H:%M:%S)] $*" >> "$DEBUG_LOG" 2>/dev/null || true; }
 debug "=== STOP HOOK FIRED ==="
 debug "PWD=$(pwd)"
@@ -39,7 +39,7 @@ FRONTMATTER=$(awk 'NR==1 && /^---$/{next} /^---$/{exit} NR>1{print}' "$STATE_FIL
 # Handle empty or corrupted state file (no frontmatter at all)
 if [[ -z "$FRONTMATTER" ]] || ! echo "$FRONTMATTER" | grep -q '^iteration:'; then
   echo "VGL: State file corrupted or empty (no valid frontmatter). Cleaning up." >&2
-  echo "  Recovery: run /gsd-vgl:run-away to reset, then restart your task." >&2
+  echo "  Recovery: run /gatekeeper:run-away to reset, then restart your task." >&2
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
   exit 0
 fi
@@ -51,7 +51,7 @@ SESSION_ID=$(echo "$FRONTMATTER" | grep '^session_id:' | sed 's/session_id: *//'
 # Handle missing session_id
 if [[ -z "$SESSION_ID" ]]; then
   echo "VGL: State file corrupted (missing session_id). Cleaning up." >&2
-  echo "  Recovery: run /gsd-vgl:run-away to reset, then restart your task." >&2
+  echo "  Recovery: run /gatekeeper:run-away to reset, then restart your task." >&2
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
   exit 0
 fi
@@ -65,7 +65,7 @@ if [[ -n "$STARTED_AT" ]]; then
   if [[ $STARTED_EPOCH -gt 0 ]] && [[ $ELAPSED -gt 86400 ]]; then
     HOURS_AGO=$(( ELAPSED / 3600 ))
     echo "VGL: Stale session detected (started ${HOURS_AGO}h ago, session: ${SESSION_ID}). Cleaning up." >&2
-    echo "  Recovery: run /gsd-vgl:run-away to reset, then restart your task." >&2
+    echo "  Recovery: run /gatekeeper:run-away to reset, then restart your task." >&2
     rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
     exit 0
   fi

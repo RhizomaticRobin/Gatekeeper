@@ -131,7 +131,7 @@ EOF
     HOOK="$HOOKS_DIR/guard-skills.sh"
     mkdir -p .claude
     touch .claude/verifier-loop.local.md
-    run bash -c 'echo '"'"'{"tool_input":{"skill":"gsd-vgl:quest"}}'"'"' | bash "'"$HOOK"'" 2>&1'
+    run bash -c 'echo '"'"'{"tool_input":{"skill":"gatekeeper:quest"}}'"'"' | bash "'"$HOOK"'" 2>&1'
     assert_failure 2
     # Must mention BLOCKED
     echo "$output" | grep -q "BLOCKED"

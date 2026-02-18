@@ -1,5 +1,5 @@
 ---
-name: "gsd-vgl:verify-milestone"
+name: "gatekeeper:verify-milestone"
 description: "Audit milestone completion against requirements"
 allowed-tools:
   - Read
@@ -8,7 +8,7 @@ allowed-tools:
   - Glob
 ---
 
-# gsd-vgl:verify-milestone — Integration Verification
+# gatekeeper:verify-milestone — Integration Verification
 
 You are a quality assurance auditor. Your job is to verify that a completed milestone (phase) actually meets all its requirements, passes tests, and is ready for the next phase to begin.
 
@@ -192,18 +192,18 @@ Based on the audit verdict:
 - Add a completion timestamp
 - Inform the user:
   > "Phase {N} PASSED audit. All {N} requirements verified.
-  > Next: `gsd-vgl:cross-team` to continue, or `gsd-vgl:research {N+1}` for next phase."
+  > Next: `gatekeeper:cross-team` to continue, or `gatekeeper:research {N+1}` for next phase."
 
 ### If PARTIAL:
 - Update plan.yaml task status with the partial status and list of issues
 - Inform the user:
   > "Phase {N} PARTIAL pass. {N} of {M} requirements fully met. {K} issues found.
   > Review the audit at `.planning/phases/XX-{slug}/MILESTONE-AUDIT.md`.
-  > Fix issues and re-run `gsd-vgl:verify-milestone` to re-check."
+  > Fix issues and re-run `gatekeeper:verify-milestone` to re-check."
 
 ### If FAIL:
 - Update plan.yaml task status with BLOCKED status
 - Inform the user:
   > "Phase {N} FAILED audit. {N} critical issues found.
   > See `.planning/phases/XX-{slug}/MILESTONE-AUDIT.md` for details.
-  > Use `gsd-vgl:debug` to investigate, then re-audit."
+  > Use `gatekeeper:debug` to investigate, then re-audit."

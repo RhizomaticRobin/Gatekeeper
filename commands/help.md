@@ -1,9 +1,9 @@
 ---
-name: "gsd-vgl:help"
-description: "Show gsd-vgl command reference"
+name: "gatekeeper:help"
+description: "Show gatekeeper command reference"
 ---
 
-# gsd-vgl:help — Command Reference
+# gatekeeper:help — Command Reference
 
 Display the following command reference to the user. Do NOT attempt to run any tools or modify any files. Simply present this documentation clearly.
 
@@ -11,7 +11,7 @@ Display the following command reference to the user. Do NOT attempt to run any t
 
 ```
 ===============================================================================
-  EvoGatekeeper — Spec-Driven Development with Verifier-Gated Loops
+  Gatekeeper — Spec-Driven Development with Verifier-Gated Loops
   Command Reference
 ===============================================================================
 
@@ -20,48 +20,48 @@ Display the following command reference to the user. Do NOT attempt to run any t
 
   VGL Core Commands
   ─────────────────
-  gsd-vgl:quest                Structured task execution with verification
+  gatekeeper:quest                Structured task execution with verification
                                gates. Supports optional deep discovery mode
                                for comprehensive project understanding.
 
-  gsd-vgl:cross-team           Execute tasks with TDD + VGL. Handles both
+  gatekeeper:cross-team           Execute tasks with TDD + VGL. Handles both
                                single-task and multi-task parallel execution.
 
-  gsd-vgl:bridge               Start a standalone Verifier-Gated Loop with
+  gatekeeper:bridge               Start a standalone Verifier-Gated Loop with
                                TDD-first workflow for ad-hoc tasks.
 
-  gsd-vgl:run-away             Emergency rollback. Safely revert changes
+  gatekeeper:run-away             Emergency rollback. Safely revert changes
                                when execution goes off track.
 
   Project Commands
   ────────────────
-  gsd-vgl:research <phase>     Research domain knowledge for a phase.
+  gatekeeper:research <phase>     Research domain knowledge for a phase.
                                Spawns parallel researcher agents for thorough
                                investigation before implementation begins.
 
-  gsd-vgl:map-codebase         Map an existing codebase for brownfield projects.
+  gatekeeper:map-codebase         Map an existing codebase for brownfield projects.
                                Produces STACK, ARCHITECTURE, STRUCTURE,
                                CONVENTIONS, TESTING, INTEGRATIONS, CONCERNS.
 
-  gsd-vgl:progress             Show project status and progress dashboard.
+  gatekeeper:progress             Show project status and progress dashboard.
                                Progress bars, task completion %, recent
                                activity, and next-action routing.
 
-  gsd-vgl:settings             Configure model profile and workflow toggles.
+  gatekeeper:settings             Configure model profile and workflow toggles.
                                Manages quality/balanced/budget profiles and
                                agent enable/disable switches.
 
-  gsd-vgl:verify-milestone     Audit milestone completion against requirements.
+  gatekeeper:verify-milestone     Audit milestone completion against requirements.
                                Spawns integration-checker, validates acceptance
                                criteria, produces MILESTONE-AUDIT.md.
 
-  gsd-vgl:debug [issue]        Systematic debugging with persistent state.
+  gatekeeper:debug [issue]        Systematic debugging with persistent state.
                                Creates debug sessions with checkpoints that
                                survive across sessions for continuation.
 
   Meta
   ────
-  gsd-vgl:help                 Show this command reference.
+  gatekeeper:help                 Show this command reference.
 
 ===============================================================================
 ```
@@ -72,14 +72,14 @@ Display the following command reference to the user. Do NOT attempt to run any t
 
 ### Unified Workflow
 ```
-1. gsd-vgl:quest                — Plan your project (quick or deep discovery)
-2. gsd-vgl:map-codebase         — (If brownfield) Analyze existing code
-3. gsd-vgl:research 1           — Research Phase 1 domain knowledge
-4. gsd-vgl:cross-team           — Execute tasks with TDD + VGL
-5. gsd-vgl:progress             — Monitor progress at any time
-6. gsd-vgl:verify-milestone     — Audit completed milestones
-7. gsd-vgl:bridge               — Start a standalone VGL loop for ad-hoc tasks
-8. gsd-vgl:run-away             — Emergency rollback if needed
+1. gatekeeper:quest                — Plan your project (quick or deep discovery)
+2. gatekeeper:map-codebase         — (If brownfield) Analyze existing code
+3. gatekeeper:research 1           — Research Phase 1 domain knowledge
+4. gatekeeper:cross-team           — Execute tasks with TDD + VGL
+5. gatekeeper:progress             — Monitor progress at any time
+6. gatekeeper:verify-milestone     — Audit completed milestones
+7. gatekeeper:bridge               — Start a standalone VGL loop for ad-hoc tasks
+8. gatekeeper:run-away             — Emergency rollback if needed
 ```
 
 ---
@@ -106,7 +106,7 @@ ad-hoc tasks outside the main plan. Run-away offers emergency rollback.
 
 ## Security Model
 
-EvoGatekeeper commands operate within a defined security boundary:
+Gatekeeper commands operate within a defined security boundary:
 
 | Command           | File Access          | Network   | Git          |
 |-------------------|----------------------|-----------|--------------|
@@ -126,7 +126,7 @@ EvoGatekeeper commands operate within a defined security boundary:
 
 ## State Files
 
-EvoGatekeeper maintains state in the `.claude/plan/` directory:
+Gatekeeper maintains state in the `.claude/plan/` directory:
 
 ```
 .claude/plan/
@@ -144,7 +144,7 @@ Additional state directories:
     plan-summary.md                     — Condensed plan summary
 ```
 
-These files are the source of truth for all gsd-vgl commands. They are designed
+These files are the source of truth for all gatekeeper commands. They are designed
 to be human-readable and editable. You can modify them directly if needed.
 
 ---

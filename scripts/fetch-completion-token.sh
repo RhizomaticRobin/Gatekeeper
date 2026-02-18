@@ -26,14 +26,14 @@ TOKEN_FILE="${SESSION_DIR}/verifier-token.secret"
 # Check state file exists
 if [[ ! -f "$STATE_FILE" ]]; then
   echo "Error: No active VGL session found at ${STATE_FILE}"
-  echo "Try: Run /gsd-vgl:cross-team to start a new VGL session, or check that the session directory is correct."
+  echo "Try: Run /gatekeeper:cross-team to start a new VGL session, or check that the session directory is correct."
   exit 1
 fi
 
 # Check token file exists (created by setup, only this script should read it)
 if [[ ! -f "$TOKEN_FILE" ]]; then
   echo "Error: Token file not found at ${TOKEN_FILE} - VGL session may be corrupted"
-  echo "Try: Run /gsd-vgl:run-away to reset the session, then restart with /gsd-vgl:cross-team."
+  echo "Try: Run /gatekeeper:run-away to reset the session, then restart with /gatekeeper:cross-team."
   exit 1
 fi
 
@@ -49,7 +49,7 @@ STORED_HASH=$(echo "$TOKEN_FILE_CONTENT" | grep '^TEST_CMD_HASH:' | sed 's/^TEST
 
 if [[ -z "$STORED_B64" ]] || [[ -z "$STORED_HASH" ]]; then
   echo "Error: Token file missing test command data - session may be corrupted"
-  echo "Try: Run /gsd-vgl:run-away to reset the session, then restart with /gsd-vgl:cross-team."
+  echo "Try: Run /gatekeeper:run-away to reset the session, then restart with /gatekeeper:cross-team."
   exit 1
 fi
 
@@ -61,7 +61,7 @@ if [[ "$COMPUTED_HASH" != "$STORED_HASH" ]]; then
   echo "Error: Test command integrity check FAILED - token file may have been tampered with"
   echo "  Expected hash: $STORED_HASH"
   echo "  Computed hash: $COMPUTED_HASH"
-  echo "Try: Run /gsd-vgl:run-away to reset the session, then restart with /gsd-vgl:cross-team."
+  echo "Try: Run /gatekeeper:run-away to reset the session, then restart with /gatekeeper:cross-team."
   exit 1
 fi
 
