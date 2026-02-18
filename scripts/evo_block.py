@@ -25,6 +25,7 @@ import re
 import shutil
 import sys
 import time
+from gk_log import gk_error, gk_warn
 
 
 def find_function(source, function_name):
@@ -36,7 +37,7 @@ def find_function(source, function_name):
     try:
         tree = ast.parse(source)
     except SyntaxError as e:
-        print(f"ERROR: SyntaxError parsing source — cannot locate function '{function_name}': {e}", file=sys.stderr)
+        gk_error(f"SyntaxError parsing source — cannot locate function '{function_name}': {e}")
         return None  # Callers MUST check for None and handle as a hard error
 
     for node in ast.walk(tree):
@@ -58,7 +59,7 @@ def extract_function(file_path, function_name):
 
     result = find_function(source, function_name)
     if result is None:
-        print(f"ERROR: Function '{function_name}' not found in {file_path}", file=sys.stderr)
+        gk_error(f"Function '{function_name}' not found in {file_path}")
         sys.exit(1)
 
     _start, _end, func_source = result
@@ -217,7 +218,7 @@ def main():
 
     elif args.apply_diff:
         if not args.diff_file:
-            print("ERROR: --diff-file required for --apply-diff", file=sys.stderr)
+            gk_error("--diff-file required for --apply-diff")
             sys.exit(1)
         with open(args.diff_file, "r") as f:
             diff_content = f.read()
@@ -225,7 +226,7 @@ def main():
 
     elif args.replace:
         if not args.source_file:
-            print("ERROR: --source-file required for --replace", file=sys.stderr)
+            gk_error("--source-file required for --replace")
             sys.exit(1)
         with open(args.source_file, "r") as f:
             new_code = f.read()

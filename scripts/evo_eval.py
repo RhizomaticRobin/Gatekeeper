@@ -21,6 +21,7 @@ import re
 import subprocess
 import sys
 import time
+from gk_log import gk_error, gk_warn
 
 
 class CascadeEvaluator:
@@ -303,7 +304,7 @@ class CascadeEvaluator:
                                 if "FIXME" in line_upper:
                                     fixme_count += 1
                     except OSError as e:
-                        print(f"[evo_eval] WARN: Cannot read {fpath}: {e}", file=sys.stderr)
+                        gk_warn(f"Cannot read {fpath}: {e}")
                         continue
 
         return {
@@ -341,7 +342,7 @@ class CascadeEvaluator:
                         error_lines.append(line)
                 error_trace = "\n".join(error_lines)
                 if not error_trace:
-                    print(f"[evo_eval] WARN: Process exited {exit_code} but no traceback or error pattern found in output", file=sys.stderr)
+                    gk_warn(f"Process exited {exit_code} but no traceback or error pattern found in output")
 
         # Truncate error_trace to 1000 chars
         if len(error_trace) > 1000:
@@ -506,7 +507,7 @@ def _measure_function_timing(function_name, module_path, baseline_ms):
                     val *= 1000.0
                 timings.append(val)
         except subprocess.TimeoutExpired:
-            print(f"[evo_eval] WARN: timeit timed out for {function_name} (rep {_ + 1}/5)", file=sys.stderr)
+            gk_warn(f"timeit timed out for {function_name} (rep {_ + 1}/5)")
             continue
 
     if not timings:

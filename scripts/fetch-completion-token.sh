@@ -12,6 +12,9 @@
 # 5. Token is ONLY output if tests pass
 
 set -euo pipefail
+_FCT_SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+_FCT_PLUGIN_ROOT="$(dirname "$_FCT_SCRIPT_DIR")"
+source "${_FCT_PLUGIN_ROOT}/scripts/gk_log.sh" 2>/dev/null || true
 
 SESSION_DIR=".claude"
 while [[ $# -gt 0 ]]; do
@@ -120,7 +123,7 @@ ISSUES=""
 # Check for TODO/FIXME in source files (if src/ exists)
 if [[ -d "src" ]]; then
   TODO_COUNT=$(timeout 10 grep -r -I -i "TODO\|FIXME\|XXX\|HACK" src/ 2>&1 | wc -l | tr -d ' ') || {
-    echo "WARN: TODO/FIXME scan failed — skipping this check" >&2
+    gk_warn "TODO/FIXME scan failed — skipping this check"
     TODO_COUNT="0"
   }
   if [[ "$TODO_COUNT" =~ ^[0-9]+$ ]] && [[ "$TODO_COUNT" -gt 0 ]]; then
@@ -131,7 +134,7 @@ fi
 # Check for stub implementations
 if [[ -d "src" ]]; then
   STUB_COUNT=$(timeout 10 grep -r -I "pass  # TODO\|raise NotImplementedError\|return None  # stub" src/ 2>&1 | wc -l | tr -d ' ') || {
-    echo "WARN: Stub implementation scan failed — skipping this check" >&2
+    gk_warn "Stub implementation scan failed — skipping this check"
     STUB_COUNT="0"
   }
   if [[ "$STUB_COUNT" =~ ^[0-9]+$ ]] && [[ "$STUB_COUNT" -gt 0 ]]; then

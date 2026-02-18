@@ -23,6 +23,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from gk_log import gk_error, gk_warn, gk_info
 
 
 def profile_test_suite(test_command, profile_output):
@@ -51,9 +52,9 @@ def profile_test_suite(test_command, profile_output):
         text=True,
         timeout=600,
     )
-    print(f"[evo_profiler] cProfile exit code: {result.returncode}", file=sys.stderr)
+    gk_info(f"cProfile exit code: {result.returncode}")
     if result.stderr:
-        print(f"[evo_profiler] stderr: {result.stderr[:500]}", file=sys.stderr)
+        gk_info(f"stderr: {result.stderr[:500]}")
     return result.returncode == 0
 
 
@@ -107,13 +108,13 @@ def compute_complexity(file_path, function_name):
         with open(file_path, "r", encoding="utf-8", errors="replace") as f:
             source = f.read()
     except OSError as e:
-        print(f"[evo_profiler] WARN: Cannot read {file_path}: {e}", file=sys.stderr)
+        gk_warn(f"Cannot read {file_path}: {e}")
         return 0
 
     try:
         tree = ast.parse(source)
     except SyntaxError as e:
-        print(f"[evo_profiler] WARN: Cannot parse {file_path}: {e}", file=sys.stderr)
+        gk_warn(f"Cannot parse {file_path}: {e}")
         return 0
 
     for node in ast.walk(tree):
@@ -156,10 +157,10 @@ def estimate_test_count(test_command, function_name):
                 count += 1
         return max(count, 1)  # At least 1 if the function was profiled
     except subprocess.TimeoutExpired:
-        print(f"[evo_profiler] WARN: pytest --collect-only timed out while estimating test count for {function_name}", file=sys.stderr)
+        gk_warn(f"pytest --collect-only timed out while estimating test count for {function_name}")
         return 1
     except FileNotFoundError as e:
-        print(f"[evo_profiler] WARN: pytest not found while estimating test count: {e}", file=sys.stderr)
+        gk_warn(f"pytest not found while estimating test count: {e}")
         return 1
 
 

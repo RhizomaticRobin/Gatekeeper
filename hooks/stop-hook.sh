@@ -7,6 +7,9 @@
 
 set -euo pipefail
 
+PLUGIN_ROOT_LOG="$(dirname "$(dirname "$(realpath "$0")")")"
+source "${PLUGIN_ROOT_LOG}/scripts/gk_log.sh"
+
 DEBUG_LOG="/tmp/gatekeeper-stop-hook.debug.log"
 debug() { echo "[$(date +%H:%M:%S)] $*" >> "$DEBUG_LOG" 2>/dev/null || true; }
 debug "=== STOP HOOK FIRED ==="
@@ -38,7 +41,7 @@ FRONTMATTER=$(awk 'NR==1 && /^---$/{next} /^---$/{exit} NR>1{print}' "$STATE_FIL
 
 # Handle empty or corrupted state file (no frontmatter at all)
 if [[ -z "$FRONTMATTER" ]] || ! echo "$FRONTMATTER" | grep -q '^iteration:'; then
-  echo "VGL: ERROR: State file corrupted or empty (no valid frontmatter)." >&2
+  gk_error "VGL: State file corrupted or empty (no valid frontmatter)."
   echo "  Frontmatter content: $(echo "$FRONTMATTER" | head -c 200)" >&2
   echo "  State preserved at: ${STATE_FILE}.corrupted" >&2
   echo "  Recovery: run /gatekeeper:run-away to reset, then restart your task." >&2
@@ -53,7 +56,7 @@ SESSION_ID=$(echo "$FRONTMATTER" | grep '^session_id:' | sed 's/session_id: *//'
 
 # Handle missing session_id
 if [[ -z "$SESSION_ID" ]]; then
-  echo "VGL: ERROR: State file corrupted (missing session_id)." >&2
+  gk_error "VGL: State file corrupted (missing session_id)."
   echo "  State preserved at: ${STATE_FILE}.corrupted" >&2
   echo "  Recovery: run /gatekeeper:run-away to reset, then restart your task." >&2
   cp "$STATE_FILE" "${STATE_FILE}.corrupted" 2>/dev/null
@@ -69,7 +72,7 @@ if [[ -n "$STARTED_AT" ]]; then
   ELAPSED=$(( NOW_EPOCH - STARTED_EPOCH ))
   if [[ $STARTED_EPOCH -gt 0 ]] && [[ $ELAPSED -gt 86400 ]]; then
     HOURS_AGO=$(( ELAPSED / 3600 ))
-    echo "VGL: Stale session detected (started ${HOURS_AGO}h ago, session: ${SESSION_ID}). Cleaning up." >&2
+    gk_info "VGL: Stale session detected (started ${HOURS_AGO}h ago, session: ${SESSION_ID}). Cleaning up."
     echo "  Recovery: run /gatekeeper:run-away to reset, then restart your task." >&2
     rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
     exit 0
@@ -78,7 +81,7 @@ fi
 
 # Read completion token from secret file
 if [[ ! -f "$TOKEN_FILE" ]]; then
-  echo "VGL: Token file not found" >&2
+  gk_info "VGL: Token file not found"
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
   exit 0
 fi
@@ -86,7 +89,7 @@ COMPLETION_TOKEN=$(head -1 "$TOKEN_FILE" | tr -d '\n')
 
 # Validate numeric fields
 if [[ ! "$ITERATION" =~ ^[0-9]+$ ]]; then
-  echo "VGL: ERROR: State file corrupted (invalid iteration: '$ITERATION')" >&2
+  gk_error "VGL: State file corrupted (invalid iteration: '$ITERATION')"
   echo "  State preserved at: ${STATE_FILE}.corrupted" >&2
   cp "$STATE_FILE" "${STATE_FILE}.corrupted" 2>/dev/null
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
@@ -94,7 +97,7 @@ if [[ ! "$ITERATION" =~ ^[0-9]+$ ]]; then
 fi
 
 if [[ ! "$MAX_ITERATIONS" =~ ^[0-9]+$ ]]; then
-  echo "VGL: ERROR: State file corrupted (invalid max_iterations: '$MAX_ITERATIONS')" >&2
+  gk_error "VGL: State file corrupted (invalid max_iterations: '$MAX_ITERATIONS')"
   echo "  State preserved at: ${STATE_FILE}.corrupted" >&2
   cp "$STATE_FILE" "${STATE_FILE}.corrupted" 2>/dev/null
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
@@ -103,33 +106,33 @@ fi
 
 # Validate token format
 if [[ ! "$COMPLETION_TOKEN" =~ ^VGL_COMPLETE_[a-f0-9]{32}$ ]]; then
-  echo "VGL: ERROR: Token corrupted (value: '${COMPLETION_TOKEN:0:20}...')" >&2
+  gk_error "VGL: Token corrupted (value: '${COMPLETION_TOKEN:0:20}...')"
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
   exit 1
 fi
 
 # Check max iterations
 if [[ $MAX_ITERATIONS -gt 0 ]] && [[ $ITERATION -ge $MAX_ITERATIONS ]]; then
-  echo "VGL: Max iterations ($MAX_ITERATIONS) reached. Session: $SESSION_ID" >&2
+  gk_info "VGL: Max iterations ($MAX_ITERATIONS) reached. Session: $SESSION_ID"
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
   exit 0
 fi
 
 # Get transcript path from hook input
 TRANSCRIPT_PATH=$(echo "$HOOK_INPUT" | jq -r '.transcript_path') || {
-  echo "VGL: ERROR: Failed to parse transcript_path from hook input" >&2
+  gk_error "VGL: Failed to parse transcript_path from hook input"
   TRANSCRIPT_PATH=""
 }
 if [[ -z "$TRANSCRIPT_PATH" ]] || [[ "$TRANSCRIPT_PATH" == "null" ]]; then
   debug "MALFORMED OR MISSING JSON INPUT — passthrough"
-  echo "VGL: Malformed hook input (could not parse transcript_path). Passing through." >&2
+  gk_info "VGL: Malformed hook input (could not parse transcript_path). Passing through."
   exit 0
 fi
 debug "TRANSCRIPT_PATH=$TRANSCRIPT_PATH"
 
 if [[ ! -f "$TRANSCRIPT_PATH" ]]; then
   debug "TRANSCRIPT NOT FOUND — exiting"
-  echo "VGL: Transcript file not found at $TRANSCRIPT_PATH" >&2
+  gk_info "VGL: Transcript file not found at $TRANSCRIPT_PATH"
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
   exit 0
 fi
@@ -142,7 +145,7 @@ debug "COMPLETION_TOKEN=$COMPLETION_TOKEN"
 debug "MATCH=$( [[ "$EXTRACTED_TOKEN" = "$COMPLETION_TOKEN" ]] && echo YES || echo NO )"
 
 if [[ -n "$EXTRACTED_TOKEN" ]] && [[ "$EXTRACTED_TOKEN" = "$COMPLETION_TOKEN" ]]; then
-  echo "VGL: Verification complete. Token validated." >&2
+  gk_info "VGL: Verification complete. Token validated."
   echo "   Session: $SESSION_ID | Iterations: $ITERATION" >&2
 
   # Reset resilience state on success
@@ -152,10 +155,10 @@ if [[ -n "$EXTRACTED_TOKEN" ]] && [[ "$EXTRACTED_TOKEN" = "$COMPLETION_TOKEN" ]]
   RESILIENCE_TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/')
   if [[ -f "$RESILIENCE_SCRIPT" ]]; then
     if ! python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" --record-success "$RESILIENCE_TASK_ID" 2>&1; then
-      echo "WARN: Failed to record resilience success for task $RESILIENCE_TASK_ID" >&2
+      gk_warn "Failed to record resilience success for task $RESILIENCE_TASK_ID"
     fi
     if ! python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" --reset 2>&1; then
-      echo "WARN: Failed to reset resilience state" >&2
+      gk_warn "Failed to reset resilience state"
     fi
   fi
 
@@ -173,19 +176,19 @@ if [[ -n "$EXTRACTED_TOKEN" ]] && [[ "$EXTRACTED_TOKEN" = "$COMPLETION_TOKEN" ]]
 
     if [[ $TRANSITION_EXIT -eq 0 ]] && [[ -n "$NEXT_JSON" ]] && [[ "$NEXT_JSON" != "null" ]]; then
       NEXT_ID=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])") || {
-        echo "VGL: ERROR: Failed to parse next task ID from transition output" >&2
+        gk_error "VGL: Failed to parse next task ID from transition output"
         exit 1
       }
       NEXT_NAME=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['name'])") || {
-        echo "VGL: ERROR: Failed to parse next task name from transition output" >&2
+        gk_error "VGL: Failed to parse next task name from transition output"
         exit 1
       }
       NEXT_TEST_CMD=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tests']['quantitative']['command'])") || {
-        echo "VGL: ERROR: Next task missing tests.quantitative.command" >&2
+        gk_error "VGL: Next task missing tests.quantitative.command"
         exit 1
       }
       NEXT_PROMPT_FILE=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['prompt_file'])") || {
-        echo "VGL: ERROR: Next task missing prompt_file" >&2
+        gk_error "VGL: Next task missing prompt_file"
         exit 1
       }
       NEXT_QUAL_CRITERIA=$(echo "$NEXT_JSON" | python3 -c "
@@ -198,12 +201,12 @@ for c in criteria:
 
       # Check if an integration check is needed before this task
       NEEDS_INTEGRATION=$(echo "$NEXT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('_integration_check_before', False))") || {
-        echo "WARN: Could not determine integration check status for next task" >&2
+        gk_warn "Could not determine integration check status for next task"
         NEEDS_INTEGRATION="False"
       }
       INTEGRATION_PREFIX=""
       if [[ "$NEEDS_INTEGRATION" == "True" ]]; then
-        echo "VGL: Integration check required before next phase" >&2
+        gk_info "VGL: Integration check required before next phase"
         INTEGRATION_PREFIX="INTEGRATION CHECK REQUIRED:
 Before starting this task, spawn an integration-checker agent to verify cross-phase wiring:
   Task(subagent_type='integration-checker', prompt='Verify integration between all completed phases. Check cross-phase links, data flows, type contracts, and dead endpoints. Report PASS or NEEDS_FIXES with details.')
@@ -212,7 +215,7 @@ If the integration check reports NEEDS_FIXES with CRITICAL issues, fix them befo
 "
       fi
 
-      echo "VGL: Auto-transitioning to: $NEXT_ID - $NEXT_NAME" >&2
+      gk_info "VGL: Auto-transitioning to: $NEXT_ID - $NEXT_NAME"
 
       FULL_PROMPT_PATH=".claude/plan/${NEXT_PROMPT_FILE}"
       if [[ -n "$NEXT_PROMPT_FILE" ]] && [[ -f "$FULL_PROMPT_PATH" ]]; then
@@ -230,7 +233,7 @@ If the integration check reports NEEDS_FIXES with CRITICAL issues, fix them befo
       EVO_PROMPT_SCRIPT="${PLUGIN_ROOT}/scripts/evo_prompt.py"
       if [[ -f "$EVO_PROMPT_SCRIPT" ]] && [[ -d "$NEXT_EVO_DB_PATH" ]] && [[ -n "$NEXT_TASK_ID" ]]; then
         EVO_CONTEXT=$(python3 "$EVO_PROMPT_SCRIPT" --build "$NEXT_EVO_DB_PATH" "$NEXT_TASK_ID" 2>&1) || {
-          echo "WARN: Evolution context generation failed for task $NEXT_TASK_ID, proceeding without evolutionary intelligence" >&2
+          gk_warn "Evolution context generation failed for task $NEXT_TASK_ID, proceeding without evolutionary intelligence"
           EVO_CONTEXT=""
         }
         if [[ -n "$EVO_CONTEXT" ]]; then
@@ -261,7 +264,7 @@ YOUR TASK:
 $NEXT_TASK_PROMPT"
 
       if ! python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$NEXT_ID" 2>&1; then
-        echo "WARN: Failed to mark task $NEXT_ID as in_progress in plan.yaml" >&2
+        gk_warn "Failed to mark task $NEXT_ID as in_progress in plan.yaml"
       fi
 
       rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
@@ -311,12 +314,12 @@ PYEOF
       exit 0
 
     elif [[ $TRANSITION_EXIT -eq 2 ]]; then
-      echo "VGL: ALL PLAN TASKS COMPLETE" >&2
+      gk_info "VGL: ALL PLAN TASKS COMPLETE"
       rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
       rm -f ".claude/plan-locked"
       exit 0
     else
-      echo "VGL: Transition error (exit=$TRANSITION_EXIT)" >&2
+      gk_info "VGL: Transition error (exit=$TRANSITION_EXIT)"
       rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
       exit 0
     fi
@@ -328,21 +331,21 @@ fi
 
 # Token mismatch — forgery or corruption
 if [[ -n "$EXTRACTED_TOKEN" ]]; then
-  echo "VGL: INVALID TOKEN - forgery attempt or corruption" >&2
+  gk_info "VGL: INVALID TOKEN - forgery attempt or corruption"
 fi
 
 # --- Evolution: evaluate this iteration's attempt ---
 PLUGIN_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
 TASK_ID=$(echo "$FRONTMATTER" | grep '^task_id:' | sed 's/task_id: *//' | sed 's/^"\(.*\)"$/\1/') || TASK_ID=""
 if [[ -z "$TASK_ID" ]]; then
-  echo "WARN: No task_id in VGL state frontmatter — evolution tracking disabled for this iteration" >&2
+  gk_warn "No task_id in VGL state frontmatter — evolution tracking disabled for this iteration"
 fi
 PLAN_FILE=".claude/plan/plan.yaml"
 SCRIPTS_DIR="${PLUGIN_ROOT}/scripts"
 EVO_DB_PATH=".planning/evolution/${TASK_ID}/"
 TEST_COMMAND=$(echo "$FRONTMATTER" | grep '^test_command:' | sed 's/test_command: *//' | sed 's/^"\(.*\)"$/\1/') || TEST_COMMAND=""
 if [[ -z "$TEST_COMMAND" ]]; then
-  echo "WARN: No test_command in VGL state frontmatter — evaluation disabled for this iteration" >&2
+  gk_warn "No test_command in VGL state frontmatter — evaluation disabled for this iteration"
 fi
 
 # Create population dir on first iteration
@@ -356,9 +359,9 @@ EVO_EVAL_SCRIPT="${PLUGIN_ROOT}/scripts/evo_eval.py"
 EVAL_METRICS="{}"
 if [[ -f "$EVO_EVAL_SCRIPT" ]] && [[ -n "$TEST_COMMAND" ]]; then
   debug "VGL: Evaluating iteration attempt"
-  echo "VGL: Evaluating iteration attempt" >&2
+  gk_info "VGL: Evaluating iteration attempt"
   EVAL_METRICS=$(python3 "$EVO_EVAL_SCRIPT" --evaluate "$TEST_COMMAND" 2>&1) || {
-    echo "WARN: Evaluation failed for iteration $ITERATION — metrics unavailable" >&2
+    gk_warn "Evaluation failed for iteration $ITERATION — metrics unavailable"
     EVAL_METRICS="{}"
   }
   debug "VGL: Eval metrics: $EVAL_METRICS"
@@ -367,7 +370,7 @@ if [[ -f "$EVO_EVAL_SCRIPT" ]] && [[ -n "$TEST_COMMAND" ]]; then
   EVO_DB_SCRIPT="${PLUGIN_ROOT}/scripts/evo_db.py"
   if [[ -f "$EVO_DB_SCRIPT" ]] && [[ "$EVAL_METRICS" != "{}" ]]; then
     debug "VGL: Storing evaluation in population"
-    echo "VGL: Stored in population" >&2
+    gk_info "VGL: Stored in population"
     APPROACH_JSON=$(python3 -c "
 import json, sys
 metrics = json.loads(sys.argv[1])
@@ -380,12 +383,12 @@ print(json.dumps({
     'iteration': int(sys.argv[3]),
 }))
 " "$EVAL_METRICS" "$TASK_ID" "$ITERATION" 2>&1) || {
-      echo "WARN: Failed to build approach JSON for population storage" >&2
+      gk_warn "Failed to build approach JSON for population storage"
       APPROACH_JSON="{}"
     }
     if [[ "$APPROACH_JSON" != "{}" ]]; then
       if ! python3 "$EVO_DB_SCRIPT" --db-path "$EVO_DB_PATH" --add "$APPROACH_JSON" 2>&1; then
-        echo "WARN: Failed to store approach in evolution population DB" >&2
+        gk_warn "Failed to store approach in evolution population DB"
       fi
     fi
   fi
@@ -397,9 +400,9 @@ if [[ "$ITERATION" == "1" ]] || [[ "$ITERATION" == "0" ]]; then
   PLAN_FILE=".claude/plan/plan.yaml"
   if [[ -f "$EVO_POLLINATOR" ]] && [[ -f "$PLAN_FILE" ]] && [[ -n "$TASK_ID" ]]; then
     debug "VGL: Pollinating from similar tasks"
-    echo "VGL: Pollinating from similar tasks" >&2
+    gk_info "VGL: Pollinating from similar tasks"
     if ! python3 "$EVO_POLLINATOR" --pollinate "$EVO_DB_PATH" "$PLAN_FILE" "$TASK_ID" 2>&1; then
-      echo "WARN: Cross-task pollination failed for task $TASK_ID" >&2
+      gk_warn "Cross-task pollination failed for task $TASK_ID"
     fi
   fi
 fi
@@ -409,7 +412,7 @@ EVOLUTION_PREFIX=""
 EVO_PROMPT_SCRIPT="${PLUGIN_ROOT}/scripts/evo_prompt.py"
 if [[ -f "$EVO_PROMPT_SCRIPT" ]] && [[ -d "$EVO_DB_PATH" ]] && [[ -n "$TASK_ID" ]]; then
   EVO_CONTEXT=$(python3 "$EVO_PROMPT_SCRIPT" --build "$EVO_DB_PATH" "$TASK_ID" 2>&1) || {
-    echo "WARN: Evolution context generation failed for retry iteration, proceeding without" >&2
+    gk_warn "Evolution context generation failed for retry iteration, proceeding without"
     EVO_CONTEXT=""
   }
   if [[ -n "$EVO_CONTEXT" ]]; then
@@ -427,7 +430,7 @@ if [[ -f "$RESILIENCE_SCRIPT" ]]; then
   # Record the failure
   if ! python3 "$RESILIENCE_SCRIPT" --state-path "$RESILIENCE_STATE" \
     --record-failure "$TASK_ID" 2>&1; then
-    echo "WARN: Failed to record resilience failure for task $TASK_ID" >&2
+    gk_warn "Failed to record resilience failure for task $TASK_ID"
   fi
 
   # Read resilience config from plan.yaml metadata
@@ -445,7 +448,7 @@ for key in ('stuck_threshold', 'circuit_breaker_threshold', 'max_vgl_iterations'
         raise KeyError(f'Required resilience config key missing from plan metadata: {key}')
 print(json.dumps(config))
 " 2>&1) || {
-    echo "WARN: Failed to read resilience config from plan metadata — using hardcoded defaults" >&2
+    gk_warn "Failed to read resilience config from plan metadata — using hardcoded defaults"
     RESILIENCE_CONFIG='{"stuck_threshold":3,"circuit_breaker_threshold":5,"max_vgl_iterations":50,"timeout_hours":8}'
   }
 
@@ -455,8 +458,8 @@ print(json.dumps(config))
     --check-all "$TASK_ID" --config "$RESILIENCE_CONFIG" 2>&1) || {
     RESILIENCE_EXIT=$?
     if [[ $RESILIENCE_EXIT -eq 1 ]]; then
-      echo "VGL: $RESILIENCE_CHECK_OUTPUT" >&2
-      echo "VGL: Stopping due to resilience check failure." >&2
+      gk_info "VGL: $RESILIENCE_CHECK_OUTPUT"
+      gk_info "VGL: Stopping due to resilience check failure."
       rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
       exit 0
     fi
@@ -469,7 +472,7 @@ NEXT_ITERATION=$((ITERATION + 1))
 PROMPT_TEXT=$(awk '/^---$/{i++; next} i>=2' "$STATE_FILE")
 
 if [[ -z "$PROMPT_TEXT" ]]; then
-  echo "VGL: State file has no prompt text" >&2
+  gk_info "VGL: State file has no prompt text"
   rm -f "$STATE_FILE" ".claude/verifier-prompt.local.md" "$TOKEN_FILE"
   exit 0
 fi
@@ -489,7 +492,7 @@ else
   SYSTEM_MSG="VGL iteration $NEXT_ITERATION | Evolution-guided | TDD-first: write tests, spawn opencode, then verify | Token has 128-bit entropy"
 fi
 
-echo "VGL: Continuing loop (iteration $NEXT_ITERATION)." >&2
+gk_info "VGL: Continuing loop (iteration $NEXT_ITERATION)."
 
 jq -n \
   --arg prompt "$PROMPT_TEXT" \

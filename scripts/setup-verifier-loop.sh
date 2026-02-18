@@ -13,6 +13,7 @@
 set -euo pipefail
 
 PLUGIN_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
+source "${PLUGIN_ROOT}/scripts/gk_log.sh"
 
 # Deploy gsd-builder agent config if not already present
 OPENCODE_CONFIG="opencode.json"
@@ -175,8 +176,8 @@ if [[ -z "$TEST_COMMAND" ]]; then
   elif [[ -f "package.json" ]]; then
     TEST_COMMAND="npm test"
   else
-    echo "ERROR: Could not auto-detect test framework. No pyproject.toml, pytest.ini, vitest.config.*, or package.json found." >&2
-    echo "Try: Provide --test-command explicitly, e.g. --test-command 'pytest tests/'." >&2
+    gk_error "Could not auto-detect test framework. No pyproject.toml, pytest.ini, vitest.config.*, or package.json found."
+    gk_error "Try: Provide --test-command explicitly, e.g. --test-command 'pytest tests/'."
     exit 1
   fi
   echo "Auto-detected test command: $TEST_COMMAND"
@@ -201,7 +202,7 @@ TEST_CMD_B64:$TEST_CMD_B64
 TEST_CMD_HASH:$TEST_CMD_HASH
 SECRETEOF
 if ! chmod 600 "${SESSION_DIR}/verifier-token.secret"; then
-  echo "WARN: Failed to set permissions on ${SESSION_DIR}/verifier-token.secret" >&2
+  gk_warn "Failed to set permissions on ${SESSION_DIR}/verifier-token.secret"
 fi
 
 # Create state file

@@ -31,11 +31,12 @@ import tempfile
 import hashlib
 from contextlib import contextmanager
 from collections import deque
+from gk_log import gk_warn
 
 try:
     import yaml
 except ImportError:
-    print("WARN: PyYAML not installed — plan operations will fail if _parse_yaml_minimal is not available", file=sys.stderr)
+    gk_warn("PyYAML not installed — plan operations will fail if _parse_yaml_minimal is not available")
     yaml = None
 
 
@@ -114,7 +115,7 @@ def _atomic_write_plan(path, plan):
         try:
             os.unlink(tmp_path)
         except OSError as e:
-            print(f"WARN: Failed to clean up temp file {tmp_path}: {e}", file=sys.stderr)
+            gk_warn(f"Failed to clean up temp file {tmp_path}: {e}")
         raise
 
 

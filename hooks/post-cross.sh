@@ -5,6 +5,8 @@
 # After /cross-team completes successfully, show the agent the next task
 # in the pipeline (the one AFTER the task that was just launched).
 
+PLUGIN_ROOT_LOG="$(dirname "$(dirname "$(realpath "$0")")")"
+source "${PLUGIN_ROOT_LOG}/scripts/gk_log.sh"
 INPUT=$(cat)
 
 # Extract skill name
@@ -87,7 +89,7 @@ if next_up:
 
 print(json.dumps(result))
 ") || {
-  echo "ERROR: Failed to parse plan pipeline info from $PLAN_FILE" >&2
+  gk_error "Failed to parse plan pipeline info from $PLAN_FILE"
   exit 1
 }
 

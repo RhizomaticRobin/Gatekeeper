@@ -18,11 +18,12 @@ set -euo pipefail
 
 PLUGIN_ROOT="${1:?Usage: single-task-setup.sh <plugin_root> <task_id>}"
 TASK_ID="${2:?Usage: single-task-setup.sh <plugin_root> <task_id>}"
+source "${PLUGIN_ROOT}/scripts/gk_log.sh"
 PLAN_FILE=".claude/plan/plan.yaml"
 
 # Check plan file
 if [[ ! -f "$PLAN_FILE" ]]; then
-  echo "ERROR: Plan file not found at $PLAN_FILE" >&2
+  gk_error "Plan file not found at $PLAN_FILE"
   echo "CROSS_TEAM_FAILED"
   exit 1
 fi
@@ -39,30 +40,30 @@ if task is None:
 else:
     print(json.dumps(task))
 ") || {
-  echo "ERROR: Failed to extract task $TASK_ID from plan" >&2
+  gk_error "Failed to extract task $TASK_ID from plan"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
 
 if [[ -z "$TASK_JSON" ]] || [[ "$TASK_JSON" == "null" ]]; then
-  echo "ERROR: Task $TASK_ID not found in plan" >&2
+  gk_error "Task $TASK_ID not found in plan"
   echo "CROSS_TEAM_FAILED"
   exit 1
 fi
 
 # Extract task fields
 TASK_NAME=$(echo "$TASK_JSON" | python3 -c "import sys,json; t=json.load(sys.stdin); n=t.get('name',''); assert n, 'name is empty'; print(n)") || {
-  echo "ERROR: Task $TASK_ID has no 'name' field" >&2
+  gk_error "Task $TASK_ID has no 'name' field"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
 TEST_CMD=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tests']['quantitative']['command'])") || {
-  echo "ERROR: Task $TASK_ID missing tests.quantitative.command" >&2
+  gk_error "Task $TASK_ID missing tests.quantitative.command"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
 PROMPT_FILE=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['prompt_file'])") || {
-  echo "ERROR: Task $TASK_ID missing prompt_file" >&2
+  gk_error "Task $TASK_ID missing prompt_file"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
@@ -131,7 +132,7 @@ date -u +%Y-%m-%dT%H:%M:%SZ > .claude/plan-locked
 
 # Mark task as in_progress
 python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$TASK_ID" 2>&1 || {
-  echo "WARN: Failed to update plan.yaml status for task $TASK_ID" >&2
+  gk_warn "Failed to update plan.yaml status for task $TASK_ID"
 }
 
 # Build JSON input and launch VGL in plan mode
@@ -157,19 +158,19 @@ print(json.dumps({
 }))
 PYEOF
 ) || {
-  echo "ERROR: Failed to build setup JSON for task $TASK_ID" >&2
+  gk_error "Failed to build setup JSON for task $TASK_ID"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
 
 if [[ -z "$SETUP_JSON" ]]; then
-  echo "ERROR: Setup JSON is empty for task $TASK_ID" >&2
+  gk_error "Setup JSON is empty for task $TASK_ID"
   echo "CROSS_TEAM_FAILED"
   exit 1
 fi
 
 "${PLUGIN_ROOT}/scripts/setup-verifier-loop.sh" --from-json "$SETUP_JSON" 2>&1 || {
-  echo "ERROR: setup-verifier-loop.sh failed for task $TASK_ID" >&2
+  gk_error "setup-verifier-loop.sh failed for task $TASK_ID"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }

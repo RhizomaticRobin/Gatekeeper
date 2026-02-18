@@ -2,6 +2,7 @@
 set -euo pipefail
 
 PLUGIN_ROOT="${1:?Usage: cross-team-setup.sh <plugin_root>}"
+source "${PLUGIN_ROOT}/scripts/gk_log.sh"
 PLAN_FILE=".claude/plan/plan.yaml"
 CROSS_ERROR=""
 
@@ -19,7 +20,7 @@ fi
 # Git state check (warning only, not blocking)
 if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
   if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
-    echo "Warning: Working tree has uncommitted changes" >&2
+    gk_warn "Working tree has uncommitted changes"
     echo "  Consider committing before starting VGL session" >&2
   fi
 fi
@@ -52,13 +53,13 @@ fi
 echo ""
 echo "Finding all unblocked tasks..."
 UNBLOCKED_JSON=$(python3 "${PLUGIN_ROOT}/scripts/get-unblocked-tasks.py" "$PLAN_FILE" 2>&1) || {
-  echo "ERROR: get-unblocked-tasks.py failed" >&2
+  gk_error "get-unblocked-tasks.py failed"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
 
 TASK_COUNT=$(echo "$UNBLOCKED_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))") || {
-  echo "ERROR: Failed to parse unblocked tasks JSON" >&2
+  gk_error "Failed to parse unblocked tasks JSON"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
@@ -106,7 +107,7 @@ import sys, json
 tasks = json.load(sys.stdin)
 print(' '.join(t['id'] for t in tasks))
 ") || {
-  echo "ERROR: Failed to extract task IDs from unblocked tasks" >&2
+  gk_error "Failed to extract task IDs from unblocked tasks"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
@@ -114,19 +115,19 @@ print(' '.join(t['id'] for t in tasks))
 echo ""
 echo "Checking file scope conflicts..."
 CONFLICT_JSON=$(python3 "${PLUGIN_ROOT}/scripts/check-file-conflicts.py" "$PLAN_FILE" $TASK_IDS 2>&1) || {
-  echo "ERROR: check-file-conflicts.py failed" >&2
+  gk_error "check-file-conflicts.py failed"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
 echo "$CONFLICT_JSON"
 
 SAFE_COUNT=$(echo "$CONFLICT_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['safe_parallel']))") || {
-  echo "ERROR: Failed to parse safe_parallel count from conflict JSON" >&2
+  gk_error "Failed to parse safe_parallel count from conflict JSON"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
 SEQ_COUNT=$(echo "$CONFLICT_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['sequential_fallback']))") || {
-  echo "ERROR: Failed to parse sequential_fallback count from conflict JSON" >&2
+  gk_error "Failed to parse sequential_fallback count from conflict JSON"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
@@ -157,13 +158,13 @@ if not safe and not conflicts:
 else:
     print(' '.join(safe))
 ") || {
-  echo "ERROR: Failed to extract safe task IDs from conflict analysis" >&2
+  gk_error "Failed to extract safe task IDs from conflict analysis"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
 
 if [[ -z "$SAFE_IDS" ]]; then
-  echo "WARN: No safe parallel tasks identified — falling back to sequential. Check file_scope definitions." >&2
+  gk_warn "No safe parallel tasks identified — falling back to sequential. Check file_scope definitions."
   SAFE_IDS="$TASK_IDS"
   SAFE_COUNT="$TASK_COUNT"
 fi
@@ -180,23 +181,23 @@ plan = load_plan('$PLAN_FILE')
 _, task = find_task(plan, '$TASK_ID')
 print(json.dumps(task))
 ") || {
-    echo "ERROR: Failed to extract JSON for task $TASK_ID from plan" >&2
+    gk_error "Failed to extract JSON for task $TASK_ID from plan"
     echo "CROSS_TEAM_FAILED"
     exit 1
   }
 
   TASK_NAME=$(echo "$TASK_JSON" | python3 -c "import sys,json; t=json.load(sys.stdin); n=t.get('name',''); assert n, 'name is empty'; print(n)") || {
-    echo "ERROR: Task $TASK_ID has no 'name' field" >&2
+    gk_error "Task $TASK_ID has no 'name' field"
     echo "CROSS_TEAM_FAILED"
     exit 1
   }
   TEST_CMD=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tests']['quantitative']['command'])") || {
-    echo "ERROR: Task $TASK_ID missing tests.quantitative.command" >&2
+    gk_error "Task $TASK_ID missing tests.quantitative.command"
     echo "CROSS_TEAM_FAILED"
     exit 1
   }
   PROMPT_FILE=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['prompt_file'])") || {
-    echo "ERROR: Task $TASK_ID missing prompt_file" >&2
+    gk_error "Task $TASK_ID missing prompt_file"
     echo "CROSS_TEAM_FAILED"
     exit 1
   }
@@ -227,7 +228,7 @@ $TASK_PROMPT"
 
   # Mark task as in_progress
   python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$TASK_ID" || {
-    echo "WARN: Failed to update plan.yaml status for task $TASK_ID" >&2
+    gk_warn "Failed to update plan.yaml status for task $TASK_ID"
   }
 
   export _VGL_TASK_PROMPT="$TASK_PROMPT"
@@ -254,7 +255,7 @@ print(json.dumps({
 }))
 PYEOF
   ) || {
-    echo "ERROR: Failed to build setup JSON for task $TASK_ID" >&2
+    gk_error "Failed to build setup JSON for task $TASK_ID"
     echo "CROSS_TEAM_FAILED"
     exit 1
   }
