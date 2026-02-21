@@ -1,7 +1,7 @@
 {
   "name": "gatekeeper",
   "version": "1.0.0",
-  "description": "Gatekeeper — spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrent agents.",
+  "description": "Gatekeeper — spec-driven development with cryptographic verifier loops, TDD-first execution, and evolutionary optimization.",
   "author": {
     "name": "RhizomaticRobin",
     "email": "atatle@proton.me"
@@ -16,11 +16,31 @@
     "meta-prompting",
     "context-engineering"
   ],
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/quibbler.py check"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/quibbler.py notify"
+          }
+        ]
+      }
+    ]
+  },
   "mcpServers": {
-    "opencode-mcp": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/opencode-mcp.sh",
-      "env": {}
-    },
     "evolve-mcp": {
       "command": "${CLAUDE_PLUGIN_ROOT}/bin/evolve-mcp.sh",
       "env": {}

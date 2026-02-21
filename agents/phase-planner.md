@@ -78,7 +78,7 @@ Every task gets `must_haves` with:
 
 ### 9. Test Dependency Graph
 Each task-{id}.md MUST include a Test Dependency Graph:
-- Each test becomes a single opencode agent dispatch
+- Each test becomes a single Task subagent dispatch
 - Tests with no dependencies run concurrently
 - Dependent tests wait for prerequisites
 - Each row specifies: test name, file, depends_on, and detailed guidance
@@ -238,7 +238,14 @@ Dispatch order:
 ### Guidance Rules
 - Each guidance entry specifies: target files, relevant imports, patterns to follow, specific approach
 - If a test depends on another, guidance describes what the prerequisite produces
-- Guidance is detailed enough that the opencode agent needs no other context
+- Guidance is detailed enough that the subagent needs no other context
+
+## Sanctioned Mocks & Stubs
+{Explicit allowlist of mocks/stubs for this task. Any mock NOT listed here will
+be flagged by the quibbler BS detector as corner-cutting.
+Write "None — all code must use real implementations" if no mocks are needed.}
+
+- `{module_or_function}` — {reason: external API, database, filesystem, timing, etc.} → returns {shape}
 
 ## Qualitative Verification
 {What a human or Playwright should see — page-by-page walkthrough}
@@ -272,4 +279,5 @@ The prompt MUST be detailed enough that a fresh Claude agent with NO prior conte
 - [ ] file_scope defined for all tasks
 - [ ] Task prompts reference specific prior-task outputs (files, APIs, types) — not vague references
 - [ ] No duplication of work already done by prior phases
+- [ ] Every task-{id}.md has a "Sanctioned Mocks & Stubs" section (explicit allowlist or "None")
 </success_criteria>
