@@ -76,11 +76,11 @@ setup() {
 }
 
 # T2: Verify bin/ directory only contains expected files
-@test "bin_dir_minimal: bin/ contains only install.js, install-lib.js, opencode-mcp.sh" {
+@test "bin_dir_minimal: bin/ contains only install.js, install-lib.js, evolve-mcp.sh" {
     local files
     files=$(ls -1 "$PLUGIN_ROOT/bin/" | sort)
     local expected
-    expected=$(printf "install-lib.js\ninstall.js\nopencode-mcp.sh")
+    expected=$(printf "evolve-mcp.sh\ninstall-lib.js\ninstall.js")
     [ "$files" = "$expected" ]
 }
 
@@ -117,12 +117,12 @@ print('OK')
 
 # T4 continued: Verify no dangling references to deleted files in source
 @test "no_dangling_references: no ralph references in surviving source files" {
-    # Exclude tests/, .planning/, .claude/plan/tasks/, README.md, and Better-OpenCodeMCP/
+    # Exclude tests/, .planning/, .claude/plan/tasks/, README.md
     local count
     count=$(grep -ri 'ralph' "$PLUGIN_ROOT" \
         --include='*.sh' --include='*.js' --include='*.py' --include='*.md' --include='*.json' \
         --exclude-dir=tests --exclude-dir=.planning --exclude-dir='.claude' \
-        --exclude-dir='Better-OpenCodeMCP' --exclude-dir='node_modules' \
+        --exclude-dir='node_modules' \
         --exclude='README.md' \
         -l 2>/dev/null | wc -l || true)
     [ "$count" -eq 0 ]
@@ -133,7 +133,7 @@ print('OK')
     count=$(grep -ri 'bin/lib/' "$PLUGIN_ROOT" \
         --include='*.sh' --include='*.js' --include='*.py' --include='*.json' \
         --exclude-dir=tests --exclude-dir=.planning --exclude-dir='.claude' \
-        --exclude-dir='Better-OpenCodeMCP' --exclude-dir='node_modules' \
+        --exclude-dir='node_modules' \
         -l 2>/dev/null | wc -l || true)
     [ "$count" -eq 0 ]
 }

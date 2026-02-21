@@ -3,7 +3,7 @@
 ## Goal (from must_haves)
 **Truths:**
 - Executor Step 2.5 checks for existing population at .planning/evolution/{task_id}/
-- When population has >= 3 approaches, executor samples from different islands and spawns parallel opencode agents
+- When population has >= 3 approaches, executor samples from different islands and spawns parallel sub-agents
 - Each parallel agent receives the task prompt + a different approach's prompt_addendum
 - All candidate results are evaluated via evo_eval.py and stored back in the population
 - The BEST candidate's work is used for subsequent TDD verification
@@ -11,11 +11,11 @@
 
 **Artifacts:**
 - agents/executor.md (modified)
-- references/tdd-opencode-workflow.md (modified, if exists)
+- references/tdd-workflow.md (modified, if exists)
 - tests/python/test_evo_executor.py
 
 ## Context
-The executor agent (agents/executor.md) orchestrates task implementation using TDD-first methodology with opencode MCP concurrency. Currently, it reads a task spec, writes tests, dispatches opencode agents per the Test Dependency Graph, and spawns a Verifier.
+The executor agent (agents/executor.md) orchestrates task implementation using TDD-first methodology with concurrent sub-agents. Currently, it reads a task spec, writes tests, dispatches sub-agents per the Test Dependency Graph, and spawns a Verifier.
 
 This task adds an evolution-guided approach selection step BEFORE the TDD dispatch. When a population exists from prior iterations (built by the stop-hook in task 2.1), the executor can spawn multiple parallel agents -- each trying a different evolved approach from different islands. The best candidate's work then feeds into the standard TDD verification flow.
 
@@ -44,9 +44,9 @@ If a population exists at `.planning/evolution/{task_id}/`:
      python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --sample 1
      python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --sample 2
      ```
-   - For each sampled approach, spawn an opencode agent:
+   - For each sampled approach, spawn a sub-agent:
      ```
-     launch_opencode(task="""
+     Task(prompt="""
      APPROACH STRATEGY:
      {approach.prompt_addendum}
 
@@ -74,7 +74,7 @@ If a population exists at `.planning/evolution/{task_id}/`:
 
 ### Update TDD dispatch (Step 3) to include evolution context:
 
-When dispatching opencode agents for TDD, if an evolution population exists, include the best approach's prompt_addendum in each agent's prompt:
+When dispatching sub-agents for TDD, if an evolution population exists, include the best approach's prompt_addendum in each agent's prompt:
 
 ```markdown
 ### Evolution Context in TDD Agents
@@ -82,7 +82,7 @@ When dispatching opencode agents for TDD, if an evolution population exists, inc
 If Step 2.5 selected a winning approach, include it in every TDD agent prompt:
 
 ```
-launch_opencode(task="""
+Task(prompt="""
 APPROACH STRATEGY (from evolution):
 {best_approach.prompt_addendum}
 
@@ -100,7 +100,7 @@ RULES:
 ```
 ```
 
-### Update `references/tdd-opencode-workflow.md` (if exists):
+### Update `references/tdd-workflow.md` (if exists):
 Add a section on evolution-guided dispatch describing the Step 2.5 flow.
 
 ## Frontend Deliverables

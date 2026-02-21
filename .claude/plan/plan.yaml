@@ -229,8 +229,8 @@ phases:
     - '1.1'
     - '1.3'
     deliverables:
-      backend: Update agents/executor.md and references/tdd-opencode-workflow.md to
-        spawn 2-3 opencode agents per iteration, each with a different approach sampled
+      backend: Update agents/executor.md and references/tdd-workflow.md to
+        spawn 2-3 sub-agents per iteration, each with a different approach sampled
         from a different island. Evaluate all candidates, store results in population,
         use best for verification
       frontend: 'Executor output shows candidate comparison: Candidate A (island 0,
@@ -249,13 +249,13 @@ phases:
       truths:
       - Executor reads population from .planning/evolution/{task_id}/
       - Samples 2-3 approaches from different islands via evo_db.py
-      - Each opencode agent gets task prompt plus unique approach addendum
+      - Each sub-agent gets task prompt plus unique approach addendum
       - All candidate metrics stored back in population after evaluation
       - Best candidate with highest test_pass_rate used for full test suite and verifier
       - First iteration with empty population spawns agents without evolution context
       artifacts:
       - agents/executor.md
-      - references/tdd-opencode-workflow.md
+      - references/tdd-workflow.md
       - tests/python/test_evo_executor.py
       key_links:
       - 'OpenEvolve process_parallel.py: parallel candidate evaluation'
@@ -263,7 +263,7 @@ phases:
     file_scope:
       owns:
       - agents/executor.md
-      - references/tdd-opencode-workflow.md
+      - references/tdd-workflow.md
       - tests/python/test_evo_executor.py
       reads:
       - scripts/evo_db.py

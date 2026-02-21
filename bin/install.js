@@ -142,10 +142,6 @@ function verifyInstallation(pluginDir) {
   return lib.verifyInstallation(fs, pluginDir);
 }
 
-function setupMcpServer(pluginDir) {
-  return lib.setupMcpServer(fs, execSync, pluginDir);
-}
-
 function setupEvolveMcp(pluginDir) {
   return lib.setupEvolveMcp(fs, execSync, pluginDir);
 }
@@ -290,9 +286,6 @@ function install(isGlobal) {
   registerMarketplace(claudeDir, marketplaceDir);
   enablePlugin(claudeDir, isGlobal ? 'global' : 'local');
 
-  // Set up opencode-mcp server (clone/build/register)
-  setupMcpServer(destDir);
-
   // Set up evolve-mcp server (install fastmcp Python dependency)
   setupEvolveMcp(destDir);
 
@@ -357,7 +350,7 @@ function promptLocation() {
 }
 
 // Export functions for testing
-module.exports = { copyPluginDirectory, verifyInstallation, setupMcpServer, setupEvolveMcp };
+module.exports = { copyPluginDirectory, verifyInstallation, setupEvolveMcp };
 
 // Main — only run when executed directly (not when required/imported for testing)
 if (require.main === module) {

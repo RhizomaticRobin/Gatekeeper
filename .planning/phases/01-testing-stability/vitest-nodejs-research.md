@@ -318,9 +318,9 @@ import { execSync } from 'child_process';
 ### Testing execSync Success
 
 ```js
-it('clones opencode-mcp repo when package.json missing', () => {
+it('clones MCP server repo when package.json missing', () => {
   fs.existsSync.mockImplementation((p) => {
-    if (p.includes('package.json') && p.includes('Better-OpenCodeMCP')) return false;
+    if (p.includes('package.json')) return false;
     return true;
   });
 
@@ -374,7 +374,7 @@ it('runs npm install then npm run build', () => {
   expect(execSync).toHaveBeenCalledTimes(3);
   expect(execSync).toHaveBeenNthCalledWith(1,
     'npm install --production=false',
-    expect.objectContaining({ cwd: expect.stringContaining('Better-OpenCodeMCP') })
+    expect.objectContaining({ cwd: expect.stringContaining('mcp-server') })
   );
 });
 ```

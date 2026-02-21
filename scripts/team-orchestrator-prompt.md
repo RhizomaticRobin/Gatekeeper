@@ -157,8 +157,8 @@ After the re-spawned tester outputs `TESTS_WRITTEN`, spawn assessor again. Maxim
 For each task where assessor returned `ASSESSMENT_PASS`, spawn an executor using `Task(subagent_type='gatekeeper:executor')`.
 Each executor is an **implementation** subagent (model: haiku, no web access) that:
 - Reads pre-written test files (already quality-gate approved)
-- Spawns concurrent gk-builder opencode agents (one per test file)
-- Waits for completion, answers agent questions
+- Implements code to pass test files
+- Iterates until all tests pass
 - Runs full test suite (green phase)
 - Outputs `IMPLEMENTATION_READY:{task_id}`
 
@@ -177,15 +177,11 @@ YOUR TASK (IMPLEMENTATION):
 WORKFLOW:
 1. Read the pre-written test files — confirm they exist and fail (TDD Red)
 2. Read the Test Dependency Graph from the task prompt
-3. Wave 1: launch fresh agents for independent tests (1 test per agent with guidance)
-4. wait_for_completion() — record test → sessionId mapping
-5. Wave 2+: continue prior agent sessions for dependent tests (the agent that did the dependency has context)
-6. If a test has multiple deps, continue the most significant dep's agent, tell it to review the others
-7. If any agent asks a question (status: input_required), answer via launch_opencode(sessionId=<id>, task="<answer>") and wait again
-8. Verify wave tests pass, then dispatch next wave
-9. Run full test suite after all waves to verify
-10. If tests fail, fix implementation code (not tests) and re-run
-11. Output "IMPLEMENTATION_READY:{task_id}"
+3. Implement code following the dependency graph, starting with independent tests
+4. After each implementation step, verify tests pass before moving to dependent tests
+5. Run full test suite after all implementations to verify
+6. If tests fail, fix implementation code (not tests) and re-run
+7. Output "IMPLEMENTATION_READY:{task_id}"
 """)
 ```
 

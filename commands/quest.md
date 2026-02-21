@@ -6,7 +6,7 @@ allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "B
 
 You are now running the **GSD Quest Planner** for the Gatekeeper system.
 
-Your job is to guide the user through a structured discovery process, then generate a complete Gatekeeper plan with must_haves, TDD-first task prompts, and opencode concurrency instructions. Follow these phases IN ORDER (0 through 5). Do not skip phases. Do not combine phases.
+Your job is to guide the user through a structured discovery process, then generate a complete Gatekeeper plan with must_haves, TDD-first task prompts, and concurrency instructions. Follow these phases IN ORDER (0 through 5). Do not skip phases. Do not combine phases.
 
 The plugin root is: `${CLAUDE_PLUGIN_ROOT}`
 The plan validator is: `${CLAUDE_PLUGIN_ROOT}/scripts/validate-plan.py`
@@ -587,7 +587,7 @@ Present a final summary to the user:
 
 ### Files Created
 - `.claude/plan/plan.yaml` — full plan definition with must_haves
-- `.claude/plan/tasks/task-*.md` — N task prompts (TDD-first + opencode)
+- `.claude/plan/tasks/task-*.md` — N task prompts (TDD-first)
 - `.claude/plans/plan-summary.md` — condensed summary
 
 ### Task Overview

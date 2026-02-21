@@ -5,11 +5,9 @@
 - **Python 3** — Plan utilities, validation, evolutionary intelligence, history, learnings. ~3,500 LOC in scripts/*.py. Requires PyYAML.
 - **JavaScript/Node.js** (>=16.7.0) — Installer (bin/install.js), hook bundler (build-hooks.js), intel-index.js, progress-watcher, terminal-launcher. ~2,500 LOC.
 - **Markdown** — Agent definitions (9 .md files with YAML frontmatter), slash commands (15 .md files), workflow docs, reference docs, templates. These are executable prompts, not documentation.
-- **TypeScript** — Better-OpenCodeMCP submodule (MCP server). Built to dist/index.js.
 
 ## Frameworks & Major Dependencies
 - **Claude Code Plugin System** — Plugin manifest at `.claude-plugin/plugin.json`. Hooks, commands, agents, MCP servers declared via plugin JSON.
-- **Better-OpenCodeMCP** — Git submodule providing the opencode MCP server. Exposes `launch_opencode`, `wait_for_completion`, `opencode_sessions` tools. Auto-builds on first run.
 - **PyYAML** — Required for plan.yaml parsing/writing in Python scripts.
 - **sql.js** (devDep) — SQLite WASM for intel-index.js hook (codebase intelligence indexer).
 - **esbuild** (devDep) — Bundles intel-index.js with sql.js WASM inlined.
@@ -32,7 +30,6 @@
 ## Build Configuration
 - `npm run build:hooks` — esbuild bundles intel-index.js to hooks/dist/.
 - `npm run prepublishOnly` — Runs build:hooks before npm publish.
-- MCP server auto-builds on first launch via `bin/opencode-mcp.sh`.
 
 ## Distribution
 - **npm package** (`gatekeeper` v1.0.0) — `npx gatekeeper` for legacy install.

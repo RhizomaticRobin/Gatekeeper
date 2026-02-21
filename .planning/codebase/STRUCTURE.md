@@ -24,7 +24,6 @@ gatekeeper/
 ├── bin/                      Entry points and runtime scripts
 │   ├── install.js            CLI installer (npx gatekeeper)
 │   ├── install-lib.js        Extracted testable functions from install.js
-│   ├── opencode-mcp.sh       MCP server launcher (auto-builds submodule)
 │   ├── ralph.sh              Autopilot outer loop (~550 lines)
 │   └── lib/                  Shell libraries for ralph.sh
 │       ├── state.sh           State machine management (~875 lines)
@@ -71,7 +70,6 @@ gatekeeper/
 │   ├── build-hooks.js             esbuild bundler for hook scripts
 │   └── team-orchestrator-prompt.md Lead orchestrator template
 ├── templates/                Template files for project initialization
-│   ├── opencode.json         gk-builder agent config (deployed to project root)
 │   ├── task-prompt.md        task-{id}.md template
 │   ├── plan-summary.md       Plan summary template
 │   ├── project.md            .planning/PROJECT.md template
@@ -81,7 +79,7 @@ gatekeeper/
 │   ├── config.json           Default .planning/config.json
 │   └── codebase/             7-dimension analysis templates
 ├── references/               Reference docs for agents
-│   ├── tdd-opencode-workflow.md    TDD + concurrent execution patterns
+│   ├── tdd-workflow.md             TDD + concurrent execution patterns
 │   ├── verification-patterns.md   Artifact verification strategies
 │   ├── model-profiles.md          Model selection per agent per profile
 │   └── git-integration.md         Git commit strategy
@@ -89,7 +87,6 @@ gatekeeper/
 │   ├── discovery-phase.md    6-phase discovery process
 │   ├── execute-phase.md      Execution workflow details
 │   └── verify-phase.md       Verification workflow details
-├── Better-OpenCodeMCP/       Git submodule — opencode MCP server
 ├── tests/                    Test suite (385 tests across 3 frameworks)
 └── package.json              npm config, scripts, dependencies
 ```
@@ -100,7 +97,6 @@ gatekeeper/
 - **Agent definitions:** `agents/*.md` (agent profiles with tool restrictions)
 - **Hook dispatch:** `hooks/hooks.json` -> hook scripts
 - **Autopilot:** `bin/ralph.sh` (standalone outer loop)
-- **MCP server:** `bin/opencode-mcp.sh` -> `Better-OpenCodeMCP/dist/index.js`
 - **Installer:** `bin/install.js` (npx entry point)
 
 ## File Naming Conventions

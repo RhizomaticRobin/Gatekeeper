@@ -112,14 +112,13 @@ TASK_PROMPT="CRITICAL RULES — VIOLATION WILL BREAK THE LOOP:
 - Do NOT mark tasks as done or completed — the system handles all transitions
 - Do NOT edit .claude/verifier-loop.local.md or .claude/verifier-token.secret
 
-TDD-FIRST + OPENCODE MCP WORKFLOW (MANDATORY):
+TDD-FIRST WORKFLOW (MANDATORY):
 You MUST follow this execution order:
 1. Write ALL tests first — unit tests, integration tests, edge cases. Every deliverable gets a test BEFORE any implementation code is written.
-2. Dispatch opencode agents from the Test Dependency Graph — 1 test per agent with guidance. Dispatch in waves respecting test dependencies.
-3. Wait for all opencode agents to complete using wait_for_completion MCP tool.
-4. Run the FULL test suite yourself to verify all tests pass: $TEST_CMD
-5. If any tests fail, fix issues and re-run until green.
-6. Only THEN spawn the Verifier subagent for final verification.
+2. Implement code following the Test Dependency Graph, respecting test dependencies.
+3. Run the FULL test suite yourself to verify all tests pass: $TEST_CMD
+4. If any tests fail, fix issues and re-run until green.
+5. Only THEN spawn the Verifier subagent for final verification.
 
 ${MUST_HAVES:+MUST_HAVES FOR THIS TASK:
 $MUST_HAVES

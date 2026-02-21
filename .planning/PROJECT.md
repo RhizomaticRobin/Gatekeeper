@@ -19,12 +19,10 @@ Current Gatekeeper orchestrates well but doesn't learn. Every project starts fro
 ## Technical Stack
 - **Languages:** JavaScript/Node.js (installer, hooks), Bash (scripts, hooks), Python (plan utilities), Markdown (agents, commands, prompts)
 - **Plugin System:** Claude Code plugin (`.claude-plugin/plugin.json`, marketplace distribution)
-- **MCP Server:** Better-OpenCodeMCP (TypeScript/Node.js submodule, hardcoded gk-builder agent)
 - **Agent Models:** Opus for all agents (quality profile)
 
 ## Integrations
 - Claude Code CLI (`claude` command)
-- opencode MCP server (launch_opencode, wait_for_completion, opencode_sessions)
 - Playwright (visual verification in verifier agent)
 - Git (checkpoint commits, autopilot)
 

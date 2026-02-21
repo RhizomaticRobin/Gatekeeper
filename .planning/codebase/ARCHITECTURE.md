@@ -25,7 +25,7 @@ User
  └─ /cross-team
      ├─ Single task -> Executor (model: opus)
      │    ├─ Writes all tests (TDD Red)
-     │    ├─ Dispatches gk-builder opencode agents (1 per test, wave-based)
+     │    ├─ Dispatches gk-builder sub-agents (1 per test, wave-based)
      │    ├─ Runs full test suite (TDD Green)
      │    └─ Spawns Verifier (model: opus, read-only) -> PASS/FAIL
      │
@@ -48,7 +48,7 @@ User
 
 ## Data Flow Patterns
 - **Plan -> Tasks:** plan.yaml contains task definitions; `prompt_file` references task-{id}.md files.
-- **Task -> Agents:** Executor reads task prompt, writes tests, dispatches opencode agents with per-test guidance.
+- **Task -> Agents:** Executor reads task prompt, writes tests, dispatches sub-agents with per-test guidance.
 - **Agent -> Verifier:** After tests pass, executor spawns verifier via Task() with the generated prompt.
 - **Verifier -> Hook:** Verifier outputs token in transcript; stop-hook extracts and validates it.
 - **Hook -> Next Task:** On valid token, stop-hook calls transition-task.sh, sets up next Gatekeeper loop, blocks exit with new prompt.

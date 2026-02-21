@@ -3,7 +3,7 @@
 # Gatekeeper Stop Hook
 # Prevents session exit when a verifier-loop is active
 # Feeds the prompt back to continue the loop until verification passes
-# Enhanced with must_haves phase auto-transition and TDD+opencode signal tracking
+# Enhanced with must_haves phase auto-transition and TDD signal tracking
 
 set -euo pipefail
 
@@ -253,12 +253,10 @@ TDD-FIRST WORKFLOW:
 1. Read task-{id}.md for full specification and must_haves
 2. Write ALL tests first (Red phase)
 3. Read the Test Dependency Graph from the task prompt
-4. Wave 1: launch fresh agents for independent tests (1 per test with guidance)
-5. Wave 2+: continue prior agent sessions for dependent tests
-6. wait_for_completion() after each wave, answer agent questions if input_required
-7. Run full test suite (Green phase)
-8. If tests fail, fix and retry
-9. When ready, spawn Verifier subagent from .claude/verifier-prompt.local.md
+4. Implement code following test dependency graph and guidance
+5. Run full test suite (Green phase)
+6. If tests fail, fix and retry
+7. When ready, spawn Verifier subagent from .claude/verifier-prompt.local.md
 
 YOUR TASK:
 $NEXT_TASK_PROMPT"
@@ -304,7 +302,7 @@ PYEOF
 
       jq -n \
         --arg prompt "$NEW_PROMPT" \
-        --arg msg "Gatekeeper auto-transition: starting task $NEXT_ID - $NEXT_NAME | TDD-first: write tests, spawn opencode agents, then verify" \
+        --arg msg "Gatekeeper auto-transition: starting task $NEXT_ID - $NEXT_NAME | TDD-first: write tests, implement, then verify" \
         '{
           "decision": "block",
           "reason": $prompt,
@@ -487,9 +485,9 @@ mv "$TEMP_FILE" "$STATE_FILE"
 
 # Build system message
 if [[ $MAX_ITERATIONS -gt 0 ]]; then
-  SYSTEM_MSG="Gatekeeper iteration $NEXT_ITERATION/$MAX_ITERATIONS | Evolution-guided | TDD-first: write tests, spawn opencode, then verify | Token has 128-bit entropy"
+  SYSTEM_MSG="Gatekeeper iteration $NEXT_ITERATION/$MAX_ITERATIONS | Evolution-guided | TDD-first: write tests, implement, then verify | Token has 128-bit entropy"
 else
-  SYSTEM_MSG="Gatekeeper iteration $NEXT_ITERATION | Evolution-guided | TDD-first: write tests, spawn opencode, then verify | Token has 128-bit entropy"
+  SYSTEM_MSG="Gatekeeper iteration $NEXT_ITERATION | Evolution-guided | TDD-first: write tests, implement, then verify | Token has 128-bit entropy"
 fi
 
 gk_info "Gatekeeper: Continuing loop (iteration $NEXT_ITERATION)."

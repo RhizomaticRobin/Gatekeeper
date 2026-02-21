@@ -1,7 +1,7 @@
 {
   "name": "gatekeeper",
   "version": "1.0.0",
-  "description": "Gatekeeper — Spec-driven development with cryptographic verifier loops, TDD-first execution, and opencode MCP concurrency.",
+  "description": "Gatekeeper — Spec-driven development with cryptographic verifier loops, TDD-first execution, and evolutionary optimization.",
   "bin": {
     "gatekeeper": "bin/install.js"
   },

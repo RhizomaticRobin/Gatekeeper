@@ -350,8 +350,6 @@ def find_task(plan, task_id):
     return None, None
 PYEOF
 
-    # Mock opencode.json template
-    echo '{}' > "$MOCK_PLUGIN/templates/opencode.json"
 
     run "$SCRIPTS_DIR/cross-team-setup.sh" "$MOCK_PLUGIN"
     # Output should contain the dirty warning

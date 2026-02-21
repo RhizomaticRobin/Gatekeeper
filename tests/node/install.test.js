@@ -7,7 +7,7 @@ vi.spyOn(console, 'error').mockImplementation(() => {});
 
 // Import the library module directly (pure functions with DI)
 const lib = await import('../../bin/install-lib.js');
-const { copyPluginDirectory, verifyInstallation, setupMcpServer } = lib.default || lib;
+const { copyPluginDirectory, verifyInstallation } = lib.default || lib;
 
 describe('install.js', () => {
   let mockFs;
@@ -130,86 +130,8 @@ describe('install.js', () => {
       expect(failures).toContain('hooks/hooks.json');
       expect(failures).toContain('commands/help.md');
       expect(failures).toContain('agents/verifier.md');
-      expect(failures).toContain('templates/opencode.json');
-      expect(failures.length).toBe(5);
+      expect(failures.length).toBe(4);
     });
   });
 
-  // ── setupMcpServer ──────────────────────────────────────────────────
-
-  describe('setupMcpServer', () => {
-    it('clones submodule when package.json is missing', () => {
-      mockFs.existsSync.mockImplementation((p) => {
-        if (p.includes('package.json')) return false;
-        if (p.includes('dist/index.js')) return true;
-        return false;
-      });
-
-      setupMcpServer(mockFs, mockExecSync, '/plugin');
-
-      const cloneCall = mockExecSync.mock.calls.find(
-        (call) => typeof call[0] === 'string' && call[0].includes('git clone'),
-      );
-      expect(cloneCall).toBeTruthy();
-      expect(cloneCall[0]).toContain('Better-OpenCodeMCP');
-    });
-
-    it('runs npm install and build', () => {
-      mockFs.existsSync.mockImplementation((p) => {
-        if (p.includes('package.json')) return true;
-        if (p.includes('dist/index.js')) return true;
-        return false;
-      });
-
-      setupMcpServer(mockFs, mockExecSync, '/plugin');
-
-      const calls = mockExecSync.mock.calls.map((c) => c[0]);
-      expect(calls).toContain('npm install --production=false');
-      expect(calls.some((c) => c === 'npm run build')).toBe(true);
-    });
-
-    it('calls claude mcp add with correct args', () => {
-      mockFs.existsSync.mockImplementation((p) => {
-        if (p.includes('package.json')) return true;
-        if (p.includes('dist/index.js')) return true;
-        return false;
-      });
-
-      setupMcpServer(mockFs, mockExecSync, '/plugin');
-
-      const calls = mockExecSync.mock.calls.map((c) => c[0]);
-      const mcpAddCall = calls.find((c) => c.includes('claude mcp add'));
-
-      expect(mcpAddCall).toBeTruthy();
-      expect(mcpAddCall).toContain('opencode-mcp');
-      expect(mcpAddCall).toContain('node');
-      expect(mcpAddCall).toContain(
-        path.join('/plugin', 'Better-OpenCodeMCP', 'dist', 'index.js'),
-      );
-    });
-
-    it('handles already-registered gracefully', () => {
-      mockFs.existsSync.mockImplementation((p) => {
-        if (p.includes('package.json')) return true;
-        if (p.includes('dist/index.js')) return true;
-        return false;
-      });
-
-      let firstMcpAdd = true;
-      mockExecSync.mockImplementation((cmd) => {
-        if (typeof cmd === 'string' && cmd.includes('claude mcp add') && firstMcpAdd) {
-          firstMcpAdd = false;
-          const err = new Error('already exists');
-          err.stderr = Buffer.from('already exists');
-          throw err;
-        }
-        return Buffer.from('');
-      });
-
-      expect(() => setupMcpServer(mockFs, mockExecSync, '/plugin')).not.toThrow();
-
-      const calls = mockExecSync.mock.calls.map((c) => c[0]);
-      expect(calls.some((c) => c.includes('claude mcp remove'))).toBe(true);
-    });
-  });
 });

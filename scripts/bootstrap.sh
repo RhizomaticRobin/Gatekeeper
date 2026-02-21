@@ -83,18 +83,6 @@ else
   echo -e "    ${DIM}(Required at runtime, not for building)${RESET}"
 fi
 
-# OpenCode — optional at bootstrap time (needed at runtime)
-if command -v opencode &>/dev/null; then
-  OPENCODE_VERSION=$(opencode version 2>/dev/null | head -1 || echo "unknown")
-  echo -e "  ${GREEN}✓${RESET} OpenCode: ${DIM}${OPENCODE_VERSION}${RESET}"
-elif [[ -x "$HOME/.opencode/bin/opencode" ]]; then
-  echo -e "  ${GREEN}✓${RESET} OpenCode: ${DIM}found at ~/.opencode/bin/opencode${RESET}"
-else
-  echo -e "  ${YELLOW}!${RESET} OpenCode: ${YELLOW}not found${RESET}"
-  echo -e "    ${DIM}Install: curl -fsSL https://opencode.ai/install | bash${RESET}"
-  echo -e "    ${DIM}(Required at runtime for agent dispatch)${RESET}"
-fi
-
 # Check Node.js version >= 18
 if command -v node &>/dev/null; then
   NODE_MAJOR=$(node -e "console.log(process.versions.node.split('.')[0])")
@@ -116,52 +104,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
   exit 1
 fi
 
-# ─── Step 2: Check submodule ───────────────────────────────────────────────────
-
-echo -e "${BOLD}Checking submodules...${RESET}"
-echo ""
-
-cd "$PLUGIN_ROOT"
-
-if [[ ! -f "Better-OpenCodeMCP/package.json" ]]; then
-  echo -e "  ${DIM}Initializing submodules...${RESET}"
-  git submodule update --init --recursive 2>&1 | while read -r line; do
-    echo -e "    ${DIM}${line}${RESET}"
-  done
-
-  if [[ ! -f "Better-OpenCodeMCP/package.json" ]]; then
-    echo -e "  ${RED}✗${RESET} Better-OpenCodeMCP submodule failed to initialize"
-    echo -e "    ${DIM}Try: git submodule update --init --recursive${RESET}"
-    exit 1
-  fi
-fi
-echo -e "  ${GREEN}✓${RESET} Better-OpenCodeMCP submodule present"
-
-# ─── Step 3: Build OpenCode MCP server ─────────────────────────────────────────
-
-echo ""
-echo -e "${BOLD}Building OpenCode MCP server...${RESET}"
-echo ""
-
-cd "$PLUGIN_ROOT/Better-OpenCodeMCP"
-
-if [[ ! -d "node_modules" ]]; then
-  echo -e "  ${DIM}Installing dependencies...${RESET}"
-  npm install --production=false 2>&1 | tail -1
-fi
-echo -e "  ${GREEN}✓${RESET} Dependencies installed"
-
-echo -e "  ${DIM}Building...${RESET}"
-npm run build 2>&1 | tail -1
-
-if [[ -f "dist/index.js" ]]; then
-  echo -e "  ${GREEN}✓${RESET} Built: dist/index.js"
-else
-  echo -e "  ${RED}✗${RESET} Build failed — dist/index.js not found"
-  exit 1
-fi
-
-# ─── Step 4: Build Verifier MCP server ─────────────────────────────────────────
+# ─── Step 2: Check submodules & Build Verifier MCP server ─────────────────────
 
 cd "$PLUGIN_ROOT"
 echo ""
@@ -186,7 +129,7 @@ else
   exit 1
 fi
 
-# ─── Step 5: Build hook scripts ────────────────────────────────────────────────
+# ─── Step 3: Build hook scripts ────────────────────────────────────────────────
 
 cd "$PLUGIN_ROOT"
 echo ""
@@ -206,7 +149,7 @@ else
   echo -e "  ${YELLOW}!${RESET} hooks/dist/intel-index.js not found (non-critical)"
 fi
 
-# ─── Step 6: Make scripts executable ───────────────────────────────────────────
+# ─── Step 4: Make scripts executable ───────────────────────────────────────────
 
 echo ""
 echo -e "${BOLD}Making scripts executable...${RESET}"
@@ -228,7 +171,7 @@ done
 
 echo -e "  ${GREEN}✓${RESET} Made ${EXEC_COUNT} files executable"
 
-# ─── Step 7: Install plugin ───────────────────────────────────────────────────
+# ─── Step 5: Install plugin ───────────────────────────────────────────────────
 
 echo ""
 echo -e "${BOLD}Installing plugin...${RESET}"
@@ -264,7 +207,7 @@ else
   fi
 fi
 
-# ─── Step 8: Verify installation ──────────────────────────────────────────────
+# ─── Step 6: Verify installation ──────────────────────────────────────────────
 
 echo ""
 echo -e "${BOLD}Verifying installation...${RESET}"
@@ -283,15 +226,12 @@ check_file() {
   fi
 }
 
-check_file "$PLUGIN_ROOT/Better-OpenCodeMCP/dist/index.js" "opencode-mcp server built"
 check_file "$PLUGIN_ROOT/verifier-mcp/dist/index.js" "verifier-mcp server built"
 check_file "$PLUGIN_ROOT/.claude-plugin/plugin.json" "plugin.json manifest"
 check_file "$PLUGIN_ROOT/hooks/hooks.json" "hooks.json registration"
 check_file "$PLUGIN_ROOT/agents/executor.md" "executor agent definition"
 check_file "$PLUGIN_ROOT/agents/tester.md" "tester agent definition"
 check_file "$PLUGIN_ROOT/agents/verifier.md" "verifier agent definition"
-check_file "$PLUGIN_ROOT/templates/opencode.json" "opencode.json template"
-check_file "$PLUGIN_ROOT/bin/opencode-mcp.sh" "opencode-mcp launcher"
 check_file "$PLUGIN_ROOT/bin/verifier-mcp.sh" "verifier-mcp launcher"
 
 echo ""
@@ -308,11 +248,6 @@ if [[ "$VERIFY_PASS" == "true" ]]; then
   if ! command -v claude &>/dev/null; then
     echo -e "  ${YELLOW}Reminder:${RESET} Install Claude Code before using the plugin:"
     echo -e "    ${DIM}npm install -g @anthropic-ai/claude-code${RESET}"
-    echo ""
-  fi
-  if ! command -v opencode &>/dev/null && [[ ! -x "$HOME/.opencode/bin/opencode" ]]; then
-    echo -e "  ${YELLOW}Reminder:${RESET} Install OpenCode before running /cross-team:"
-    echo -e "    ${DIM}curl -fsSL https://opencode.ai/install | bash${RESET}"
     echo ""
   fi
 else

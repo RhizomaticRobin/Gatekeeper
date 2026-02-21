@@ -15,18 +15,6 @@ set -euo pipefail
 PLUGIN_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
 source "${PLUGIN_ROOT}/scripts/gk_log.sh"
 
-# Deploy gk-builder agent config if not already present
-OPENCODE_CONFIG="opencode.json"
-if [[ ! -f "$OPENCODE_CONFIG" ]] || ! python3 -c "
-import json
-with open('$OPENCODE_CONFIG') as f:
-    cfg = json.load(f)
-raise SystemExit(0 if 'gk-builder' in cfg.get('agent', {}) else 1)
-" 2>/dev/null; then
-  cp "${PLUGIN_ROOT}/templates/opencode.json" "$OPENCODE_CONFIG"
-  echo "Deployed gk-builder agent config"
-fi
-
 # Check if JSON input is provided via --from-json
 if [[ "${1:-}" == "--from-json" ]]; then
   JSON_INPUT="${2:-}"
@@ -82,7 +70,7 @@ else
     case $1 in
       -h|--help)
         cat << 'HELP_EOF'
-Gatekeeper - Gatekeeper loop with TDD + opencode MCP
+Gatekeeper - Gatekeeper loop with TDD verification
 
 USAGE:
   /cross-team [PROMPT...] [OPTIONS]
@@ -373,5 +361,5 @@ EOF
 echo "$PROMPT"
 echo ""
 echo "═══════════════════════════════════════════════════════════════════════════════════════"
-echo "BEGIN WORK — TDD-first: write tests, spawn opencode agents, then verify"
+echo "BEGIN WORK — TDD-first: write tests, implement, then verify"
 echo "═══════════════════════════════════════════════════════════════════════════════════════"
