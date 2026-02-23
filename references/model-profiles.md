@@ -10,7 +10,7 @@ Model profiles control which Claude model each Gatekeeper agent uses. This allow
 | planner | opus | opus | opus | sonnet |
 | verifier | opus | opus | opus | sonnet |
 | assessor | opus | opus | opus | sonnet |
-| tester | sonnet | opus | sonnet | haiku |
+| tester | haiku | haiku | haiku | haiku |
 | executor | haiku | opus | sonnet | haiku |
 | phase-researcher | sonnet | opus | sonnet | haiku |
 | project-researcher | sonnet | opus | sonnet | haiku |

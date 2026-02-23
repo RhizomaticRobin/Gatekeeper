@@ -64,7 +64,7 @@ Output PHASE_ASSESSMENT_PASS:{phase_id}:{summary} or PHASE_ASSESSMENT_FAIL:{phas
 ### 1. Phase 1 — Spawn Testers
 
 For each task in the dispatch list above, spawn a tester using `Task(subagent_type='gatekeeper:tester')`.
-Each tester is a **test architect** subagent (model: sonnet, HAS web access) that:
+Each tester is a **test architect** subagent (model: haiku, HAS web access) that:
 - Researches the domain via WebSearch and Context7
 - Writes comprehensive test files for the task
 - Confirms tests fail (TDD Red state)
