@@ -146,6 +146,10 @@ function setupEvolveMcp(pluginDir) {
   return lib.setupEvolveMcp(fs, execSync, pluginDir);
 }
 
+function setupGatekeeperMcp(pluginDir) {
+  return lib.setupGatekeeperMcp(fs, execSync, pluginDir);
+}
+
 /**
  * Register the gatekeeper marketplace in known_marketplaces.json.
  */
@@ -289,6 +293,9 @@ function install(isGlobal) {
   // Set up evolve-mcp server (install fastmcp Python dependency)
   setupEvolveMcp(destDir);
 
+  // Set up gatekeeper-mcp server (centralized token management)
+  setupGatekeeperMcp(destDir);
+
   console.log(`
   ${green}Done!${reset} Launch Claude Code and run ${crimson}/gatekeeper:help${reset}.
 `);
@@ -350,7 +357,7 @@ function promptLocation() {
 }
 
 // Export functions for testing
-module.exports = { copyPluginDirectory, verifyInstallation, setupEvolveMcp };
+module.exports = { copyPluginDirectory, verifyInstallation, setupEvolveMcp, setupGatekeeperMcp };
 
 // Main — only run when executed directly (not when required/imported for testing)
 if (require.main === module) {

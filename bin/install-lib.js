@@ -131,4 +131,47 @@ function setupEvolveMcp(fs, execSync, pluginDir) {
   console.log(`  ${green}✓${reset} evolve-mcp ready (auto-starts via plugin.json)`);
 }
 
-module.exports = { copyPluginDirectory, verifyInstallation, setupEvolveMcp, EXCLUDE };
+/**
+ * Set up the gatekeeper-mcp server: install Python dependencies.
+ * gatekeeper-mcp is a FastMCP Python server for centralized token management.
+ */
+function setupGatekeeperMcp(fs, execSync, pluginDir) {
+  const mcpDir = path.join(pluginDir, 'gatekeeper-mcp');
+  const pyprojectToml = path.join(mcpDir, 'pyproject.toml');
+  const launcherScript = path.join(pluginDir, 'bin', 'gatekeeper-mcp.sh');
+
+  // Verify source exists (bundled with plugin)
+  if (!fs.existsSync(pyprojectToml)) {
+    console.error(`  ${yellow}gatekeeper-mcp source not found at ${mcpDir}${reset}`);
+    console.error(`  ${dim}This is bundled with the plugin — reinstall may be needed${reset}`);
+    return;
+  }
+
+  // Install gatekeeper-mcp in editable mode
+  console.log(`  ${dim}Installing gatekeeper-mcp...${reset}`);
+  try {
+    execSync(`pip install -e "${mcpDir}"`, { stdio: 'pipe' });
+    console.log(`  ${green}✓${reset} Installed gatekeeper-mcp package`);
+  } catch (err) {
+    // Try pip3 as fallback
+    try {
+      execSync(`pip3 install -e "${mcpDir}"`, { stdio: 'pipe' });
+      console.log(`  ${green}✓${reset} Installed gatekeeper-mcp package`);
+    } catch (err2) {
+      console.error(`  ${yellow}Could not install gatekeeper-mcp automatically${reset}`);
+      console.error(`  ${dim}${err2.stderr ? err2.stderr.toString().trim() : err2.message}${reset}`);
+      console.error(`  ${yellow}Run manually:${reset} pip install -e ${mcpDir}`);
+    }
+  }
+
+  // Make launcher executable
+  try {
+    fs.chmodSync(launcherScript, 0o755);
+  } catch {
+    // Already executable or chmod not needed
+  }
+
+  console.log(`  ${green}✓${reset} gatekeeper-mcp ready`);
+}
+
+module.exports = { copyPluginDirectory, verifyInstallation, setupEvolveMcp, setupGatekeeperMcp, EXCLUDE };
