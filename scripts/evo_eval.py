@@ -455,30 +455,103 @@ def main():
     print(json.dumps(result, indent=2))
 
 
-def _measure_function_timing(function_name, module_path, baseline_ms):
-    """Measure function timing via timeit subprocess.
+def _is_taichi_function(module_path, function_name):
+    """Check if the target function is a Taichi kernel/func."""
+    try:
+        from evo_taichi_ast import parse_and_find_function, has_any_taichi_decorator
+        _, func_node = parse_and_find_function(module_path, function_name)
+        return has_any_taichi_decorator(func_node)
+    except (ImportError, ValueError, OSError):
+        return False
 
-    Runs 5 repetitions, takes median, computes speedup_ratio.
+
+def _measure_function_timing(function_name, module_path, baseline_ms):
+    """Measure function timing, auto-detecting Taichi kernels for GPU-aware timing.
+
+    For Taichi kernels: delegates to evo_taichi_profile.py with ti.sync() bracketing.
+    For CPU functions: uses Python timeit (5 reps, median).
 
     Args:
         function_name: Name of the function to time.
-        module_path: Python module path (e.g., 'src/utils.py').
+        module_path: Python file path (e.g., 'src/utils.py').
         baseline_ms: Baseline timing in milliseconds.
 
     Returns:
         dict with speedup_ratio and timing_ms, or error info.
     """
-    # Convert file path to module import path
+    if _is_taichi_function(module_path, function_name):
+        return _measure_taichi_timing(function_name, module_path, baseline_ms)
+    return _measure_cpu_timing(function_name, module_path, baseline_ms)
+
+
+def _measure_taichi_timing(function_name, module_path, baseline_ms):
+    """Measure Taichi kernel timing via evo_taichi_profile.py subprocess."""
+    scripts_dir = os.path.dirname(os.path.abspath(__file__))
+    profile_script = os.path.join(scripts_dir, "evo_taichi_profile.py")
+
+    # Convert file path to module import
     mod_path = module_path.replace("/", ".").replace("\\", ".")
     if mod_path.endswith(".py"):
         mod_path = mod_path[:-3]
 
-    # Build timeit command: import the module and call the function
+    # Create a setup file that imports and initializes
+    import tempfile
+    setup_code = (
+        f"import taichi as ti\n"
+        f"ti.init(arch=ti.cpu, default_ip=ti.i32, default_fp=ti.f32)\n"
+        f"from {mod_path} import {function_name}\n"
+    )
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        f.write(setup_code)
+        setup_file = f.name
+
+    try:
+        cmd = [
+            sys.executable, profile_script,
+            "--profile",
+            "--setup-file", setup_file,
+            "--call-code", f"{function_name}()",
+            "--warmup", "3",
+            "--trials", "10",
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if proc.returncode != 0:
+            gk_warn(f"Taichi profiler failed for {function_name}: {proc.stderr[:500]}")
+            return _measure_cpu_timing(function_name, module_path, baseline_ms)
+
+        try:
+            result = json.loads(proc.stdout)
+            if result.get("success"):
+                median_ms = result["median_ms"]
+                speedup_ratio = baseline_ms / (median_ms + 1e-9)
+                return {
+                    "speedup_ratio": round(speedup_ratio, 4),
+                    "timing_ms": round(median_ms, 4),
+                    "timing_method": "taichi_profile",
+                }
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+        return _measure_cpu_timing(function_name, module_path, baseline_ms)
+    finally:
+        try:
+            os.unlink(setup_file)
+        except OSError:
+            pass
+
+
+def _measure_cpu_timing(function_name, module_path, baseline_ms):
+    """Measure CPU function timing via timeit subprocess."""
+    mod_path = module_path.replace("/", ".").replace("\\", ".")
+    if mod_path.endswith(".py"):
+        mod_path = mod_path[:-3]
+
     setup_code = f"from {mod_path} import {function_name}"
     stmt_code = f"{function_name}()"
 
     timings = []
-    for _ in range(5):
+    for rep in range(5):
         cmd = [
             sys.executable, "-m", "timeit",
             "-n", "1", "-r", "1",
@@ -494,9 +567,7 @@ def _measure_function_timing(function_name, module_path, baseline_ms):
             )
             if proc.returncode != 0:
                 continue
-            # Parse timeit output: "1 loop, best of 1: X.XX msec per loop" or similar
             output = proc.stdout.strip()
-            # Try multiple formats
             m = re.search(r"([\d.]+)\s*(msec|usec|sec)\s*per loop", output)
             if m:
                 val = float(m.group(1))
@@ -507,7 +578,7 @@ def _measure_function_timing(function_name, module_path, baseline_ms):
                     val *= 1000.0
                 timings.append(val)
         except subprocess.TimeoutExpired:
-            gk_warn(f"timeit timed out for {function_name} (rep {_ + 1}/5)")
+            gk_warn(f"timeit timed out for {function_name} (rep {rep + 1}/5)")
             continue
 
     if not timings:
@@ -517,7 +588,6 @@ def _measure_function_timing(function_name, module_path, baseline_ms):
             "timing_error": "Could not measure function timing",
         }
 
-    # Median timing
     timings.sort()
     median_ms = timings[len(timings) // 2]
     speedup_ratio = baseline_ms / (median_ms + 1e-9)
@@ -525,6 +595,7 @@ def _measure_function_timing(function_name, module_path, baseline_ms):
     return {
         "speedup_ratio": round(speedup_ratio, 4),
         "timing_ms": round(median_ms, 4),
+        "timing_method": "timeit",
     }
 
 

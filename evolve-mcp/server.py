@@ -2,7 +2,8 @@
 """Evolve-MCP: FastMCP server wrapping evolutionary optimization tools.
 
 Exposes MAP-Elites population operations, cascade evaluation with timing,
-profiling, function extraction/mutation, and novelty checking as MCP tools.
+profiling, function extraction/mutation, novelty checking, and Taichi GPU
+kernel profiling/analysis/harness-generation as MCP tools.
 
 All subprocess calls target scripts in the parent directory's scripts/ folder.
 All logging goes to stderr; stdout is reserved for the MCP wire protocol.
@@ -10,7 +11,6 @@ All logging goes to stderr; stdout is reserved for the MCP wire protocol.
 
 from fastmcp import FastMCP
 import json
-import math
 import os
 import subprocess
 import sys
@@ -83,7 +83,7 @@ def population_migrate(db_path: str, src_island: int, dst_island: int) -> dict:
 
 @mcp.tool()
 def evolution_prompt(db_path: str, task_id: str, island_id: int = 0, mode: str = "general") -> str:
-    """Build a 5-section evolution context prompt. mode='speed' uses speed-optimization directives."""
+    """Build a 5-section evolution context prompt. mode='speed' for CPU speed, 'taichi' for GPU kernel optimization."""
     args = ["--build", db_path, task_id, "--island", str(island_id), "--mode", mode]
     cmd = [sys.executable, os.path.join(SCRIPTS_DIR, "evo_prompt.py")] + args
     print(f"[evolve-mcp] Running: {' '.join(cmd)}", file=sys.stderr)
@@ -195,6 +195,102 @@ def revert_function(file_path: str, function_name: str) -> dict:
     """Restore a function from its most recent .bak_* backup. Returns {success, restored_from}."""
     args = ["--revert", "--file", file_path, "--function", function_name]
     return _run_script("evo_block.py", args, timeout=30)
+
+
+# ---------------------------------------------------------------------------
+# Taichi GPU kernel tools (wrap evo_taichi_*.py split modules)
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def taichi_profile(setup_code: str, call_code: str, warmup: int = 3, trials: int = 10) -> dict:
+    """Profile a Taichi kernel with GPU-aware ti.sync() bracketing.
+
+    setup_code: Python code that initializes Taichi, creates fields/state, imports the kernel.
+    call_code: Python expression that invokes the kernel (executed inside the timing loop).
+    warmup: Number of warmup iterations before timing (default 3).
+    trials: Number of timed iterations (default 10).
+
+    Returns {median_ms, min_ms, max_ms, std_ms, trials, warmup_ms, success}.
+    """
+    # Write setup code to temp file
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        f.write(setup_code)
+        setup_file = f.name
+    try:
+        args = [
+            "--profile",
+            "--setup-file", setup_file,
+            "--call-code", call_code,
+            "--warmup", str(warmup),
+            "--trials", str(trials),
+        ]
+        return _run_script("evo_taichi_profile.py", args, timeout=600)
+    finally:
+        os.unlink(setup_file)
+
+
+@mcp.tool()
+def taichi_analyze(file_path: str, function_name: str) -> dict:
+    """Analyze a Taichi kernel's structure: decorators, parameter types, helper functions, field references.
+
+    Returns {function_name, is_ti_kernel, is_ti_func, decorators, parameters, helper_funcs, field_refs, thread_range, loc}.
+    """
+    args = ["--analyze", "--file", file_path, "--function", function_name]
+    return _run_script("evo_taichi_analyze.py", args, timeout=30)
+
+
+@mcp.tool()
+def benchmark_harness_gen(file_path: str, function_name: str, target_ms: float = 0.0, template: str = "generic") -> str:
+    """Auto-generate a pytest benchmark test for a Taichi kernel.
+
+    file_path: Path to the file containing the kernel.
+    function_name: Name of the kernel function.
+    target_ms: Timing target in milliseconds (0 = no assertion, just measure).
+    template: Setup template — 'generic' generates a minimal ti.init() + TODO scaffold.
+
+    Returns generated pytest test file content with ti.sync() bracketing for GPU-accurate timing.
+    """
+    args = [
+        "--harness",
+        "--file", file_path,
+        "--function", function_name,
+        "--target-ms", str(target_ms),
+        "--template", template,
+    ]
+    cmd = [sys.executable, os.path.join(SCRIPTS_DIR, "evo_taichi_harness.py")] + args
+    print(f"[evolve-mcp] Running: {' '.join(cmd)}", file=sys.stderr)
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        cwd=SERVER_CWD,
+    )
+    if result.returncode != 0:
+        return f"ERROR: {result.stderr[:1000]}"
+    return result.stdout
+
+
+@mcp.tool()
+def extract_bundle(file_path: str, function_name: str) -> str:
+    """Extract a Taichi kernel with all dependencies: decorators, @ti.func helpers, module-level ti.field refs, imports.
+
+    Returns a markdown-formatted bundle with EVOLVE-BUNDLE-START/END markers.
+    Use this instead of extract_function when optimizing @ti.kernel or @ti.func targets.
+    """
+    args = ["--extract-bundle", "--file", file_path, "--function", function_name]
+    cmd = [sys.executable, os.path.join(SCRIPTS_DIR, "evo_block.py")] + args
+    print(f"[evolve-mcp] Running: {' '.join(cmd)}", file=sys.stderr)
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        cwd=SERVER_CWD,
+    )
+    if result.returncode != 0:
+        return f"ERROR: {result.stderr[:1000]}"
+    return result.stdout
 
 
 # ---------------------------------------------------------------------------

@@ -103,19 +103,22 @@ def parse_profile_stats(profile_output, source_dirs):
 
 
 def compute_complexity(file_path, function_name):
-    """Compute complexity as non-blank, non-comment lines in a function."""
+    """Compute complexity and detect Taichi kernels.
+
+    Returns dict with 'complexity' (non-blank LOC) and 'is_taichi' (bool).
+    """
     try:
         with open(file_path, "r", encoding="utf-8", errors="replace") as f:
             source = f.read()
     except OSError as e:
         gk_warn(f"Cannot read {file_path}: {e}")
-        return 0
+        return {"complexity": 0, "is_taichi": False}
 
     try:
         tree = ast.parse(source)
     except SyntaxError as e:
         gk_warn(f"Cannot parse {file_path}: {e}")
-        return 0
+        return {"complexity": 0, "is_taichi": False}
 
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -130,8 +133,23 @@ def compute_complexity(file_path, function_name):
                     stripped = line.strip()
                     if stripped and not stripped.startswith("#"):
                         count += 1
-                return count
-    return 0
+
+                # Check for Taichi decorators
+                is_taichi = False
+                try:
+                    from evo_taichi_ast import has_any_taichi_decorator
+                    is_taichi = has_any_taichi_decorator(node)
+                except ImportError:
+                    # Fallback: check decorators manually
+                    for dec in node.decorator_list:
+                        if isinstance(dec, ast.Attribute):
+                            if isinstance(dec.value, ast.Name) and dec.value.id == "ti":
+                                is_taichi = True
+                                break
+
+                return {"complexity": count, "is_taichi": is_taichi}
+
+    return {"complexity": 0, "is_taichi": False}
 
 
 def estimate_test_count(test_command, function_name):
@@ -193,9 +211,11 @@ def main():
     if args.module:
         functions = [f for f in functions if args.module in f["file"]]
 
-    # Enrich with complexity and test count, compute score
+    # Enrich with complexity, Taichi detection, and test count; compute score
     for func in functions:
-        func["complexity"] = compute_complexity(func["file"], func["function"])
+        cx = compute_complexity(func["file"], func["function"])
+        func["complexity"] = cx["complexity"]
+        func["is_taichi"] = cx["is_taichi"]
         func["test_count"] = estimate_test_count(args.test_command, func["function"])
         func["score"] = round(func["time_pct"] * math.log(1 + func["complexity"]), 3)
 
