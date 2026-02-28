@@ -30,7 +30,7 @@ task-{id}.md is NOT a document that gets transformed into a prompt.
 task-{id}.md IS the prompt. When an executor reads it, they know exactly:
 - What tests to write first (TDD Red phase)
 - What code to implement (Green phase)
-- How to parallelize with Task subagents
+- How to parallelize implementation
 - What the verifier will check
 
 ## Goal-Backward Must-Haves

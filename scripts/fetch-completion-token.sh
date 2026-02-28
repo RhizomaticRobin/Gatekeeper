@@ -161,6 +161,32 @@ if [[ -n "$ISSUES" ]]; then
   exit 1
 fi
 
+# Check for formal verification results (if verification_level is set in plan.yaml)
+# This is an advisory check — only warns, does not block token grant
+if [[ -n "${PLAN_FILE:-}" ]] && [[ -f "${PLAN_FILE:-}" ]]; then
+  VERIFICATION_LEVEL=$(python3 -c "
+import sys
+sys.path.insert(0, '$(dirname "$(dirname "$(realpath "$0")")")/scripts')
+from plan_utils import load_plan
+plan = load_plan('$PLAN_FILE')
+print(plan.get('metadata',{}).get('verification_level','tests_only'))
+" 2>/dev/null || echo "tests_only")
+
+  if [[ "$VERIFICATION_LEVEL" != "tests_only" ]]; then
+    # Look for the GK database and check verification_results
+    GK_DB="${GK_DB_PATH:-/tmp/gatekeeper.db}"
+    if [[ -f "$GK_DB" ]] && command -v sqlite3 >/dev/null 2>&1; then
+      VR_COUNT=$(sqlite3 "$GK_DB" "SELECT COUNT(*) FROM verification_results WHERE session_id='$SESSION_ID' AND status='pass'" 2>/dev/null || echo "0")
+      if [[ "$VR_COUNT" == "0" ]]; then
+        echo "WARNING: verification_level='$VERIFICATION_LEVEL' but no passing verification_results found for session $SESSION_ID"
+        echo "  Formal verification (Prusti/Kani/semver/CrossHair) should be run via run_verification() MCP tool."
+        echo "  Proceeding with token grant (advisory only)."
+        echo ""
+      fi
+    fi
+  fi
+fi
+
 # All checks passed - reveal the token (line 1 of token file)
 COMPLETION_TOKEN=$(head -1 "$TOKEN_FILE")
 if [[ -z "$COMPLETION_TOKEN" ]] || [[ "$COMPLETION_TOKEN" == "PLACEHOLDER_TOKEN_GENERATED_AT_CALL_TIME" ]]; then

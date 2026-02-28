@@ -10,7 +10,7 @@
 #   - *-prompt.local.md           (generated prompts)
 #   - .claude/plugins/            (plugin cache)
 #   - gatekeeper/                    (plugin source, if present in project)
-#   - verifier-mcp/               (MCP server source)
+#   - gatekeeper-evolve-mcp/               (MCP server source)
 #   - agents/                     (agent definitions)
 #   - hooks/                      (hook scripts)
 #   - commands/                   (slash command definitions)
@@ -57,7 +57,7 @@ if [[ "$TOOL" == "Read" ]]; then
       echo "BLOCKED: That directory is outside your working scope." >&2
       exit 2
       ;;
-    */verifier-mcp/*|*/verifier-mcp)
+    */gatekeeper-evolve-mcp/*|*/gatekeeper-evolve-mcp)
       echo "BLOCKED: That directory is outside your working scope." >&2
       exit 2
       ;;
@@ -95,9 +95,18 @@ if [[ "$TOOL" == "Bash" ]]; then
   # Lowercase the command for case-insensitive matching
   CMD_LOWER="${CMD,,}"
 
+  # Strip piped utility usage (encoding/truncation in pipes, not file reading)
+  # e.g. "openssl rand | head -c 32", "echo $x | base64 -w0", "echo $x | sha256sum"
+  CMD_READ_CHECK=$(echo "$CMD_LOWER" | sed -E \
+    -e 's/\|[[:space:]]*(head|tail)[[:space:]]+-[[:alnum:]]+[[:space:]]+[0-9]+//g' \
+    -e 's/\|[[:space:]]*(head|tail)[[:space:]]+-[0-9]+//g' \
+    -e 's/\|[[:space:]]*(head|tail)[[:space:]]+[0-9]+//g' \
+    -e 's/\|[[:space:]]*(base64|sha256sum|sha512sum|md5sum|wc|cut|tr|sort|uniq|grep|sed|awk)[[:space:]][^|;&)]*//g' \
+    -e 's/\|[[:space:]]*(base64|sha256sum|sha512sum|md5sum|wc|cut|tr|sort|uniq|grep|sed|awk)[[:space:]]*$//g')
+
   # Check if command uses a file-reading utility
   HAS_READ_CMD=false
-  case "$CMD_LOWER" in
+  case "$CMD_READ_CHECK" in
     *cat\ *|*head\ *|*tail\ *|*less\ *|*more\ *|*bat\ *|*hexdump\ *|*xxd\ *|*strings\ *|*base64\ *)
       HAS_READ_CMD=true ;;
     *python*open\(*|*node*readfile*|*ruby*file.read*)
@@ -111,7 +120,7 @@ if [[ "$TOOL" == "Bash" ]]; then
         echo "BLOCKED: That command accesses files outside your working scope." >&2
         exit 2
         ;;
-      *.claude/plugins*|*gatekeeper/*|*verifier-mcp/*)
+      *.claude/plugins*|*gatekeeper/*|*gatekeeper-evolve-mcp/*)
         echo "BLOCKED: That command accesses files outside your working scope." >&2
         exit 2
         ;;
@@ -140,7 +149,7 @@ if [[ "$TOOL" == "Grep" ]]; then
   fi
 
   case "$GREPPATH" in
-    */.claude/plugins/*|*/.claude/plugins|*/gatekeeper/*|*/gatekeeper|*/verifier-mcp/*|*/verifier-mcp|*/agents/*|*/hooks/*|*/hooks|*/commands/*|*/commands)
+    */.claude/plugins/*|*/.claude/plugins|*/gatekeeper/*|*/gatekeeper|*/gatekeeper-evolve-mcp/*|*/gatekeeper-evolve-mcp|*/agents/*|*/hooks/*|*/hooks|*/commands/*|*/commands)
       echo "BLOCKED: That path is outside your working scope." >&2
       exit 2
       ;;
@@ -149,6 +158,10 @@ if [[ "$TOOL" == "Grep" ]]; then
       exit 2
       ;;
     *token.secret*|*prompt.local.md*)
+      echo "BLOCKED: That path is outside your working scope." >&2
+      exit 2
+      ;;
+    */scripts/generate-*|*/scripts/fetch-*|*/scripts/setup-*)
       echo "BLOCKED: That path is outside your working scope." >&2
       exit 2
       ;;
@@ -164,11 +177,19 @@ if [[ "$TOOL" == "Glob" ]]; then
   fi
 
   case "$GLOBPATH" in
-    */.claude/plugins/*|*/.claude/plugins|*/gatekeeper/*|*/gatekeeper|*/verifier-mcp/*|*/verifier-mcp|*/agents/*|*/hooks/*|*/hooks|*/commands/*|*/commands)
+    */.claude/plugins/*|*/.claude/plugins|*/gatekeeper/*|*/gatekeeper|*/gatekeeper-evolve-mcp/*|*/gatekeeper-evolve-mcp|*/agents/*|*/hooks/*|*/hooks|*/commands/*|*/commands)
       echo "BLOCKED: That path is outside your working scope." >&2
       exit 2
       ;;
     */.claude/gk-sessions/*|*/.claude/gk-sessions|*gk-sessions/*)
+      echo "BLOCKED: That path is outside your working scope." >&2
+      exit 2
+      ;;
+    *token.secret*|*prompt.local.md*)
+      echo "BLOCKED: That path is outside your working scope." >&2
+      exit 2
+      ;;
+    */scripts/generate-*|*/scripts/fetch-*|*/scripts/setup-*)
       echo "BLOCKED: That path is outside your working scope." >&2
       exit 2
       ;;

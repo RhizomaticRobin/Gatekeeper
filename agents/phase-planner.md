@@ -78,10 +78,18 @@ Every task gets `must_haves` with:
 
 ### 9. Test Dependency Graph
 Each task-{id}.md MUST include a Test Dependency Graph:
-- Each test becomes a single Task subagent dispatch
-- Tests with no dependencies run concurrently
+- Each test has clear implementation guidance
+- Tests with no dependencies can run concurrently
 - Dependent tests wait for prerequisites
 - Each row specifies: test name, file, depends_on, and detailed guidance
+
+### 10. Contract Specifications
+Tasks creating module boundaries MUST have a `contracts` section in must_haves:
+- Contracts specify preconditions, postconditions, and invariants per function (language-agnostic)
+- Preconditions: what must be true before calling (input constraints)
+- Postconditions: what must be true after return (output guarantees)
+- Invariants: what must remain true throughout (state preservation)
+- Contracts must be specific enough to formalize (not "data is valid" — must be expressible as `x > 0`, `result.len() > 0`, etc.)
 
 </methodology>
 
@@ -161,6 +169,8 @@ phase:
           - "tests/test_feature.py"
         key_links:
           - "Integration path: A → B → C"
+        contracts:
+          - "function_name: precondition → postcondition"
       prompt_file: "tasks/task-2.1.md"
       file_scope:
         owns: ["src/feature/", "tests/test_feature.py"]
@@ -201,6 +211,9 @@ Reference exact outputs from prior tasks by file path and function/class name.}
 ### Key Links (Integration Paths)
 - {key_link_1}
 
+### Contracts (Formal Verification)
+- {function}: precondition `{expression}` → postcondition `{expression}`
+
 ## Backend Deliverables
 - {Specific files to create/modify}
 - {API endpoints with method, path, request/response shapes}
@@ -238,14 +251,19 @@ Dispatch order:
 ### Guidance Rules
 - Each guidance entry specifies: target files, relevant imports, patterns to follow, specific approach
 - If a test depends on another, guidance describes what the prerequisite produces
-- Guidance is detailed enough that the subagent needs no other context
+- Guidance is detailed enough that the implementer needs no other context
 
-## Sanctioned Mocks & Stubs
-{Explicit allowlist of mocks/stubs for this task. Any mock NOT listed here will
-be flagged by the quibbler BS detector as corner-cutting.
-Write "None — all code must use real implementations" if no mocks are needed.}
+## Contract Specifications
 
-- `{module_or_function}` — {reason: external API, database, filesystem, timing, etc.} → returns {shape}
+### Function Contracts
+| Function | Preconditions | Postconditions |
+|----------|--------------|----------------|
+| {module::function_name} | {formal precondition expression} | {formal postcondition expression} |
+
+### Contract Dependency Graph
+| Caller | Callee | Caller Postcondition | Callee Precondition |
+|--------|--------|---------------------|---------------------|
+| {caller_module::fn} | {callee_module::fn} | {what caller guarantees} | {what callee requires} |
 
 ## Qualitative Verification
 {What a human or Playwright should see — page-by-page walkthrough}
@@ -271,7 +289,7 @@ The prompt MUST be detailed enough that a fresh Claude agent with NO prior conte
 - [ ] `phases/phase-{id}.yaml` exists and is valid YAML
 - [ ] Every task has both backend AND frontend deliverables
 - [ ] Every task has quantitative test command AND qualitative criteria
-- [ ] Every task has must_haves (truths, artifacts, key_links)
+- [ ] Every task has must_haves (truths, artifacts, key_links, contracts)
 - [ ] Every task has a detailed task-{id}.md prompt file
 - [ ] `depends_on` only references valid task IDs from prior phases or within this phase
 - [ ] Dependencies form a DAG (no cycles)
@@ -279,5 +297,4 @@ The prompt MUST be detailed enough that a fresh Claude agent with NO prior conte
 - [ ] file_scope defined for all tasks
 - [ ] Task prompts reference specific prior-task outputs (files, APIs, types) — not vague references
 - [ ] No duplication of work already done by prior phases
-- [ ] Every task-{id}.md has a "Sanctioned Mocks & Stubs" section (explicit allowlist or "None")
 </success_criteria>

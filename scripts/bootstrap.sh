@@ -104,29 +104,20 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
   exit 1
 fi
 
-# ─── Step 2: Check submodules & Build Verifier MCP server ─────────────────────
+# ─── Step 2: Set up gatekeeper-evolve-mcp server ─────────────────────────────
 
 cd "$PLUGIN_ROOT"
 echo ""
-echo -e "${BOLD}Building Verifier MCP server...${RESET}"
+echo -e "${BOLD}Setting up gatekeeper-evolve-mcp server...${RESET}"
 echo ""
 
-cd "$PLUGIN_ROOT/verifier-mcp"
-
-if [[ ! -d "node_modules" ]]; then
-  echo -e "  ${DIM}Installing dependencies...${RESET}"
-  npm install --production=false 2>&1 | tail -1
-fi
-echo -e "  ${GREEN}✓${RESET} Dependencies installed"
-
-echo -e "  ${DIM}Building...${RESET}"
-npm run build 2>&1 | tail -1
-
-if [[ -f "dist/index.js" ]]; then
-  echo -e "  ${GREEN}✓${RESET} Built: dist/index.js"
+echo -e "  ${DIM}Installing Python dependencies (fastmcp)...${RESET}"
+if pip install fastmcp 2>/dev/null || pip3 install fastmcp 2>/dev/null; then
+  echo -e "  ${GREEN}✓${RESET} Installed fastmcp Python dependency"
 else
-  echo -e "  ${RED}✗${RESET} Build failed — dist/index.js not found"
-  exit 1
+  echo -e "  ${YELLOW}!${RESET} Could not install fastmcp automatically"
+  echo -e "    ${DIM}Run manually: pip install fastmcp${RESET}"
+  echo -e "    ${DIM}The launcher will auto-install on first use${RESET}"
 fi
 
 # ─── Step 3: Build hook scripts ────────────────────────────────────────────────
@@ -226,13 +217,13 @@ check_file() {
   fi
 }
 
-check_file "$PLUGIN_ROOT/verifier-mcp/dist/index.js" "verifier-mcp server built"
+check_file "$PLUGIN_ROOT/gatekeeper-evolve-mcp/src/gatekeeper_evolve_mcp/server.py" "gatekeeper-evolve-mcp server source"
 check_file "$PLUGIN_ROOT/.claude-plugin/plugin.json" "plugin.json manifest"
 check_file "$PLUGIN_ROOT/hooks/hooks.json" "hooks.json registration"
 check_file "$PLUGIN_ROOT/agents/executor.md" "executor agent definition"
 check_file "$PLUGIN_ROOT/agents/tester.md" "tester agent definition"
 check_file "$PLUGIN_ROOT/agents/verifier.md" "verifier agent definition"
-check_file "$PLUGIN_ROOT/bin/verifier-mcp.sh" "verifier-mcp launcher"
+check_file "$PLUGIN_ROOT/bin/gatekeeper-evolve-mcp.sh" "gatekeeper-evolve-mcp launcher"
 
 echo ""
 

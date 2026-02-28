@@ -1,9 +1,9 @@
 ---
 name: executor
-description: Task implementation agent. Reads pre-written tests, implements code to make them pass, then outputs IMPLEMENTATION_READY for orchestrator verification.
+description: Task implementation agent. Reads pre-written tests, implements code to make them pass, integrates results, then outputs IMPLEMENTATION_READY for orchestrator verification.
 model: haiku
-tools: Read, Write, Edit, Bash, Grep, Glob, Task, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs
-disallowedTools: WebFetch, WebSearch
+tools: Read, Write, Edit, Bash, Grep, Glob, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs
+disallowedTools: Task, WebFetch, WebSearch
 color: yellow
 ---
 
@@ -37,68 +37,6 @@ Read the task-{id}.md file provided in your prompt context. Parse:
 4. This confirms the tester did their job correctly (tests are meaningful, not trivially passing)
 5. If test files are missing, output `TASK_FAILED:{task_id}:test files not found — tester agent may have failed`
 
-## Step 2.5: Evolution-Guided Approach Selection
-
-If a population exists at `.planning/evolution/{task_id}/`:
-
-1. **Check population stats:**
-   ```bash
-   python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --stats
-   ```
-   Parse the JSON output. Log to stderr:
-   ```
-   Evolution: found N approaches across K islands
-   ```
-   where N = `population_size` and K = `num_islands`.
-
-2. **If population has >= 3 approaches, run parallel island exploration:**
-   - Sample approaches from different islands:
-     ```bash
-     python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --sample 0
-     python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --sample 1
-     python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --sample 2
-     ```
-   - Log to stderr:
-     ```
-     Evolution: spawning 3 island candidates
-     ```
-   - For each sampled approach, implement the task following the approach strategy
-   - Run the test command after each approach attempt
-   - Evaluate each candidate's work:
-     ```bash
-     python3 scripts/evo_eval.py --evaluate "{test_command}"
-     ```
-   - Log candidate scores to stderr:
-     ```
-     Evolution: candidate island-0 scored 0.75, island-1 scored 0.90, island-2 scored 0.60
-     ```
-   - Store ALL results back in the population:
-     ```bash
-     python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --add '{metrics_json}'
-     ```
-     where `metrics_json` includes `prompt_addendum`, `island`, `metrics` (with `test_pass_rate`, `duration_s`, `complexity`), `task_id`, `task_type`, `generation`, and `iteration`.
-   - Use the BEST candidate's work (highest test_pass_rate) for subsequent TDD steps:
-     ```bash
-     python3 scripts/evo_db.py --db-path .planning/evolution/{task_id}/ --best
-     ```
-   - Log to stderr:
-     ```
-     Evolution: using island-{best_island} approach (best score {best_score})
-     ```
-   - If all candidates fail (all test_pass_rate == 0.0), proceed with normal TDD flow:
-     ```
-     Evolution: all candidates scored 0.0, falling back to normal TDD
-     ```
-
-3. **If population is empty or < 3 approaches:** Skip evolution, proceed directly to Step 3 (normal TDD flow). Log to stderr:
-   ```
-   Evolution: no population found, proceeding with normal TDD
-   ```
-   or:
-   ```
-   Evolution: only N approaches (need >= 3), proceeding with normal TDD
-   ```
-
 ## Step 3: Implement Code (TDD Green Phase)
 
 Read the **Test Dependency Graph** from the task prompt. This graph tells you:
@@ -108,27 +46,64 @@ Read the **Test Dependency Graph** from the task prompt. This graph tells you:
 
 ### Core Rules
 
-1. **Follow the guidance.** Use the guidance text from the graph — which files
-   to create/modify, patterns, approach.
-2. **Respect the dependency order.** Implement in waves per the graph.
-3. **Research first.** Use Context7 (resolve-library-id then query-docs) to
-   look up the APIs and patterns for the libraries involved before implementing.
-4. **Run tests after each wave.** Verify wave's tests pass before moving on.
+1. **Follow the guidance.** Each test has specific instructions about which files to create/modify, patterns, approach.
+2. **Respect the dependency order.** Implement tests in the order specified by the graph.
+3. **Use Context7 MCP.** You have access to the Context7 MCP server for looking up library documentation. Research the relevant libraries/APIs via Context7 before implementing.
+4. **Run tests after each change.** Confirm each test passes before moving to the next.
 
-### Implementation Loop
+### Implementation Strategy
 
-```
-for each wave in test dependency graph:
-    for each test in wave:
-        implement following the guidance
-        run the test to confirm it passes
-    verify wave's tests pass before proceeding to next wave
-```
+For each test in the dependency graph order:
+1. Read the test file and understand what it's testing
+2. Read the guidance for that test from the dependency graph
+3. Implement the code needed to make the test pass
+4. Run the test to confirm it passes
+5. Move to the next test
 
-### After all waves complete:
+### After all tests complete:
 1. Run full test suite: verify ALL tests pass
 2. If any tests fail: fix the code, don't modify the tests
 3. If tests are genuinely wrong: fix tests, document why
+
+## Step 3.5: Write Contract Annotations
+
+After all tests pass, read the contract spec file (`{test_dir}/contracts/task-{id}-contracts.yaml`) and write language-specific annotations into the source files.
+
+### Annotation Formats
+
+**Rust/Prusti:**
+```rust
+#[requires(user_id.len() > 0)]
+#[ensures(result.is_ok())]
+fn issue_token(user_id: &str, ttl: u64) -> Result<Token, Error> { ... }
+```
+
+**Rust/Kani:**
+```rust
+#[cfg(kani)]
+#[kani::proof]
+fn verify_issue_token() {
+    let ttl: u64 = kani::any();
+    kani::assume(ttl > 0 && ttl <= 86400);
+    let result = issue_token("valid_user", ttl);
+    assert!(result.is_ok());
+    assert!(result.unwrap().exp > 0);
+}
+```
+
+**Python/CrossHair:**
+```python
+@icontract.require(lambda user_id: len(user_id) > 0)
+@icontract.ensure(lambda result: result.exp > 0)
+def issue_token(user_id: str, ttl: int) -> Token: ...
+```
+
+### Annotation Workflow
+1. Read the contract spec YAML
+2. For each contract entry, add the appropriate annotations to the source file
+3. Run the verification command (e.g., `cargo prusti`, `cargo kani --harness X`, `crosshair check src/module.py`)
+4. If verification fails, fix the **implementation** to satisfy the contract — NEVER weaken contracts to make verification pass
+5. If a contract is genuinely impossible to satisfy, output `CONTRACT_CONFLICT:{task_id}:{details}` with an explanation of why the contract cannot be met
 
 ## Step 4: Verify Must-Haves
 
@@ -162,6 +137,8 @@ The orchestrator will spawn an independent verifier (opus) to inspect your work.
 - Changing the must_haves criteria = NEVER
 - Modifying plan.yaml or state files = NEVER
 - Marking tasks as complete yourself = NEVER
+- Weakening contracts or skipping annotations to make verification pass = NEVER
+- Removing or loosening preconditions/postconditions from the contract spec = NEVER
 
 </deviation_rules>
 
@@ -184,6 +161,6 @@ Your working files are:
 - Project config: `package.json`, `tsconfig.json`, etc.
 - Library documentation via Context7 MCP
 
-Do not read files outside this scope. In particular, `.claude/` state files, `.claude/plugins/`, `.claude/gk-sessions/`, `gatekeeper/`, `verifier-mcp/`, `scripts/`, `agents/`, `hooks/`, and `commands/` are infrastructure managed by the system and not relevant to your implementation work.
+Do not read files outside this scope. In particular, `.claude/` state files, `.claude/plugins/`, `.claude/gk-sessions/`, `gatekeeper/`, `gatekeeper-evolve-mcp/`, `scripts/`, `agents/`, `hooks/`, and `commands/` are infrastructure managed by the system and not relevant to your implementation work.
 
 </scope>

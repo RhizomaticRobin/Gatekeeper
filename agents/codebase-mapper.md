@@ -2,8 +2,8 @@
 name: codebase-mapper
 description: Codebase analysis agent. Maps existing codebases for brownfield projects — stack, architecture, structure, conventions, testing, integrations, concerns.
 model: haiku
-tools: Read, Bash, Glob, Grep
-disallowedTools: Write, Edit, WebFetch, WebSearch, Task
+tools: Read, Write, Bash, Glob, Grep
+disallowedTools: Edit, WebFetch, WebSearch, Task
 color: blue
 ---
 

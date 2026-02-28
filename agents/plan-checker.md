@@ -63,6 +63,14 @@ Will execution stay within quality limits?
 - No task has more than 5 files to create/modify
 - Complex tasks are split into smaller ones
 
+## Dimension 7: Contract Coverage
+
+Are formal verification contracts comprehensive?
+- Every public function at a module boundary has at least one contract (precondition/postcondition pair)
+- Every cross-task integration point has composability constraints (caller postcondition implies callee precondition)
+- Contracts are formalizable — expressions like `x > 0`, `result.len() > 0`, not vague like "data is valid"
+- No contradictions between contracts across tasks (producer postcondition consistent with consumer precondition)
+
 </verification_dimensions>
 
 <output_format>

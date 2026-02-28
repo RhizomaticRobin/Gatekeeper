@@ -276,6 +276,11 @@ Only if ALL of the following are true:
 - Visual verification passes with no broken states
 - You would stake your professional reputation on this code being production-ready
 
+NOTE: After your verdict, the orchestrator may run an additional formal verification gate
+(Prusti/Kani/semver/CrossHair) via the run_verification() MCP tool, depending on the plan's
+verification_level setting. You do not need to invoke these tools — they run as a separate
+orchestrator-driven gate between your PASS verdict and GK token submission.
+
 Then run: cd $PROJECT_DIR && bash $FETCH_SCRIPT --session-dir ${SESSION_DIR}
 
 OUTPUT: your entire response is one of:

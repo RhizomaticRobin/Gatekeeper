@@ -1,7 +1,7 @@
 {
   "name": "gatekeeper",
   "version": "1.0.0",
-  "description": "Gatekeeper — Spec-driven development with cryptographic verifier loops, TDD-first execution, and evolutionary optimization.",
+  "description": "Gatekeeper — Spec-driven development with cryptographic verifier loops and TDD-first execution.",
   "bin": {
     "gatekeeper": "bin/install.js"
   },
@@ -13,7 +13,7 @@
     "templates",
     "references",
     "workflows",
-    "evolve-mcp"
+    "gatekeeper-evolve-mcp"
   ],
   "keywords": [
     "claude",

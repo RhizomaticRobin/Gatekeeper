@@ -2,7 +2,7 @@
 name: phase-verifier
 description: Phase-level verification agent. Runs integration tests defined by the phase assessor, verifies cross-phase wiring, and issues a Phase Verification Gate (PVG) token on pass.
 model: opus
-tools: Read, Bash, Grep, Glob
+tools: Read, Bash, Grep, Glob, mcp__plugin_playwright_playwright__browser_navigate, mcp__plugin_playwright_playwright__browser_snapshot, mcp__plugin_playwright_playwright__browser_take_screenshot, mcp__plugin_playwright_playwright__browser_click, mcp__plugin_playwright_playwright__browser_console_messages, mcp__plugin_playwright_playwright__browser_close, mcp__plugin_playwright_playwright__browser_network_requests, mcp__plugin_playwright_playwright__browser_wait_for, mcp__plugin_playwright_playwright__browser_tabs
 disallowedTools: Write, Edit, WebFetch, WebSearch, Task
 color: green
 ---
@@ -68,6 +68,26 @@ For each integration test spec in `integration-test-spec.md`:
 - Verify the test PASSES
 - If integration tests are missing, that's a FAIL — the tester guidance wasn't followed
 
+## Step 3.5: Cross-Module Composability Verification
+
+Read `behavioral-contracts.md` from the integration specs directory for composability constraints defined by the phase assessor.
+
+For each composability constraint (caller/callee pair across tasks):
+
+1. **Verify annotations exist in source** for both the caller function and the callee function
+   - Grep for `#[requires(`, `#[ensures(`, `@icontract.require(`, `@icontract.ensure(` as appropriate
+   - Missing annotations on either side = FAIL
+
+2. **Check postcondition → precondition implication**
+   - The caller's postcondition must logically imply the callee's precondition
+   - If the caller guarantees `validated_user.id.len() > 0` and the callee requires `user_id.len() > 0`, verify the data flows such that these refer to the same value
+   - Document any gaps where the postcondition doesn't fully cover the precondition
+
+3. **Trace the data flow**
+   - Follow the actual code path from caller to callee
+   - Verify that the variable referenced in the postcondition is the same value passed as the precondition argument
+   - Type mismatches or value transformations that break the implication = FAIL
+
 ## Step 4: Cross-Phase Wiring (if prior phases exist)
 
 Check connections to prior phases:
@@ -93,6 +113,8 @@ Check for:
 
 Only if ALL of the following are true:
 - All integration contracts are satisfied
+- All behavioral contracts have annotations in source
+- All composability constraints hold (caller postconditions imply callee preconditions)
 - All tests pass (including integration tests from the spec)
 - All cross-phase wiring is intact
 - All phase-level must_haves key_links are traced end-to-end
@@ -118,7 +140,7 @@ PHASE_VERIFICATION_FAIL:{phase_id}:{structured_critique}
 ```
 
 Where `{structured_critique}` includes:
-- **Category**: `contract_violation`, `missing_integration_test`, `wiring_failure`, or `cross_phase_break`
+- **Category**: `contract_violation`, `missing_integration_test`, `wiring_failure`, `cross_phase_break`, or `composability_failure`
 - **Issues**: List of specific problems with file paths, expected vs actual shapes
 - **Severity**: CRITICAL (blocks next phase) or WARNING (should fix but can proceed)
 

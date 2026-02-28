@@ -17,12 +17,17 @@ from plan_utils import load_plan, get_all_task_ids, topological_sort
 
 VALID_STATUSES = {"pending", "in_progress", "completed"}
 
+VALID_VERIFICATION_LEVELS = {
+    "tests_only", "prusti", "kani", "crosshair", "full", "full_python",
+}
+VALID_CONTRACT_LANGUAGES = {"rust", "python", "none"}
+
 REQUIRED_METADATA = ["project", "dev_server_command", "dev_server_url"]
 
 OPTIONAL_METADATA = [
     "max_gatekeeper_iterations", "timeout_hours", "stuck_threshold",
     "circuit_breaker_threshold", "model_profile", "test_framework",
-    "project_context",
+    "project_context", "verification_level", "contract_language",
 ]
 
 METADATA_DEFAULTS = {
@@ -81,6 +86,20 @@ def validate(path):
         if pc is not None and not isinstance(pc, dict):
             errors.append("metadata.project_context must be a mapping")
 
+        # verification_level must be a valid enum if present
+        vl = metadata.get("verification_level")
+        if vl is not None and vl not in VALID_VERIFICATION_LEVELS:
+            errors.append(
+                f"metadata.verification_level must be one of {sorted(VALID_VERIFICATION_LEVELS)}, got '{vl}'"
+            )
+
+        # contract_language must be a valid enum if present
+        cl = metadata.get("contract_language")
+        if cl is not None and cl not in VALID_CONTRACT_LANGUAGES:
+            errors.append(
+                f"metadata.contract_language must be one of {sorted(VALID_CONTRACT_LANGUAGES)}, got '{cl}'"
+            )
+
     # 3. Phases exist
     phases = plan.get("phases", [])
     if not isinstance(phases, list) or len(phases) == 0:
@@ -107,7 +126,7 @@ def validate(path):
             if not isinstance(phase_mh, dict):
                 errors.append(f"Phase {phase.get('id', '?')}: must_haves must be a mapping")
             else:
-                for key in ("truths", "artifacts", "key_links"):
+                for key in ("truths", "artifacts", "key_links", "contracts"):
                     val = phase_mh.get(key)
                     if val is not None and not isinstance(val, list):
                         errors.append(f"Phase {phase.get('id', '?')}: must_haves.{key} must be a list")
@@ -188,7 +207,7 @@ def validate(path):
             if not isinstance(task_mh, dict):
                 errors.append(f"{prefix}: must_haves must be a mapping")
             else:
-                for key in ("truths", "artifacts", "key_links"):
+                for key in ("truths", "artifacts", "key_links", "contracts"):
                     val = task_mh.get(key)
                     if val is not None and not isinstance(val, list):
                         errors.append(f"{prefix}: must_haves.{key} must be a list")

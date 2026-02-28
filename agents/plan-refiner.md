@@ -72,13 +72,20 @@ Evaluate the outline across these dimensions. For each, identify specific issues
 - Are there phases with only 1 estimated task? (Merge with adjacent phase)
 - **Fix**: Adjust estimates. Split or merge phases as needed.
 
+## 8. Verification Completeness
+- Does every module boundary have a contract defined in some phase's `must_haves.contracts`?
+- Are contracts specific enough to formalize (not vague like "data is valid" — must be expressible as pre/postconditions)?
+- Are pre/postcondition pairs consistent across producer/consumer phases (caller's postcondition implies callee's precondition)?
+- Does every public function at a phase boundary have at least one contract?
+- **Fix**: Add missing contracts. Sharpen vague contracts into formalizable expressions. Fix inconsistent pre/postcondition pairs across phases.
+
 </evaluation_dimensions>
 
 <process>
 
 1. Read the current outline and PROJECT.md
 2. Scan the codebase briefly (Glob/Grep) to verify assumptions about existing code
-3. Evaluate across all 7 dimensions
+3. Evaluate across all 8 dimensions
 4. Make improvements — rewrite goals, add must_haves, fix ordering, split/merge phases
 5. Overwrite `.claude/plan/high-level-outline.yaml` with the improved version
 6. Append a `refinement_notes` section at the bottom of the YAML documenting what changed
@@ -116,7 +123,7 @@ refinement_notes:
 </output_format>
 
 <success_criteria>
-- [ ] All 7 evaluation dimensions addressed
+- [ ] All 8 evaluation dimensions addressed
 - [ ] Improved outline is valid YAML
 - [ ] Under 200 lines (excluding refinement_notes)
 - [ ] Every project requirement maps to at least one phase

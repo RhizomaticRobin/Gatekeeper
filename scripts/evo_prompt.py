@@ -70,6 +70,49 @@ _SPEED_DIRECTIVE_VARIATIONS = [
     ),
 ]
 
+_TAICHI_DIRECTIVE_VARIATIONS = [
+    (
+        "Reduce register pressure in the hot inner loop — minimize local temporaries, "
+        "reuse variables, use ti.cast to smaller types (ti.f16) where precision allows. "
+        "Current speedup: {speedup:.2f}x. GPU threads share register files; fewer registers per thread means more concurrent warps."
+    ),
+    (
+        "Eliminate thread divergence — replace `if/else` branches with `ti.select()` "
+        "(branchless mask-and-blend), use `ti.static()` for compile-time branching, "
+        "flatten conditional loops. Current speedup: {speedup:.2f}x. Divergent branches serialize warp execution."
+    ),
+    (
+        "Improve memory coalescing — restructure field accesses so threads access "
+        "consecutive addresses in the innermost dimension. Convert Vector.field to "
+        "separate scalar ti.field (SoA layout). Use ti.block_local for shared-memory tiling. "
+        "Current speedup: {speedup:.2f}x. Coalesced reads are 10-100x faster than scattered."
+    ),
+    (
+        "Reduce kernel dispatch overhead — fuse multiple @ti.kernel calls into a single "
+        "kernel with inner ti.static loops. Replace Python-side `for _ in range(N): kernel()` "
+        "with `for _ in ti.static(range(N)):` inside one kernel. "
+        "Current speedup: {speedup:.2f}x. Each kernel launch costs 5-50\u00b5s overhead."
+    ),
+    (
+        "Algorithmic reduction — replace O(n) per-thread scans with spatial hashing "
+        "(ti.field-based hash grid), add early-exit conditions when fog >= 95% or distance "
+        "exceeds max, precompute invariants into scalar ti.field outside the parallel loop. "
+        "Current speedup: {speedup:.2f}x. Work reduction beats micro-optimization."
+    ),
+    (
+        "Reduce atomic contention — use per-thread local accumulators, then reduce "
+        "in a second pass or via ti.block_local shared buffers. Avoid ti.atomic_add "
+        "on globally-shared fields in the hot loop. "
+        "Current speedup: {speedup:.2f}x. Atomic serialization kills GPU parallelism."
+    ),
+    (
+        "Exploit data locality — reorder loop nesting so the innermost loop matches "
+        "memory stride, use struct-for over dense ti.root layouts, prefetch neighbor "
+        "values into local variables before the inner computation. "
+        "Current speedup: {speedup:.2f}x. Cache-friendly access patterns dominate GPU perf."
+    ),
+]
+
 _DEFAULT_DIRECTIVE_VARIATIONS = [
     (
         "Your parent achieved a test pass rate of {score:.1%}. "
@@ -154,15 +197,19 @@ class EvolutionPromptBuilder:
             db_path: Path to the EvolutionDB directory.
             task_id: Task ID to filter approaches.
             island_id: Island to sample from (default: random).
-            mode: 'general' (default) or 'speed' for speed-optimization directives.
+            mode: 'general' (default), 'speed' for speed-optimization directives,
+                  or 'taichi' for GPU-specific Taichi kernel optimization directives.
 
         Returns:
             Markdown string with all 5 sections.
         """
-        # Switch directives for speed mode
+        # Switch directives for speed mode or taichi mode
         if mode == "speed":
             self.directive_variations = list(_SPEED_DIRECTIVE_VARIATIONS)
             self._speed_mode = True
+        elif mode == "taichi":
+            self.directive_variations = list(_TAICHI_DIRECTIVE_VARIATIONS)
+            self._speed_mode = True  # Use "Speed Optimization Context" header
         else:
             self._speed_mode = False
         db = EvolutionDB()
@@ -419,9 +466,9 @@ def main():
     parser.add_argument(
         "--mode",
         type=str,
-        choices=["general", "speed"],
+        choices=["general", "speed", "taichi"],
         default="general",
-        help="Prompt mode: 'general' (default) or 'speed' for speed-optimization directives",
+        help="Prompt mode: 'general' (default), 'speed' for speed-optimization directives, or 'taichi' for GPU-specific Taichi kernel optimization directives",
     )
 
     args = parser.parse_args()

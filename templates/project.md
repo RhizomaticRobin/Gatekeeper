@@ -55,6 +55,12 @@ One sentence that drives prioritization when tradeoffs arise.]
 
 Common types: Tech stack, Timeline, Budget, Dependencies, Compatibility, Performance, Security
 
+## Verification Preferences
+
+- **verification_level**: [tests_only | prusti | kani | crosshair | full | full_python]
+- **contract_language**: [rust | python | none]
+- **baseline_revision**: [git tag/SHA for semver checks, e.g., v1.0.0 — only needed for full level]
+
 ## Key Decisions
 
 <!-- Decisions that constrain future work. Add throughout project lifecycle. -->

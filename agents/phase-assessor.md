@@ -55,6 +55,31 @@ Write these to `{output_dir}/contracts/`:
 - `data-contracts.md` — Shared data structures and types
 - `wiring-contracts.md` — How components connect (import paths, event names, route registrations)
 
+## Step 2.5: Define Behavioral Contracts
+
+For each module boundary identified in Step 1, define behavioral contracts (not just data shapes):
+
+### Preconditions and Postconditions
+For every exported function at a task boundary:
+- **Preconditions**: What must be true before calling (input constraints, state requirements)
+- **Postconditions**: What must be true after return (output guarantees, state changes)
+- Express as formalizable expressions: `user_id.len() > 0`, `result.exp > current_time`, `balance >= 0`
+
+### Composability Constraints
+For every cross-task call site (caller in Task A invokes callee in Task B):
+- **Caller postcondition**: What the caller guarantees after its work
+- **Callee precondition**: What the callee requires before execution
+- **Variable types**: Z3-compatible type map for composability checking (e.g., `{"user_id_len": "Int", "is_valid": "Bool"}`)
+- The caller's postcondition MUST imply the callee's precondition
+
+### Annotation Format Examples
+Include language-specific examples showing how contracts will appear in code:
+- **Rust/Prusti**: `#[requires(user_id.len() > 0)]`, `#[ensures(result.is_ok())]`
+- **Rust/Kani**: `#[kani::proof] fn verify_xyz() { let x = kani::any::<u64>(); ... }`
+- **Python/CrossHair**: `@icontract.require(lambda user_id: len(user_id) > 0)`, `@icontract.ensure(lambda result: result.exp > 0)`
+
+Write to `{output_dir}/behavioral-contracts.md`.
+
 ## Step 3: Create Integration Test Specifications
 
 Write integration test skeletons that verify cross-task wiring. These are NOT full tests — they are specifications that:
@@ -88,6 +113,19 @@ Your tests MUST use these exact shapes for cross-task interfaces:
 - API returns 200 with AuthResponse on success, 401 with {error: string} on failure
 
 When mocking cross-task dependencies, use these shapes. When asserting response formats, match these contracts exactly.
+
+## Behavioral Contract Guidance
+
+Your contract spec file MUST define these contracts for this task's functions:
+
+| Function | Preconditions | Postconditions |
+|----------|--------------|----------------|
+| issue_token(user_id, ttl) | user_id.len() > 0, ttl > 0 | result.exp > current_time |
+
+Composability checks to include:
+- Caller: api::handle_login postcondition: validated_user.id.len() > 0
+- Callee: token_engine::issue_token precondition: user_id.len() > 0
+- Variables: {"user_id_len": "Int"}
 ```
 
 Write to `{output_dir}/tester-guidance-task-{id}.md` for each task.

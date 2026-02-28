@@ -1,9 +1,11 @@
 ---
 description: "Execute tasks via TDD-first Gatekeeper loop — single-task or parallel Agent Teams"
-allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "Bash(cat:*)", "Bash(mkdir:*)", "Bash(rm:*)", "Read", "Task"]
+allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "Bash(cat:*)", "Bash(mkdir:*)", "Bash(rm:*)", "Read", "Write", "Edit", "Glob", "Grep", "Task", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__create_session", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_session", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__close_session", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_token", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_next_task", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_token_status", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_pending_signals", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__mark_signal_processed", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_pvg_token", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__check_phase_integration", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_evolution_attempt", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_evolution_context"]
 ---
 
 Execute the plan orchestrator: validate the plan, find ALL unblocked tasks, check for file scope conflicts, set up per-task sessions, and launch execution.
+
+**State management**: Use the Gatekeeper MCP tools for ALL session, token, and signal operations. Do NOT manually generate tokens with `openssl rand` or write `.secret` files. The MCP server is the single source of truth for execution state.
 
 ```!
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/cross-team-setup.sh" "${CLAUDE_PLUGIN_ROOT}"
@@ -51,6 +53,20 @@ Read the orchestrator prompt template and follow it:
 prompt_template = open('${CLAUDE_PLUGIN_ROOT}/scripts/team-orchestrator-prompt.md').read()
 ```
 
+### Session Setup — Use MCP Tools
+
+Before dispatching any task, create a Gatekeeper session via MCP. Generate the session ID as `gk_YYYYMMDD_XXXXXX` (date + 6 hex chars).
+
+```
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__create_session(
+    session_id="gk_{date}_{hex}",
+    project_dir="{absolute path to project}",
+    test_command="{test command from plan.yaml}"
+)
+```
+
+Use this session_id for ALL subsequent MCP calls during this execution run.
+
 ### Orchestration Workflow
 
 The per-phase flow is: **Phase Assessor** (defines integration contracts + format specs) → per-task: **Tester** → **Assessor** (TQG token) → **Executor** → **Verifier** (GK token) → all tasks done → **Phase Verifier** (PVG token) → next phase.
@@ -61,13 +77,31 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
    - Creates format contracts (API shapes, data structures, wiring specs)
    - Writes per-task tester guidance files with exact interface shapes
    - Returns `PHASE_ASSESSMENT_PASS:{phase_id}:{summary}` with PAG token or `PHASE_ASSESSMENT_FAIL`
-   - On PASS: orchestrator generates `PAG_COMPLETE_{hex}` token, proceeds to spawn testers with format guidance injected
+   - On PASS: record the signal and proceed:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal(
+         signal_type="PHASE_ASSESSMENT_PASS",
+         session_id="{session_id}",
+         phase_id={phase_id},
+         agent_id="phase-assessor",
+         context={"summary": "{summary}"}
+     )
+     ```
 
 1. **Phase 1 — Spawn tester agents** for each dispatched task:
    - One `Task(subagent_type='gatekeeper:tester')` per task (model: sonnet, HAS web access)
    - Each tester gets: task prompt + session directory path
    - Testers research the domain, write comprehensive tests, confirm TDD Red
    - Testers return `TESTS_WRITTEN:{task_id}` or `TESTS_WRITE_FAILED:{task_id}:{reason}`
+   - On return, record the signal:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal(
+         signal_type="TESTS_WRITTEN",  # or "TESTS_WRITE_FAILED"
+         session_id="{session_id}",
+         task_id="{task_id}",
+         agent_id="tester"
+     )
+     ```
    - Testers for independent tasks (same wave, no file_scope overlap) can run in parallel
 
 2. **Phase 1.5 — Assessment gate** for each task with ready tests:
@@ -76,23 +110,79 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
    - Assessors check test possibility, comprehensiveness, quality, and must_haves alignment
    - Assessors also verify tests comply with format contracts from the phase assessor
    - Assessors return `ASSESSMENT_PASS:{tqg_token}:{summary}` or `ASSESSMENT_FAIL:{issues}`
-   - On PASS: orchestrator extracts TQG token, writes to `assessor-token.secret`
-   - On FAIL: re-spawn tester with critique (max 3 rounds)
+   - On PASS: submit the TQG token via MCP:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_token(
+         token="{tqg_token}",
+         session_id="{session_id}",
+         task_id="{task_id}"
+     )
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal(
+         signal_type="ASSESSMENT_PASS",
+         session_id="{session_id}",
+         task_id="{task_id}",
+         agent_id="assessor",
+         context={"summary": "{summary}"}
+     )
+     ```
+   - On FAIL: re-spawn tester with critique (max 3 rounds). Record each attempt:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_evolution_attempt(
+         task_id="{task_id}",
+         attempt_number={n},
+         outcome="FAILURE",
+         session_id="{session_id}",
+         metrics={"reason": "{issues}"}
+     )
+     ```
 
 3. **Phase 2 — Spawn executor agents** for each task that passed assessment:
    - One `Task(subagent_type='gatekeeper:executor')` per task (model: haiku, no web access)
    - Each executor gets: task prompt + session directory path
-   - Executors read pre-written tests, spawn Task subagents concurrently, run full test suite
+   - Executors read pre-written tests, implement code to make them pass, run full test suite
    - Executors return `IMPLEMENTATION_READY:{task_id}` or `TASK_FAILED:{task_id}:{reason}`
+   - Record the signal:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal(
+         signal_type="IMPLEMENTATION_READY",  # or "TASK_FAILED"
+         session_id="{session_id}",
+         task_id="{task_id}",
+         agent_id="executor"
+     )
+     ```
 
 4. **Phase 2.5 — Verification gate** for each task with ready implementation:
    - One `Task(subagent_type='gatekeeper:verifier')` per task (model: opus, NO write access)
    - Each verifier gets: task spec + test command + session directory path
    - Verifiers perform deep code inspection, run tests independently, check must_haves
    - Verifiers return `VERIFICATION_PASS` or `VERIFICATION_FAIL:{critique}`
-   - On PASS: orchestrator generates token, marks task completed
+   - On PASS: submit the GK completion token via MCP and mark task completed:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_token(
+         token="GK_COMPLETE_{32 hex chars}",
+         session_id="{session_id}",
+         task_id="{task_id}"
+     )
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal(
+         signal_type="VERIFICATION_PASS",
+         session_id="{session_id}",
+         task_id="{task_id}",
+         agent_id="verifier"
+     )
+     python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id} --token {gk_token}
+     ```
    - On FAIL (test issue): re-spawn tester in reassess mode, then assessor + executor + verifier
    - On FAIL (impl issue): re-spawn executor with critique (max 3 rounds)
+   - Record each failure attempt:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_evolution_attempt(
+         task_id="{task_id}",
+         attempt_number={n},
+         outcome="FAILURE",
+         session_id="{session_id}",
+         metrics={"critique": "{critique}", "failure_type": "test_issue|impl_issue"}
+     )
+     ```
 
 5. **Handle verify failures (test problem suspected)**:
    - If the verifier's failure details suggest test issues:
@@ -101,35 +191,90 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
      - Collect `TESTS_WRITTEN:{task_id}` (tests fixed) or `TESTS_OK:{task_id}:...` (tests are fine)
      - If tests were fixed, re-run assessor → executor → verifier
    - If failure is clearly implementation-related, re-spawn executor directly with verifier critique
+   - Check evolution context for patterns across attempts:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_evolution_context(
+         task_id="{task_id}"
+     )
+     ```
 
-6. **Mark tasks completed** via:
-   ```bash
-   token=$(openssl rand -hex 32 | head -c 32)
-   gk_token="GK_COMPLETE_${token}"
-   # Write token to verifier-token.secret (line 1, preserve TEST_CMD lines)
+6. **Mark tasks completed** — use MCP for token submission, plan_utils for plan.yaml update:
+   ```
+   # Generate token hex (32 chars)
+   token_hex = random 32 hex chars
+   gk_token = "GK_COMPLETE_{token_hex}"
+
+   # Submit via MCP (source of truth for execution state)
+   mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_token(
+       token=gk_token,
+       session_id="{session_id}",
+       task_id="{task_id}"
+   )
+
+   # Update plan.yaml (source of truth for plan state)
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id} --token {gk_token}
    ```
 
 7. **Phase verification gate** after marking a task complete:
    - If the completed task was the last task in its phase AND the phase has `integration_check: true`:
+   - First, check phase integration artifacts via MCP:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__check_phase_integration(
+         phase_id={phase_id},
+         required_artifacts=["{list of artifact paths from phase must_haves}"],
+         project_dir="{project_dir}"
+     )
+     ```
    - Spawn a phase-verifier (model: opus, read-only) to verify integration contracts and cross-phase wiring:
      ```
      Task(subagent_type='gatekeeper:phase-verifier', model='opus',
           prompt='phase_id: {id}, integration_specs_dir: .claude/plan/phases/phase-{id}/integration-specs/, ...')
      ```
-   - On `PHASE_VERIFICATION_PASS:{phase_id}`: orchestrator generates `PVG_COMPLETE_{hex}` token, writes to `phase-verifier-token.secret`
+   - On `PHASE_VERIFICATION_PASS:{phase_id}`: submit PVG token via MCP:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_pvg_token(
+         session_id="{session_id}",
+         token_value="PVG_COMPLETE_{32 hex chars}",
+         phase_id={phase_id},
+         integration_check_passed=true
+     )
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal(
+         signal_type="PHASE_VERIFICATION_PASS",
+         session_id="{session_id}",
+         phase_id={phase_id},
+         agent_id="phase-verifier"
+     )
+     ```
    - On `PHASE_VERIFICATION_FAIL` with CRITICAL issues: fix before next phase
    - WARNING-level issues can be noted and addressed later
    - Next phase starts with Phase 0.5 (phase assessor) before testers
 
 8. **Check for newly unblocked tasks** after each completion:
-   ```bash
+   ```
+   # Use MCP for next task suggestion
+   mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_next_task(
+       session_id="{session_id}"
+   )
+
+   # Cross-reference with plan.yaml for full task details
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/get-unblocked-tasks.py" .claude/plan/plan.yaml
    ```
-   - For each newly unblocked task, set up its Gatekeeper session and spawn tester → assessor → executor → verifier
+   - For each newly unblocked task, spawn tester → assessor → executor → verifier
 
 9. **When all tasks are done**:
    - All verifier Tasks have returned PASS
+   - Verify all tokens submitted via MCP:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_token_status(
+         session_id="{session_id}"
+     )
+     ```
+   - Close the session:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__close_session(
+         session_id="{session_id}"
+     )
+     ```
    - Remove `.claude/gk-team-active`
    - Remove `.claude/gk-sessions/`
    - Remove `.claude/plan-locked`
@@ -145,6 +290,7 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
 
 - You are the LEAD ORCHESTRATOR — never write implementation or test code
 - Only YOU update plan.yaml — tester, assessor, executor, and verifier sub-agents must not touch it
+- **Use MCP tools for ALL token submission and signal recording** — do NOT manually generate tokens with `openssl rand` or write `.secret` files
 - Always run tester → assessor → executor → verifier for each task
 - Testers/executors with overlapping file scopes must NOT run simultaneously
 - If an executor fails 3 times, skip the task and note it for the user
@@ -152,3 +298,5 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
 - Verify must_haves (truths, artifacts, key_links) are satisfied before marking complete
 - The orchestrator generates GK/PAG/PVG tokens; the assessor generates TQG tokens in its output signal
 - Token chain per task: PAG (phase start) → TQG (test quality) → GK (task verification) → PVG (phase end)
+- All tokens must be submitted via `mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_token` or `submit_pvg_token`
+- All agent signals must be recorded via `mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal`

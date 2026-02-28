@@ -20,7 +20,6 @@ const EXCLUDE = new Set([
   '.claude',
   '.planning',
   'tests',
-  'verifier-mcp',
   'vitest.config.js',
   'pytest.ini',
   'package-lock.json',
@@ -77,25 +76,25 @@ function verifyInstallation(fs, pluginDir) {
 }
 
 /**
- * Set up the evolve-mcp server: install fastmcp Python dependency.
- * evolve-mcp is a FastMCP Python server bundled with the plugin.
- * It auto-installs fastmcp on first launch via bin/evolve-mcp.sh,
+ * Set up the gatekeeper-evolve-mcp server: install fastmcp Python dependency.
+ * gatekeeper-evolve-mcp is a FastMCP Python server bundled with the plugin.
+ * It auto-installs fastmcp on first launch via bin/gatekeeper-evolve-mcp.sh,
  * but we pre-install here for a better experience.
  */
 function setupEvolveMcp(fs, execSync, pluginDir) {
-  const mcpDir = path.join(pluginDir, 'evolve-mcp');
-  const serverPy = path.join(mcpDir, 'server.py');
-  const launcherScript = path.join(pluginDir, 'bin', 'evolve-mcp.sh');
+  const mcpDir = path.join(pluginDir, 'gatekeeper-evolve-mcp');
+  const serverPy = path.join(mcpDir, 'src', 'gatekeeper_evolve_mcp', 'server.py');
+  const launcherScript = path.join(pluginDir, 'bin', 'gatekeeper-evolve-mcp.sh');
 
   // Verify source exists (bundled with plugin)
   if (!fs.existsSync(serverPy)) {
-    console.error(`  ${yellow}evolve-mcp source not found at ${mcpDir}${reset}`);
+    console.error(`  ${yellow}gatekeeper-evolve-mcp source not found at ${mcpDir}${reset}`);
     console.error(`  ${dim}This is bundled with the plugin — reinstall may be needed${reset}`);
     return;
   }
 
   // Install fastmcp Python dependency
-  console.log(`  ${dim}Installing evolve-mcp dependencies (fastmcp)...${reset}`);
+  console.log(`  ${dim}Installing gatekeeper-evolve-mcp dependencies (fastmcp)...${reset}`);
   try {
     execSync('pip install fastmcp', { stdio: 'pipe' });
     console.log(`  ${green}✓${reset} Installed fastmcp Python dependency`);
@@ -108,17 +107,8 @@ function setupEvolveMcp(fs, execSync, pluginDir) {
       console.error(`  ${yellow}Could not install fastmcp automatically${reset}`);
       console.error(`  ${dim}${err2.stderr ? err2.stderr.toString().trim() : err2.message}${reset}`);
       console.error(`  ${yellow}Run manually:${reset} pip install fastmcp`);
-      console.error(`  ${dim}The evolve-mcp launcher will also auto-install on first use${reset}`);
+      console.error(`  ${dim}The gatekeeper-evolve-mcp launcher will also auto-install on first use${reset}`);
     }
-  }
-
-  // Deregister old verifier-mcp if it exists
-  console.log(`  ${dim}Cleaning up old verifier-mcp registration...${reset}`);
-  try {
-    execSync('claude mcp remove verifier-mcp', { stdio: 'pipe' });
-    console.log(`  ${green}✓${reset} Removed old verifier-mcp MCP server`);
-  } catch {
-    // Not registered — that's fine
   }
 
   // Make launcher executable
@@ -128,7 +118,7 @@ function setupEvolveMcp(fs, execSync, pluginDir) {
     // Already executable or chmod not needed
   }
 
-  console.log(`  ${green}✓${reset} evolve-mcp ready (auto-starts via plugin.json)`);
+  console.log(`  ${green}✓${reset} gatekeeper-evolve-mcp ready (auto-starts via plugin.json)`);
 }
 
 /**

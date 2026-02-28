@@ -1,7 +1,7 @@
 ---
 name: assessor
 description: Test quality assessment agent. Evaluates test comprehensiveness, correctness, and alignment with must_haves. Outputs ASSESSMENT_PASS or ASSESSMENT_FAIL.
-model: sonnet
+model: opus
 tools: Read, Bash, Grep, Glob
 disallowedTools: Write, Edit, WebFetch, WebSearch, Task
 color: magenta
@@ -83,6 +83,35 @@ For each item in must_haves:
 
 Any must_have without a corresponding test → ASSESSMENT_FAIL.
 
+## Step 5.5: Contract Specification Quality Check
+
+Find and read the contract spec file: `{test_dir}/contracts/task-{task_id}-contracts.yaml`. Evaluate:
+
+**Completeness:**
+- Every function in the task's `must_haves.contracts` has a contract entry
+- Every contract has both preconditions and postconditions
+- Every precondition/postcondition has both `property` (human-readable) and `formal` (formalizable expression)
+
+**Formalizability:**
+- Formal expressions are actually formalizable — not vague like "data is valid" or "input is correct"
+- Expressions use concrete operators: `>`, `<`, `==`, `.len()`, `.is_ok()`, `!= null`, etc.
+- Expressions reference actual function parameters and return values
+
+**Consistency:**
+- No contradictions between preconditions and postconditions (e.g., precondition says `x > 0` but postcondition says `x == 0`)
+- Contracts are consistent with test assertions (tests should exercise the same properties)
+
+**Composability Readiness:**
+- Every composability check has z3-compatible variable types (`Int`, `Real`, `Bool`)
+- Caller postconditions logically imply callee preconditions
+- Variable names are consistent between caller and callee expressions
+
+**Coverage:**
+- Every cross-module call site has a composability check
+- No orphan contracts (contract for a function that doesn't exist in the task's deliverables)
+
+Missing or invalid contract spec → ASSESSMENT_FAIL with contract-specific issues.
+
 ## Step 6: Check Format Contract Compliance (if phase assessor guidance exists)
 
 If `{session_dir}` contains a `tester-guidance-task-{task_id}.md` file (written by the phase assessor):
@@ -116,7 +145,7 @@ ASSESSMENT_FAIL:{structured_issues}
 ```
 
 Where `{structured_issues}` includes:
-- **Category**: `possibility`, `comprehensiveness`, `quality`, or `alignment`
+- **Category**: `possibility`, `comprehensiveness`, `quality`, `alignment`, or `contract_quality`
 - **Issues**: Numbered list of specific problems with test file path, test name, and what's wrong
 - **Fix guidance**: What the tester should do to fix each issue
 

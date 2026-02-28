@@ -4,6 +4,7 @@ description: "Research domain knowledge for a phase"
 argument-hint: "<phase-number>"
 allowed-tools:
   - Read
+  - Write
   - Bash
   - Task
   - WebSearch
@@ -55,10 +56,10 @@ Present the topics to the user for confirmation:
 
 ## Step 3: Spawn Research Agents
 
-For each approved topic, spawn a `gsd-phase-researcher` agent using the Task tool:
+For each approved topic, spawn a phase-researcher agent using the Task tool with `subagent_type='gatekeeper:phase-researcher'`:
 
 ```
-Task: "You are a gsd-phase-researcher agent investigating: {topic}
+Task(subagent_type='gatekeeper:phase-researcher', prompt="Investigate: {topic}
 
 Context:
 - Project: {project name}
@@ -80,7 +81,7 @@ Produce a structured research document with these sections:
 - Gotchas & Pitfalls (things to watch for)
 - References (URLs to key docs)
 
-Write your findings to: .planning/phases/{XX}-{phase-slug}/{topic-slug}-research.md"
+Write your findings to: .planning/phases/{XX}-{phase-slug}/{topic-slug}-research.md")
 ```
 
 Spawn all agents in parallel using multiple Task calls.

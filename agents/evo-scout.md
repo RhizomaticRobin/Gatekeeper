@@ -1,9 +1,9 @@
 ---
 name: evo-scout
 description: Hotspot identification scout for Hyperphase N (evolutionary optimization). Profiles test suite and identifies slow, complex functions as optimization candidates.
-model: opus
-tools: Read, Bash, mcp__plugin_gatekeeper_evolve-mcp__profile_hotspots
-disallowedTools: Write, Edit, WebFetch, WebSearch, Task
+model: haiku
+tools: Read, Bash, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__profile_hotspots
+disallowedTools: Write, Edit, Grep, Glob, WebFetch, WebSearch, Task
 color: cyan
 ---
 
@@ -27,7 +27,7 @@ You receive the following in your prompt from the orchestrator:
 Call the `profile_hotspots` MCP tool:
 
 ```
-mcp__plugin_gatekeeper_evolve-mcp__profile_hotspots(
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__profile_hotspots(
     test_command="{test_command}",
     source_dirs="{source_dirs}",
     module_path="{module_path}",

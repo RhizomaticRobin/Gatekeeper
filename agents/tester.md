@@ -99,6 +99,46 @@ Follow the Test Dependency Graph from the task prompt:
 - Add additional edge case tests discovered during research
 - Maintain the dependency relationships (tests that depend on shared implementations should reference the same module paths)
 
+## Step 3.5: Write Contract Specifications
+
+After writing tests, create the contract specification file for this task. This is a language-agnostic YAML file consumed by the executor (to write annotations) and verifier (to check correctness).
+
+Write to `{test_dir}/contracts/task-{id}-contracts.yaml`:
+
+```yaml
+verification_level: full  # from plan metadata
+language: rust             # from plan metadata
+
+contracts:
+  - function: "module::function_name"
+    preconditions:
+      - property: "human-readable description"
+        formal: "formalizable expression (e.g., user_id.len() > 0)"
+    postconditions:
+      - property: "human-readable description"
+        formal: "formalizable expression (e.g., result.unwrap().exp > current_time)"
+
+kani_harnesses:  # Rust only
+  - name: "verify_function_name"
+    target_function: "module::function_name"
+    inputs: ["kani::any::<Type>() bounded to (min, max)"]
+    assertions: ["result.is_ok()", "result.unwrap().field > 0"]
+
+composability_checks:
+  - caller: "module_a::caller_fn"
+    callee: "module_b::callee_fn"
+    caller_postcondition: "formal expression the caller guarantees"
+    callee_precondition: "formal expression the callee requires"
+    variables: {"var_name": "Int|Real|Bool"}
+```
+
+### Contract Spec Rules
+- Every function listed in the task's `must_haves.contracts` MUST have an entry
+- Preconditions and postconditions must have BOTH a human-readable `property` AND a `formal` expression
+- Formal expressions must be specific enough to translate directly into annotations (`#[requires(...)]`, `@require(lambda ...)`)
+- Do NOT write actual annotations — that is the executor's job
+- Composability checks must include z3-compatible variable types
+
 ## Step 4: Confirm TDD Red State
 
 Run the test command — tests MUST FAIL at this point.
@@ -117,9 +157,11 @@ Fix any tests that pass prematurely — they're not testing anything.
 
 ## Step 5: Output Signal
 
-After confirming TDD Red state, output `TESTS_WRITTEN:{task_id}` and stop.
+After confirming TDD Red state AND writing the contract spec file, output both signals:
+1. `TESTS_WRITTEN:{task_id}`
+2. `TESTS_AND_CONTRACTS_WRITTEN:{task_id}`
 
-The orchestrator will spawn an independent assessor (opus) to evaluate your test quality. If the assessor finds issues, the orchestrator may re-spawn you with the critique. In that case, fix the identified issues, re-confirm TDD Red, and output `TESTS_WRITTEN:{task_id}` again.
+The orchestrator will spawn an independent assessor (opus) to evaluate your test quality and contract specifications. If the assessor finds issues, the orchestrator may re-spawn you with the critique. In that case, fix the identified issues, re-confirm TDD Red, and output both signals again.
 
 If you cannot write tests at all (missing dependencies, broken project setup, etc.), output `TESTS_WRITE_FAILED:{task_id}:{reason}` and stop.
 
@@ -161,7 +203,8 @@ If your prompt includes `mode="reassess"` with verifier failure details, the exe
 - Do NOT write tests that pass before implementation exists (except import/existence checks)
 - ALWAYS use realistic test data, never toy values
 - ALWAYS ensure every must_have has corresponding test assertions
-- Output TESTS_WRITTEN:{task_id} after confirming TDD Red — the orchestrator handles assessment
+- ALWAYS write the contract spec YAML file — contracts are not optional
+- Output TESTS_WRITTEN:{task_id} AND TESTS_AND_CONTRACTS_WRITTEN:{task_id} after confirming TDD Red — the orchestrator handles assessment
 </critical_rules>
 
 <scope>
@@ -175,6 +218,6 @@ Your working files are:
 - Project config: `package.json`, `tsconfig.json`, `vitest.config.ts`, etc.
 - Library documentation via WebSearch and Context7 MCP
 
-Do not read files outside this scope. In particular, `.claude/` state files, `.claude/plugins/`, `.claude/gk-sessions/`, `gatekeeper/`, `verifier-mcp/`, `scripts/`, `agents/`, `hooks/`, and `commands/` are infrastructure managed by the system and not relevant to your test-writing work.
+Do not read files outside this scope. In particular, `.claude/` state files, `.claude/plugins/`, `.claude/gk-sessions/`, `gatekeeper/`, `gatekeeper-evolve-mcp/`, `scripts/`, `agents/`, `hooks/`, and `commands/` are infrastructure managed by the system and not relevant to your test-writing work.
 
 </scope>

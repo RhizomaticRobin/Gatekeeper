@@ -115,10 +115,11 @@ TASK_PROMPT="CRITICAL RULES — VIOLATION WILL BREAK THE LOOP:
 TDD-FIRST WORKFLOW (MANDATORY):
 You MUST follow this execution order:
 1. Write ALL tests first — unit tests, integration tests, edge cases. Every deliverable gets a test BEFORE any implementation code is written.
-2. Implement code following the Test Dependency Graph, respecting test dependencies.
-3. Run the FULL test suite yourself to verify all tests pass: $TEST_CMD
-4. If any tests fail, fix issues and re-run until green.
-5. Only THEN spawn the Verifier subagent for final verification.
+2. Run tests to confirm they fail (TDD Red state)
+3. Implement the code to make tests pass
+4. Run the FULL test suite yourself to verify all tests pass: $TEST_CMD
+5. If any tests fail, fix issues and re-run until green.
+6. Only THEN spawn the Verifier subagent for final verification.
 
 ${MUST_HAVES:+MUST_HAVES FOR THIS TASK:
 $MUST_HAVES

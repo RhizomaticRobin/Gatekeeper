@@ -253,10 +253,12 @@ TDD-FIRST WORKFLOW:
 1. Read task-{id}.md for full specification and must_haves
 2. Write ALL tests first (Red phase)
 3. Read the Test Dependency Graph from the task prompt
-4. Implement code following test dependency graph and guidance
-5. Run full test suite (Green phase)
-6. If tests fail, fix and retry
-7. When ready, spawn Verifier subagent from .claude/verifier-prompt.local.md
+4. Wave 1: launch fresh agents for independent tests (1 per test with guidance)
+5. Wave 2+: continue prior agent sessions for dependent tests
+6. wait_for_completion() after each wave, answer agent questions if input_required
+7. Run full test suite (Green phase)
+8. If tests fail, fix and retry
+9. When ready, spawn Verifier subagent from .claude/verifier-prompt.local.md
 
 YOUR TASK:
 $NEXT_TASK_PROMPT"
@@ -302,7 +304,7 @@ PYEOF
 
       jq -n \
         --arg prompt "$NEW_PROMPT" \
-        --arg msg "Gatekeeper auto-transition: starting task $NEXT_ID - $NEXT_NAME | TDD-first: write tests, implement, then verify" \
+        --arg msg "Gatekeeper auto-transition: starting task $NEXT_ID - $NEXT_NAME | TDD-first: write tests, implement code, then verify" \
         '{
           "decision": "block",
           "reason": $prompt,

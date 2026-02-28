@@ -1,6 +1,6 @@
 ---
 description: "Hyperphase N — evolutionary optimization of hot-spot functions for speed after Hyperphase 1 verification"
-allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "Bash(cat:*)", "Read", "Task", "mcp__plugin_gatekeeper_evolve-mcp__extract_function", "mcp__plugin_gatekeeper_evolve-mcp__population_stats", "mcp__plugin_gatekeeper_evolve-mcp__population_migrate", "mcp__plugin_gatekeeper_evolve-mcp__population_best", "mcp__plugin_gatekeeper_evolve-mcp__replace_function", "mcp__plugin_gatekeeper_evolve-mcp__revert_function"]
+allowed-tools: ["Bash", "Write", "Read", "Task", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__extract_function", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__extract_bundle", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_stats", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_migrate", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_best", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__replace_function", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__revert_function", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__taichi_profile", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__taichi_analyze", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__benchmark_harness_gen"]
 ---
 
 # Hyperphase N — Evolutionary Optimization
@@ -53,10 +53,33 @@ If no candidates found, report "No optimization candidates identified" and exit.
 
 For each selected candidate (run **sequentially** — tests share the filesystem):
 
-### Step 1: Extract Function
+### Step 0: Detect Target Type (MANDATORY)
+
+ALWAYS run this FIRST for every candidate to determine GPU vs CPU optimization:
 
 ```
-mcp__plugin_gatekeeper_evolve-mcp__extract_function(
+analysis = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__taichi_analyze(
+    file_path="{candidate.file}",
+    function_name="{candidate.function}"
+)
+is_taichi = analysis.is_ti_kernel or analysis.is_ti_func
+```
+
+This determines which island strategies and timing tools to use below.
+
+### Step 1: Extract Function
+
+**If Taichi** (use `extract_bundle` for kernel + dependencies):
+```
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__extract_bundle(
+    file_path="{candidate.file}",
+    function_name="{candidate.function}"
+)
+```
+
+**If plain Python**:
+```
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__extract_function(
     file_path="{candidate.file}",
     function_name="{candidate.function}"
 )
@@ -66,12 +89,16 @@ mcp__plugin_gatekeeper_evolve-mcp__extract_function(
 
 ```
 db_path = ".planning/evolution/hyperphase/{candidate.function}/"
-mcp__plugin_gatekeeper_evolve-mcp__population_stats(db_path=db_path)
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_stats(db_path=db_path)
 ```
 
 If empty, that's expected — optimizers will seed it.
 
 ### Step 3: Spawn 5 Optimizer Tasks IN PARALLEL
+
+Use the `is_taichi` flag from Step 0 to select strategies. **Taichi GPU strategies are the primary case** — only fall back to generic Python strategies if the target is NOT a Taichi kernel.
+
+**If `is_taichi = True`** (primary — GPU kernel optimization):
 
 ```
 Task(subagent_type='gatekeeper:evo-optimizer', model='haiku', prompt="""
@@ -79,7 +106,7 @@ db_path: {db_path}
 target_file: {candidate.file}
 target_function: {candidate.function}
 island_id: 0
-island_strategy: "Vectorize with numpy/list comprehensions, eliminate Python for-loops, use faster builtins"
+island_strategy: "Reduce register pressure: minimize local variables, reuse temporaries, use ti.cast to smaller types, share computations via ti.block_local"
 baseline_ms: {candidate.baseline_ms}
 test_command: {test_command}
 max_iterations: 15
@@ -91,7 +118,7 @@ db_path: {db_path}
 target_file: {candidate.file}
 target_function: {candidate.function}
 island_id: 1
-island_strategy: "Reduce allocations, use in-place operations, generators, eliminate unnecessary copies"
+island_strategy: "Eliminate thread divergence: replace conditionals with ti.select() (branchless), use ti.static() for compile-time branching, flatten conditional loops"
 baseline_ms: {candidate.baseline_ms}
 test_command: {test_command}
 max_iterations: 15
@@ -103,7 +130,7 @@ db_path: {db_path}
 target_file: {candidate.file}
 target_function: {candidate.function}
 island_id: 2
-island_strategy: "Memoize and precompute invariants, eliminate redundant computation, cache intermediate results"
+island_strategy: "Improve memory coalescing: restructure field accesses for sequential innermost-dimension access, use SoA layout (separate ti.fields instead of Vector.field), tile with ti.block_dim"
 baseline_ms: {candidate.baseline_ms}
 test_command: {test_command}
 max_iterations: 15
@@ -115,7 +142,7 @@ db_path: {db_path}
 target_file: {candidate.file}
 target_function: {candidate.function}
 island_id: 3
-island_strategy: "Use fundamentally different data structures (set for O(1) lookup, deque vs list, array vs dict), optimize memory layout"
+island_strategy: "Reduce kernel dispatch count: fuse multiple kernel bodies into one @ti.kernel with inner ti.static loops, eliminate Python-side for-loops that call kernels repeatedly"
 baseline_ms: {candidate.baseline_ms}
 test_command: {test_command}
 max_iterations: 15
@@ -127,7 +154,7 @@ db_path: {db_path}
 target_file: {candidate.file}
 target_function: {candidate.function}
 island_id: 4
-island_strategy: "Novel algorithm, reduce complexity class, O(n log n) or O(n) replacement for O(n²), mathematical reformulation"
+island_strategy: "Algorithmic reduction: replace O(n) scans with spatial hashing (ti.field-based hash grid), add early-exit conditions, precompute invariants outside parallel loops into scalar fields"
 baseline_ms: {candidate.baseline_ms}
 test_command: {test_command}
 max_iterations: 15
@@ -135,27 +162,41 @@ speedup_threshold: 1.5
 """)
 ```
 
+**If `is_taichi = False`** (fallback — plain Python optimization):
+
+```
+Task(subagent_type='gatekeeper:evo-optimizer', model='haiku', prompt="""
+... island_id: 0, island_strategy: "Vectorize with numpy/list comprehensions, eliminate Python for-loops, use faster builtins" ...
+""")
+Task(... island_id: 1, island_strategy: "Reduce allocations, use in-place operations, generators, eliminate unnecessary copies" ...)
+Task(... island_id: 2, island_strategy: "Memoize and precompute invariants, eliminate redundant computation, cache intermediate results" ...)
+Task(... island_id: 3, island_strategy: "Use fundamentally different data structures (set for O(1) lookup, deque vs list, array vs dict), optimize memory layout" ...)
+Task(subagent_type='gatekeeper:evo-optimizer', model='opus', ... island_id: 4, island_strategy: "Novel algorithm, reduce complexity class, O(n log n) or O(n) replacement for O(n²), mathematical reformulation" ...)
+```
+
 Wait for all 5 outputs.
+
+**IMPORTANT**: When `is_taichi = True`, the optimizer agents will automatically use `mode="taichi"` for `evolution_prompt` and `taichi_profile` for timing (instead of `evaluate_timing` which does NOT handle GPU synchronization). This is handled in the evo-optimizer agent's Step 0 auto-detection.
 
 ### Step 4: Migrate and Select Winner
 
 ```
-mcp__plugin_gatekeeper_evolve-mcp__population_migrate(db_path=db_path, src_island=0, dst_island=1)
-mcp__plugin_gatekeeper_evolve-mcp__population_migrate(db_path=db_path, src_island=1, dst_island=2)
-mcp__plugin_gatekeeper_evolve-mcp__population_migrate(db_path=db_path, src_island=2, dst_island=3)
-mcp__plugin_gatekeeper_evolve-mcp__population_migrate(db_path=db_path, src_island=3, dst_island=4)
-mcp__plugin_gatekeeper_evolve-mcp__population_migrate(db_path=db_path, src_island=4, dst_island=0)
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_migrate(db_path=db_path, src_island=0, dst_island=1)
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_migrate(db_path=db_path, src_island=1, dst_island=2)
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_migrate(db_path=db_path, src_island=2, dst_island=3)
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_migrate(db_path=db_path, src_island=3, dst_island=4)
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_migrate(db_path=db_path, src_island=4, dst_island=0)
 ```
 
 ```
-best = mcp__plugin_gatekeeper_evolve-mcp__population_best(db_path=db_path)
+best = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_best(db_path=db_path)
 ```
 
 ### Step 5: Apply Patch (if speedup meets threshold)
 
 If `best.metrics.speedup_ratio >= 1.3`:
 ```
-mcp__plugin_gatekeeper_evolve-mcp__replace_function(
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__replace_function(
     file_path="{candidate.file}",
     function_name="{candidate.function}",
     new_code="{best.code}"
@@ -188,7 +229,7 @@ Run the full test suite:
 **If tests FAIL:**
 - Revert ALL patched functions:
   ```
-  mcp__plugin_gatekeeper_evolve-mcp__revert_function(file_path="{file}", function_name="{fn}")
+  mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__revert_function(file_path="{file}", function_name="{fn}")
   ```
   for each patched file.
 - Re-run tests to confirm revert success.

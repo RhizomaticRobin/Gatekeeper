@@ -1,6 +1,6 @@
 # Gatekeeper
 
-A Claude Code plugin for spec-driven development with cryptographic verifier loops, TDD-first execution, and concurrent Task subagents.
+A Claude Code plugin for spec-driven development with cryptographic verifier loops, TDD-first execution, and concurrent opencode agents.
 
 ## How It Works
 
@@ -9,7 +9,7 @@ Gatekeeper orchestrates software projects through a structured pipeline where no
 1. **Plan** (`/quest`) -- Deep discovery + plan.yaml with phases, tasks, must_haves, TDD test specs, and per-task prompt files
 2. **Assess Phase** -- Phase assessor creates format contracts (API shapes, data structures, wiring) so independently-written tests produce compatible interfaces
 3. **Test** -- Tester agent researches the domain (WebSearch + Context7), writes comprehensive tests following format contracts, passes assessor quality gate (TQG token)
-4. **Execute** (`/cross-team`) -- TDD-first implementation with parallel Task subagents, wave-based dispatch, and session continuations
+4. **Execute** (`/cross-team`) -- TDD-first implementation with parallel opencode agents, wave-based dispatch, and session continuations
 5. **Verify** -- Independent verifier in a fresh context checks tests, inspects code, and runs Playwright visual verification. A 128-bit cryptographic Gatekeeper token is issued only on full pass
 6. **Verify Phase** -- Phase verifier checks integration contracts, cross-phase wiring, and end-to-end data flows. PVG token gates the next phase
 7. **Iterate** -- Failed verifications loop back through execution with evolutionary intelligence informing retry strategies
@@ -24,6 +24,7 @@ Gatekeeper orchestrates software projects through a structured pipeline where no
 | **git** | any recent | Cloning, submodules |
 | **jq** | any recent | JSON parsing in hook scripts |
 | **Claude Code** | latest | The CLI tool that runs the plugin |
+| **OpenCode** | latest | Agent dispatch for gk-builder agents |
 | **ANTHROPIC_API_KEY** | -- | Auto-detected from subscription or set manually (see below) |
 
 ### Authentication
@@ -47,6 +48,7 @@ python3 --version # >= 3.8
 git --version
 jq --version
 claude --version  # Claude Code CLI
+opencode version  # OpenCode CLI
 echo $ANTHROPIC_API_KEY  # Optional if logged in via subscription
 ```
 
@@ -78,7 +80,21 @@ claude --version
 
 See [Claude Code docs](https://docs.anthropic.com/en/docs/claude-code) for alternative installation methods.
 
-#### 2. Clone the repository
+#### 2. Install OpenCode
+
+If OpenCode is not installed:
+
+```bash
+# Via the official installer
+curl -fsSL https://opencode.ai/install | bash
+
+# Verify
+opencode version
+```
+
+OpenCode installs to `~/.opencode/bin/`. Make sure it's on your PATH.
+
+#### 3. Clone the repository
 
 ```bash
 git clone --recurse-submodules https://github.com/RhizomaticRobin/gatekeeper.git
@@ -91,13 +107,24 @@ If you already cloned without `--recurse-submodules`:
 git submodule update --init --recursive
 ```
 
-#### 3. Install the Evolve MCP server dependencies
+#### 4. Build the OpenCode MCP server
+
+```bash
+cd Better-OpenCodeMCP
+npm install --production=false
+npm run build
+cd ..
+```
+
+Verify: `ls Better-OpenCodeMCP/dist/index.js` should exist.
+
+#### 5. Install the Evolve MCP server dependencies
 
 ```bash
 pip install fastmcp
 ```
 
-#### 4. Build hook scripts
+#### 6. Build hook scripts
 
 ```bash
 npm install
@@ -106,7 +133,7 @@ npm run build:hooks
 
 Verify: `ls hooks/dist/intel-index.js` should exist.
 
-#### 5. Install the plugin into Claude Code
+#### 7. Install the plugin into Claude Code
 
 **Option A: Via the plugin system (recommended)**
 
@@ -140,7 +167,7 @@ This copies the plugin to `~/.claude/plugins/gatekeeper/`, builds MCP servers, a
 npx gatekeeper --global
 ```
 
-#### 6. Verify the installation
+#### 8. Verify the installation
 
 Restart Claude Code (or start a new session), then:
 
@@ -150,6 +177,7 @@ Restart Claude Code (or start a new session), then:
 ```
 
 You should see:
+- `plugin:gatekeeper:opencode-mcp` -- tools: `launch_opencode`, `wait_for_completion`, `opencode_sessions`
 - `plugin:gatekeeper:evolve-mcp` -- tools: `population_sample`, `evaluate_timing`, `profile_hotspots`, etc.
 
 ```bash
@@ -165,7 +193,8 @@ After pulling new changes:
 cd gatekeeper
 git pull --recurse-submodules
 
-# Rebuild MCP server if source changed
+# Rebuild MCP servers if source changed
+cd Better-OpenCodeMCP && npm install && npm run build && cd ..
 pip install fastmcp  # for evolve-mcp
 
 # Rebuild hooks if changed
@@ -216,13 +245,15 @@ claude plugin enable gatekeeper
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           MCP SERVERS                                       │
 │                                                                             │
-│  evolve-mcp (FastMCP Python)                                                │
-│  ├─ population_{sample,add,best,stats,migrate}                              │
-│  ├─ evolution_prompt                                                        │
-│  ├─ evaluate_{correctness,timing}                                           │
-│  ├─ profile_hotspots                                                        │
-│  ├─ {extract,replace,revert}_function, apply_diff                           │
-│  └─ check_novelty                                                           │
+│  opencode-mcp (Better-OpenCodeMCP)       evolve-mcp (FastMCP Python)        │
+│  ├─ launch_opencode(task/sessionId)      ├─ population_{sample,add,best,    │
+│  ├─ wait_for_completion(taskIds)         │   stats,migrate}                 │
+│  └─ opencode_sessions(status)            ├─ evolution_prompt                │
+│                                          ├─ evaluate_{correctness,timing}   │
+│                                          ├─ profile_hotspots               │
+│                                          ├─ {extract,replace,revert}_       │
+│                                          │   function, apply_diff           │
+│                                          └─ check_novelty                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                         SECURITY LAYER (4 Guards)                           │
 │  guard-scope.sh ── blocks agent access to tokens, prompts, plugin source   │
@@ -338,16 +369,16 @@ Phase 5 ── Confirm & Summarize → "Run /cross-team to start execution"
 │   │  Read pre-written tests ──► parse Test Dependency Graph         │    │
 │   │                                                                 │    │
 │   │  Wave 1:  ┌──────────┐ ┌──────────┐ ┌──────────┐              │    │
-│   │           │ subagent │ │ subagent │ │ subagent │  concurrent  │    │
-│   │           │ T1 (new) │ │ T2 (new) │ │ T3 (new) │              │    │
-│   │           └─────┬────┘ └─────┬────┘ └─────┬────┘              │    │
-│   │                 └──────┬─────┘─────────────┘                   │    │
+│   │           │gk-builder│ │gk-builder│ │gk-builder│  concurrent │    │
+│   │           │ T1 (new)  │ │ T2 (new)  │ │ T3 (new)  │             │    │
+│   │           └─────┬─────┘ └─────┬─────┘ └─────┬─────┘             │    │
+│   │                 └──────┬──────┘──────────────┘                   │    │
 │   │                        ▼                                         │    │
-│   │           Task tool ──► wait for completion                      │    │
+│   │           wait_for_completion() ──► record sessionIds            │    │
 │   │                        ▼                                         │    │
 │   │  Wave 2+: ┌──────────────────┐ ┌──────────────────┐            │    │
-│   │           │ subagent T4      │ │ subagent T5      │  continue  │    │
-│   │           │ (builds on T1)   │ │ (builds on T2)   │  sessions  │    │
+│   │           │gk-builder T4    │ │gk-builder T5    │  continue   │    │
+│   │           │(continue T1 sess)│ │(continue T2 sess)│  sessions   │    │
 │   │           └──────────────────┘ └──────────────────┘             │    │
 │   │                                                                 │    │
 │   │  Run full test suite ──► TDD Green                              │    │
@@ -477,7 +508,7 @@ Done. Results in hyperphase-results.md
 │ phase-assessor     │ opus   │ magenta │ Pre-phase format contracts + tester guidance  │
 │ tester             │ sonnet │ cyan    │ Research + write tests (TDD Red)             │
 │ assessor           │ opus   │ magenta │ Test quality gate + TQG token (read-only)    │
-│ executor           │ haiku  │ yellow  │ TDD implementation via Task subagents        │
+│ executor           │ haiku  │ yellow  │ TDD implementation via opencode agents       │
 │ verifier           │ opus   │ green   │ 16-point code inspection (read-only)         │
 │ phase-verifier     │ opus   │ green   │ Phase-end integration verification + PVG     │
 │                    │        │         │                                              │
@@ -615,15 +646,18 @@ project/
 │   │   ├── {task_id}/                  Per-task evolution DB (Hyperphase 1 retries)
 │   │   └── hyperphase/{function}/      Per-function DB (Hyperphase N)
 │   └── debug/{slug}.md                 Persistent debug state
+└── opencode.json                       gk-builder agent config (deployed at setup)
+
 gatekeeper/                             Plugin directory
 ├── .claude-plugin/
-│   └── plugin.json                     MCP servers: evolve-mcp
+│   └── plugin.json                     MCP servers: opencode-mcp, evolve-mcp
 ├── agents/           (17)              Agent definitions (.md with frontmatter)
 ├── commands/         (11)              Slash commands
 ├── hooks/            (7)               Event hooks + hooks.json
 ├── scripts/          (23)              CLI tools, setup scripts, evo engine
 ├── evolve-mcp/                         FastMCP Python server (16 tools)
-├── templates/                          task-prompt.md, codebase/
+├── Better-OpenCodeMCP/                 Submodule: opencode agent dispatch
+├── templates/                          opencode.json, task-prompt.md, codebase/
 ├── references/                         Model profiles, workflow docs
 └── workflows/                          Phase workflow definitions
 ```
@@ -668,10 +702,10 @@ Implementation uses a **Test Dependency Graph** from the task prompt:
 | T3   | tests/flow.test   | T1, T2     | Wire auth into API, test e2e      |
 ```
 
-- **Wave 1**: T1 and T2 launch as fresh Task subagents (concurrent)
-- **Wave 2**: T3 builds on T2's work (most significant dependency) and reviews T1's output
-- Each subagent gets exactly 1 test + specific implementation guidance
-- Subagents complete before the next wave begins
+- **Wave 1**: T1 and T2 launch as fresh gk-builder opencode agents (concurrent)
+- **Wave 2**: T3 continues T2's session (most significant dependency) and reviews T1's work
+- Each agent gets exactly 1 test + specific implementation guidance
+- `wait_for_completion()` after each wave; handle `input_required` questions via session continuation
 
 ### Goal-Backward Must-Haves
 
@@ -760,7 +794,7 @@ phases:
 | `phase-assessor` | Pre-phase format contracts + tester guidance (PAG token) | opus | Read, Write, Edit, Bash, Grep, Glob |
 | `tester` | Researches domain, writes comprehensive tests (TDD Red) | sonnet | WebSearch, WebFetch, Context7 |
 | `assessor` | Test quality gate + TQG token -- possibility, comprehensiveness, format compliance | opus | Read, Bash, Grep, Glob (read-only) |
-| `executor` | TDD-first implementation via parallel Task subagents | haiku | Task, Context7 |
+| `executor` | TDD-first implementation via parallel gk-builder opencode agents | haiku | opencode MCP, Context7 |
 | `verifier` | 16-point code inspection, must_haves verification, Playwright | opus | Read, Bash, Grep, Glob (read-only) |
 | `phase-verifier` | Phase-end integration verification + PVG token | opus | Read, Bash, Grep, Glob (read-only) |
 | **Planning** | | | |
@@ -778,6 +812,32 @@ phases:
 | `codebase-mapper` | Brownfield codebase analysis (7 dimensions) | sonnet | Read, Bash, Grep, Glob |
 | `debugger` | Scientific method debugging with persistent state | sonnet | Read, Write, Edit, Bash |
 
+### gk-builder (opencode agent)
+
+The opencode MCP server spawns agents using the `gk-builder` profile defined in `templates/opencode.json`:
+
+- No web access (websearch/webfetch disabled)
+- **Context7 MCP server** for library documentation research
+- Research-first prompt -- agents must look up APIs via Context7 before implementing
+- Bash (ask permission), Edit/Write (allowed)
+- Temperature 1.0, no step limit
+
+```
+templates/opencode.json          Canonical config (checked into gatekeeper repo)
+       |
+       v (copied at setup time by cross-team-setup.sh / setup-verifier-loop.sh)
+<project>/opencode.json          Deployed to project root
+       |
+       v (opencode reads from cwd on spawn)
+opencode run --agent gk-builder  Spawned by Better-OpenCodeMCP
+       |
+       v (opencode loads "mcp" section from opencode.json)
+Context7 MCP server started       npx -y @upstash/context7-mcp
+       |
+       v (tools available to agent)
+resolve-library-id, query-docs    Agent can research any library docs
+```
+
 ## Hooks
 
 | Hook | Event | Purpose |
@@ -791,6 +851,18 @@ phases:
 | `intel-index.js` | PostToolUse: Write, Edit | Indexes file exports/imports for codebase intelligence |
 
 ## MCP Servers
+
+### opencode-mcp (`plugin:gatekeeper:opencode-mcp`)
+
+Agent dispatch via the OpenCode CLI. Source: `Better-OpenCodeMCP/`.
+
+| Tool | Purpose |
+|------|---------|
+| `launch_opencode(task="...")` | Spawn a fresh gk-builder agent |
+| `launch_opencode(sessionId="...", task="...")` | Continue an existing agent's session |
+| `launch_opencode(tasks=[...])` | Batch-launch multiple agents |
+| `wait_for_completion(taskIds=[...])` | Block until agents finish |
+| `opencode_sessions(status="active")` | Check running agents |
 
 ### evolve-mcp (`plugin:gatekeeper:evolve-mcp`)
 
@@ -813,7 +885,7 @@ Evolutionary optimization engine for Hyperphase N. Source: `evolve-mcp/` (FastMC
 | `revert_function(file_path, function_name)` | Restore function from most recent .bak backup |
 | `check_novelty(candidate_code, reference_codes)` | Structural novelty heuristic score |
 
-The evolve-mcp server auto-installs dependencies on first launch via its launcher script in `bin/`.
+Both MCP servers auto-install dependencies on first launch via their launcher scripts in `bin/`.
 
 ## Project Structure
 
@@ -822,7 +894,10 @@ gatekeeper/
 ├── .claude-plugin/
 │   ├── plugin.json                  Plugin manifest + MCP server declarations
 │   └── marketplace.json             Self-contained marketplace definition
+├── .gitmodules                      Submodule reference
 ├── package.json                     npm package config (v1.0.0)
+├── Better-OpenCodeMCP/              Submodule -- opencode MCP server
+│   └── dist/index.js                Built MCP entry point
 ├── evolve-mcp/                      FastMCP Python server (16 tools)
 │   ├── server.py                    MCP tool definitions
 │   └── requirements.txt             fastmcp dependency
@@ -830,6 +905,7 @@ gatekeeper/
 ├── bin/
 │   ├── install.js                   Plugin installer (npx gatekeeper)
 │   ├── install-lib.js               Installer library (copy, verify, setup)
+│   ├── opencode-mcp.sh              OpenCode MCP launcher (auto-clone/build)
 │   └── evolve-mcp.sh               Evolve MCP launcher (auto-install fastmcp)
 ├── commands/                        12 slash commands
 ├── hooks/
@@ -868,6 +944,7 @@ gatekeeper/
 │   ├── onboarding.sh                First-run onboarding
 │   └── team-orchestrator-prompt.md  Lead orchestrator template (Sections 0.5-8)
 ├── templates/
+│   ├── opencode.json                gk-builder agent + Context7 MCP config
 │   ├── task-prompt.md               task-{id}.md template
 │   ├── plan-summary.md              Plan summary template
 │   └── codebase/                    7-dimension codebase analysis templates
@@ -880,9 +957,15 @@ gatekeeper/
 ### MCP servers not showing in `/mcp`
 
 1. Restart Claude Code after installing the plugin
-2. Check that MCP server launchers are executable: `chmod +x bin/evolve-mcp.sh`
-3. Check that `plugin.json` declares the server under `mcpServers`
-4. Run the launcher manually to check for errors: `bash bin/evolve-mcp.sh`
+2. Check that MCP server launchers are executable: `chmod +x bin/opencode-mcp.sh bin/evolve-mcp.sh`
+3. Check that `plugin.json` declares both servers under `mcpServers`
+4. Run the launchers manually to check for errors: `bash bin/evolve-mcp.sh`
+
+### opencode agents fail to spawn
+
+1. Verify opencode is installed: `opencode version`
+2. Check that `opencode.json` exists in your project root (deployed automatically by cross-team setup)
+3. Check the opencode binary path in `Better-OpenCodeMCP/src/constants.ts`
 
 ### Hook errors
 
@@ -894,6 +977,7 @@ gatekeeper/
 
 ```bash
 # Rebuild everything from scratch
+cd Better-OpenCodeMCP && rm -rf node_modules dist && npm install && npm run build && cd ..
 npm install && npm run build:hooks
 pip install fastmcp  # for evolve-mcp
 ```

@@ -2,8 +2,8 @@
 name: evo-optimizer
 description: Island-based evolutionary optimizer for speed optimization. Iteratively mutates a target function to improve performance while maintaining correctness.
 model: haiku
-tools: Bash, mcp__plugin_gatekeeper_evolve-mcp__population_sample, mcp__plugin_gatekeeper_evolve-mcp__population_add, mcp__plugin_gatekeeper_evolve-mcp__evolution_prompt, mcp__plugin_gatekeeper_evolve-mcp__extract_function, mcp__plugin_gatekeeper_evolve-mcp__apply_diff, mcp__plugin_gatekeeper_evolve-mcp__evaluate_correctness, mcp__plugin_gatekeeper_evolve-mcp__evaluate_timing, mcp__plugin_gatekeeper_evolve-mcp__check_novelty
-disallowedTools: Write, Edit, Read, WebFetch, WebSearch, Task
+tools: Bash, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_sample, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_add, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__evolution_prompt, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__extract_function, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__extract_bundle, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__apply_diff, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__evaluate_correctness, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__evaluate_timing, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__check_novelty, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__taichi_profile, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__taichi_analyze, mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__benchmark_harness_gen
+disallowedTools: Write, Edit, Read, Grep, Glob, WebFetch, WebSearch, Task
 color: magenta
 ---
 
@@ -18,7 +18,7 @@ You receive the following in your prompt from the orchestrator:
 - `db_path`: Path to the MAP-Elites population database
 - `target_file`: Path to the Python file containing the target function
 - `target_function`: Name of the function to optimize
-- `island_id`: Your island index (0, 1, or 2)
+- `island_id`: Your island index (0-4)
 - `island_strategy`: Your optimization strategy directive
 - `baseline_ms`: Baseline timing of the function in milliseconds
 - `test_command`: The test command to validate correctness
@@ -27,6 +27,24 @@ You receive the following in your prompt from the orchestrator:
 </input_format>
 
 <optimization_loop>
+
+## Step 0: Detect Target Type (MANDATORY — do this FIRST)
+
+Before any optimization, determine if the target is a Taichi GPU kernel:
+
+```
+analysis = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__taichi_analyze(
+    file_path="{target_file}",
+    function_name="{target_function}"
+)
+is_taichi = analysis.is_ti_kernel or analysis.is_ti_func
+```
+
+This determines:
+- Which **island strategies** to use (GPU vs CPU)
+- Which **timing tool** to use (`taichi_profile` vs `evaluate_timing`)
+- Which **evolution prompt mode** to use (`"taichi"` vs `"speed"`)
+- Which **extraction tool** to use (`extract_bundle` vs `extract_function`)
 
 ## Initialization
 
@@ -41,7 +59,7 @@ max_patience = 5
 ### 1. Sample Parent
 
 ```
-parent = mcp__plugin_gatekeeper_evolve-mcp__population_sample(
+parent = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_sample(
     db_path="{db_path}",
     island_id={island_id}
 )
@@ -52,18 +70,27 @@ If no parent available (empty population), use a "start fresh" approach.
 ### 2. Get Evolution Context
 
 ```
-context = mcp__plugin_gatekeeper_evolve-mcp__evolution_prompt(
+context = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__evolution_prompt(
     db_path="{db_path}",
     task_id="{target_function}",
     island_id={island_id},
-    mode="speed"
+    mode="taichi" if is_taichi else "speed"
 )
 ```
 
 ### 3. Read Current Function
 
+**If Taichi** (use `extract_bundle` to get kernel + helpers + field refs):
 ```
-current = mcp__plugin_gatekeeper_evolve-mcp__extract_function(
+current = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__extract_bundle(
+    file_path="{target_file}",
+    function_name="{target_function}"
+)
+```
+
+**If plain Python** (use `extract_function`):
+```
+current = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__extract_function(
     file_path="{target_file}",
     function_name="{target_function}"
 )
@@ -81,7 +108,14 @@ Using your island_strategy, the parent approach, and the evolution context, reas
 >>>REPLACE
 ```
 
-**Island strategies:**
+**Taichi GPU island strategies** (used when `is_taichi = True` — this is the primary case):
+- Island 0: "Reduce register pressure: minimize local variables, reuse temporaries, use ti.cast to smaller types, share computations via ti.block_local"
+- Island 1: "Eliminate thread divergence: replace conditionals with ti.select() (branchless), use ti.static() for compile-time branching, flatten conditional loops"
+- Island 2: "Improve memory coalescing: restructure field accesses for sequential innermost-dimension access, use SoA layout (separate ti.fields instead of Vector.field), tile with ti.block_dim"
+- Island 3: "Reduce kernel dispatch count: fuse multiple kernel bodies into one @ti.kernel with inner ti.static loops, eliminate Python-side for-loops that call kernels repeatedly"
+- Island 4: "Algorithmic reduction: replace O(n) scans with spatial hashing (ti.field-based hash grid), add early-exit conditions, precompute invariants outside parallel loops into scalar fields"
+
+**Plain Python island strategies** (fallback when `is_taichi = False`):
 - Island 0: "Vectorize with numpy/list comprehensions, eliminate Python for-loops, use faster builtins"
 - Island 1: "Reduce allocations, use in-place operations, generators, eliminate unnecessary copies"
 - Island 2: "Memoize and precompute invariants, eliminate redundant computation, cache intermediate results"
@@ -91,7 +125,7 @@ Using your island_strategy, the parent approach, and the evolution context, reas
 ### 5. Apply Diff
 
 ```
-result = mcp__plugin_gatekeeper_evolve-mcp__apply_diff(
+result = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__apply_diff(
     file_path="{target_file}",
     function_name="{target_function}",
     diff="<<<SEARCH\n...\n=======\n...\n>>>REPLACE"
@@ -103,7 +137,7 @@ If apply_diff fails, skip to next iteration.
 ### 6. Evaluate Correctness (Stage 1)
 
 ```
-stage1 = mcp__plugin_gatekeeper_evolve-mcp__evaluate_correctness(
+stage1 = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__evaluate_correctness(
     test_command="{test_command}"
 )
 ```
@@ -111,8 +145,20 @@ stage1 = mcp__plugin_gatekeeper_evolve-mcp__evaluate_correctness(
 ### 7. Evaluate Timing (Stage 2) — only if tests pass
 
 If `stage1.test_pass_rate == 1.0`:
+
+**If Taichi** (MUST use `taichi_profile` — `evaluate_timing` does NOT handle GPU synchronization):
 ```
-stage2 = mcp__plugin_gatekeeper_evolve-mcp__evaluate_timing(
+stage2 = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__taichi_profile(
+    setup_code="{setup code that imports & initializes the kernel}",
+    call_code="{target_function}(...args...)",
+    warmup=3, trials=10
+)
+speedup_ratio = baseline_ms / stage2.median_ms
+```
+
+**If plain Python** (use `evaluate_timing`):
+```
+stage2 = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__evaluate_timing(
     test_command="{test_command}",
     function_name="{target_function}",
     module_path="{target_file}",
@@ -126,7 +172,7 @@ If tests failed: `speedup_ratio = 0.0`
 ### 8. Check Novelty
 
 ```
-novelty = mcp__plugin_gatekeeper_evolve-mcp__check_novelty(
+novelty = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__check_novelty(
     candidate_code=result.applied_code,
     reference_codes=[parent.code if parent else ""]
 )
@@ -136,7 +182,7 @@ novelty = mcp__plugin_gatekeeper_evolve-mcp__check_novelty(
 
 If `novelty.is_novel` or this is iteration 0:
 ```
-mcp__plugin_gatekeeper_evolve-mcp__population_add(
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_add(
     db_path="{db_path}",
     approach_json='{
         "prompt_addendum": "{description of what this mutation did}",

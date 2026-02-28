@@ -43,6 +43,7 @@ Work backward from the desired end state:
 - **Aggressive atomicity**: More phases with smaller scope = consistent quality. Target 2-4 tasks per phase.
 - **Vertical slices**: Each phase should deliver both backend and frontend value
 - **Dependency clarity**: Later phases explicitly depend on earlier phases' outputs
+- **Verification awareness**: If PROJECT.md specifies a `verification_level` other than `tests_only`, set `verification_level` and `contract_language` in metadata. This cascades to all downstream agents — planners define contracts, testers write specs, executors annotate code, verifiers prove correctness.
 
 ## Integration Checkpoint Rules
 
@@ -74,6 +75,8 @@ metadata:
   test_framework: "pytest|vitest|jest|etc"
   model_profile: "quality|balanced|budget"
   created_at: "YYYY-MM-DD"
+  verification_level: "tests_only"  # tests_only|prusti|kani|crosshair|full|full_python
+  contract_language: "none"         # rust|python|none
   project_context:
     # Include all available context from discovery
     vision: "..."
@@ -89,6 +92,8 @@ project_must_haves:
     - "Key deliverable file/component 2"
   key_links:
     - "Critical integration path: A → B → C"
+  contracts:
+    - "Module boundary contract: function pre/postcondition pair"
 
 phases:
   - id: 1
@@ -102,6 +107,8 @@ phases:
         - "Files/components that must exist"
       key_links:
         - "Integration paths within this phase"
+      contracts:
+        - "Contract for module boundary function"
     estimated_tasks: 3  # rough estimate, 2-4 range
     dependencies: []    # phase IDs this depends on
 
@@ -113,6 +120,7 @@ phases:
       truths: [...]
       artifacts: [...]
       key_links: [...]
+      contracts: [...]
     estimated_tasks: 3
     dependencies: [1]
 ```
@@ -121,8 +129,8 @@ phases:
 
 - **Keep under 200 lines of YAML** — this is a high-level outline, not a detailed plan
 - **No individual tasks** — only phase-level structure. Phase-planner agents handle task decomposition.
-- **Every phase must have must_haves** with all three fields (truths, artifacts, key_links)
-- **project_must_haves must be covered** — every truth/artifact must map to at least one phase
+- **Every phase must have must_haves** with all four fields (truths, artifacts, key_links, contracts)
+- **project_must_haves must be covered** — every truth/artifact/contract must map to at least one phase
 - **Dependencies must form a DAG** — no cycles between phases
 
 </output_format>
@@ -130,8 +138,8 @@ phases:
 <success_criteria>
 - [ ] `.claude/plan/high-level-outline.yaml` exists and is valid YAML
 - [ ] Under 200 lines
-- [ ] Every phase has goal, must_haves (truths, artifacts, key_links), integration_check, estimated_tasks, dependencies
-- [ ] project_must_haves fully covered by phases
+- [ ] Every phase has goal, must_haves (truths, artifacts, key_links, contracts), integration_check, estimated_tasks, dependencies
+- [ ] project_must_haves fully covered by phases (including contracts)
 - [ ] Phase ordering is logical and dependency-safe
 - [ ] Foundation/infrastructure comes first
 - [ ] Integration checkpoints placed at natural seams

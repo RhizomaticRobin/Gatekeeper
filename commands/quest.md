@@ -1,12 +1,12 @@
 ---
 description: "Plan the quest — discover unknowns, generate plan.yaml with must_haves + task .md files"
 argument-hint: "[PROJECT_DESCRIPTION]"
-allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "Bash(cat:*)", "Bash(ls:*)", "Bash(find:*)", "Bash(grep:*)", "Bash(head:*)", "Bash(wc:*)", "Read", "Glob", "Grep", "Write", "Edit", "AskUserQuestion", "Task"]
+allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "Bash(cat:*)", "Bash(ls:*)", "Bash(find:*)", "Bash(grep:*)", "Bash(head:*)", "Bash(wc:*)", "Bash(mkdir:*)", "Read", "Glob", "Grep", "Write", "Edit", "AskUserQuestion", "Task"]
 ---
 
 You are now running the **GSD Quest Planner** for the Gatekeeper system.
 
-Your job is to guide the user through a structured discovery process, then generate a complete Gatekeeper plan with must_haves, TDD-first task prompts, and concurrency instructions. Follow these phases IN ORDER (0 through 5). Do not skip phases. Do not combine phases.
+Your job is to guide the user through a structured discovery process, then generate a complete Gatekeeper plan with must_haves, TDD-first task prompts. Follow these phases IN ORDER (0 through 5). Do not skip phases. Do not combine phases.
 
 The plugin root is: `${CLAUDE_PLUGIN_ROOT}`
 The plan validator is: `${CLAUDE_PLUGIN_ROOT}/scripts/validate-plan.py`
@@ -599,6 +599,8 @@ Present a final summary to the user:
 ### Next Step
 Run `/gatekeeper:cross-team` to start executing tasks with TDD-first workflow.
 It will automatically parallelize if multiple tasks in Wave 1 are unblocked, or run a single task if only one is ready.
+
+**Note**: cross-team uses Gatekeeper MCP tools (`create_session`, `submit_token`, `record_agent_signal`, etc.) for all session and token management. The MCP server is the source of truth for execution state.
 ```
 
 ---

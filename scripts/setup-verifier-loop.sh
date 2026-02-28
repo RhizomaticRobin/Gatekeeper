@@ -70,7 +70,7 @@ else
     case $1 in
       -h|--help)
         cat << 'HELP_EOF'
-Gatekeeper - Gatekeeper loop with TDD verification
+Gatekeeper - Gatekeeper loop with TDD-first execution
 
 USAGE:
   /cross-team [PROMPT...] [OPTIONS]
@@ -361,5 +361,5 @@ EOF
 echo "$PROMPT"
 echo ""
 echo "═══════════════════════════════════════════════════════════════════════════════════════"
-echo "BEGIN WORK — TDD-first: write tests, implement, then verify"
+echo "BEGIN WORK — TDD-first: write tests, implement code, then verify"
 echo "═══════════════════════════════════════════════════════════════════════════════════════"
