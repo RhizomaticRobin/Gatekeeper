@@ -42,7 +42,7 @@
   },
   "mcpServers": {
     "evolve-mcp": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/evolve-mcp.sh",
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/gatekeeper-evolve-mcp.sh",
       "env": {}
     }
   }
