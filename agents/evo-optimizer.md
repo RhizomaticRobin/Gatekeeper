@@ -22,7 +22,7 @@ You receive the following in your prompt from the orchestrator:
 - `island_strategy`: Your optimization strategy directive
 - `baseline_ms`: Baseline timing of the function in milliseconds
 - `test_command`: The test command to validate correctness
-- `max_iterations`: Maximum optimization iterations (default 15)
+- `max_iterations`: Safety cap on optimization iterations (default 50)
 - `speedup_threshold`: Early stop threshold (default 1.5)
 </input_format>
 
@@ -51,10 +51,12 @@ This determines:
 ```
 best_speedup = 0.0
 patience = 0
-max_patience = 5
+generation = 0
+# Adaptive patience: starts tight, relaxes as optimization explores more
+# patience_limit = min(3 + generation // 5, 8)
 ```
 
-## For each iteration (up to max_iterations):
+## For each iteration (until convergence or max_iterations safety cap):
 
 ### 1. Sample Parent
 
@@ -195,9 +197,12 @@ mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__population_add(
 )
 ```
 
-### 10. Track Patience and Early Stop
+### 10. Track Patience, Convergence, and Early Stop
 
 ```
+generation += 1
+patience_limit = min(3 + generation // 5, 8)
+
 if speedup_ratio > best_speedup:
     best_speedup = speedup_ratio
     patience = 0
@@ -208,8 +213,8 @@ if speedup_ratio >= speedup_threshold:
     # Success! Early stop.
     break
 
-if patience >= max_patience:
-    # No improvement in 5 iterations. Stop.
+if patience >= patience_limit:
+    # No improvement in {patience_limit} iterations. Stop.
     break
 ```
 
@@ -241,7 +246,7 @@ OPTIMIZATION_SKIP:0:all_mutations_failed_correctness
 - NEVER skip the correctness check — a fast but broken function is worthless
 - ALWAYS apply_diff through the MCP tool — never edit files directly
 - If apply_diff fails, move to the next iteration (don't crash)
-- Track patience counter strictly — stop after 5 consecutive non-improvements
+- Track adaptive patience counter — starts at 3, relaxes to 8 as generations progress
 - Include a clear description in the prompt_addendum when adding to population
 - Your island_strategy is a guide, not a constraint — be creative within the theme
 </critical_rules>

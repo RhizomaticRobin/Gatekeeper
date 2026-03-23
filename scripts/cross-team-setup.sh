@@ -3,6 +3,7 @@ set -euo pipefail
 
 PLUGIN_ROOT="${1:?Usage: cross-team-setup.sh <plugin_root>}"
 source "${PLUGIN_ROOT}/scripts/gk_log.sh"
+source "${PLUGIN_ROOT}/bin/python3-resolve.sh"
 PLAN_FILE=".claude/plan/plan.yaml"
 CROSS_ERROR=""
 
@@ -28,7 +29,7 @@ fi
 # 2. Validate plan
 echo "Validating plan..."
 VALIDATE_EXIT=0
-VALIDATE_OUTPUT=$(python3 "${PLUGIN_ROOT}/scripts/validate-plan.py" "$PLAN_FILE" 2>&1) || VALIDATE_EXIT=$?
+VALIDATE_OUTPUT=$("$PYTHON" "${PLUGIN_ROOT}/scripts/validate-plan.py" "$PLAN_FILE" 2>&1) || VALIDATE_EXIT=$?
 echo "$VALIDATE_OUTPUT"
 if [[ $VALIDATE_EXIT -ne 0 ]]; then
   CROSS_ERROR="VALIDATION_FAILED: plan.yaml has errors"
@@ -40,20 +41,20 @@ fi
 # 3. Find ALL unblocked tasks
 echo ""
 echo "Finding all unblocked tasks..."
-UNBLOCKED_JSON=$(python3 "${PLUGIN_ROOT}/scripts/get-unblocked-tasks.py" "$PLAN_FILE" 2>&1) || {
+UNBLOCKED_JSON=$("$PYTHON" "${PLUGIN_ROOT}/scripts/get-unblocked-tasks.py" "$PLAN_FILE" 2>&1) || {
   gk_error "get-unblocked-tasks.py failed"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
 
-TASK_COUNT=$(echo "$UNBLOCKED_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))") || {
+TASK_COUNT=$(echo "$UNBLOCKED_JSON" | "$PYTHON" -c "import sys,json; print(len(json.load(sys.stdin)))") || {
   gk_error "Failed to parse unblocked tasks JSON"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
 
 if [[ "$TASK_COUNT" == "0" ]]; then
-  ALL_COMPLETE=$(python3 -c "
+  ALL_COMPLETE=$("$PYTHON" -c "
 import sys
 sys.path.insert(0, '${PLUGIN_ROOT}/scripts')
 from plan_utils import load_plan
@@ -77,20 +78,8 @@ fi
 
 echo "Found $TASK_COUNT unblocked task(s)"
 
-# 4. If only 1 unblocked task, fall through to single-task execution
-if [[ "$TASK_COUNT" == "1" ]]; then
-  SINGLE_TASK_ID=$(echo "$UNBLOCKED_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null)
-  SINGLE_TASK_NAME=$(echo "$UNBLOCKED_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['name'])" 2>/dev/null)
-  echo ""
-  echo "1 unblocked task: $SINGLE_TASK_ID - $SINGLE_TASK_NAME"
-  echo "Running in single-task mode."
-  echo "SINGLE_TASK_ID=$SINGLE_TASK_ID"
-  echo "CROSS_TEAM_SINGLE_OK"
-  exit 0
-fi
-
-# 5. Extract task IDs and check file scope conflicts
-TASK_IDS=$(echo "$UNBLOCKED_JSON" | python3 -c "
+# 4. Extract task IDs and check file scope conflicts
+TASK_IDS=$(echo "$UNBLOCKED_JSON" | "$PYTHON" -c "
 import sys, json
 tasks = json.load(sys.stdin)
 print(' '.join(t['id'] for t in tasks))
@@ -102,19 +91,19 @@ print(' '.join(t['id'] for t in tasks))
 
 echo ""
 echo "Checking file scope conflicts..."
-CONFLICT_JSON=$(python3 "${PLUGIN_ROOT}/scripts/check-file-conflicts.py" "$PLAN_FILE" $TASK_IDS 2>&1) || {
+CONFLICT_JSON=$("$PYTHON" "${PLUGIN_ROOT}/scripts/check-file-conflicts.py" "$PLAN_FILE" $TASK_IDS 2>&1) || {
   gk_error "check-file-conflicts.py failed"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
 echo "$CONFLICT_JSON"
 
-SAFE_COUNT=$(echo "$CONFLICT_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['safe_parallel']))") || {
+SAFE_COUNT=$(echo "$CONFLICT_JSON" | "$PYTHON" -c "import sys,json; print(len(json.load(sys.stdin)['safe_parallel']))") || {
   gk_error "Failed to parse safe_parallel count from conflict JSON"
   echo "CROSS_TEAM_FAILED"
   exit 1
 }
-SEQ_COUNT=$(echo "$CONFLICT_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['sequential_fallback']))") || {
+SEQ_COUNT=$(echo "$CONFLICT_JSON" | "$PYTHON" -c "import sys,json; print(len(json.load(sys.stdin)['sequential_fallback']))") || {
   gk_error "Failed to parse sequential_fallback count from conflict JSON"
   echo "CROSS_TEAM_FAILED"
   exit 1
@@ -135,7 +124,7 @@ date -u +%Y-%m-%dT%H:%M:%SZ > .claude/plan-locked
 DISPATCH_TASKS=""
 SESSION_DIR_LIST=""
 
-SAFE_IDS=$(echo "$CONFLICT_JSON" | python3 -c "
+SAFE_IDS=$(echo "$CONFLICT_JSON" | "$PYTHON" -c "
 import sys, json
 data = json.load(sys.stdin)
 safe = data['safe_parallel']
@@ -161,7 +150,7 @@ for TASK_ID in $SAFE_IDS; do
   SESSION_DIR=".claude/gk-sessions/task-${TASK_ID}"
   mkdir -p "$SESSION_DIR"
 
-  TASK_JSON=$(python3 -c "
+  TASK_JSON=$("$PYTHON" -c "
 import sys, json
 sys.path.insert(0, '${PLUGIN_ROOT}/scripts')
 from plan_utils import load_plan, find_task
@@ -174,22 +163,35 @@ print(json.dumps(task))
     exit 1
   }
 
-  TASK_NAME=$(echo "$TASK_JSON" | python3 -c "import sys,json; t=json.load(sys.stdin); n=t.get('name',''); assert n, 'name is empty'; print(n)") || {
+  # Write scope.json for file scope enforcement hook
+  echo "$TASK_JSON" | "$PYTHON" -c "
+import sys, json
+task = json.load(sys.stdin)
+scope = task.get('file_scope', {})
+scope_data = {
+    'task_id': task.get('id', ''),
+    'owns': scope.get('owns', []) if isinstance(scope, dict) else [],
+    'reads': scope.get('reads', []) if isinstance(scope, dict) else [],
+}
+json.dump(scope_data, open('$SESSION_DIR/scope.json', 'w'), indent=2)
+" 2>/dev/null || gk_warn "Failed to write scope.json for task $TASK_ID"
+
+  TASK_NAME=$(echo "$TASK_JSON" | "$PYTHON" -c "import sys,json; t=json.load(sys.stdin); n=t.get('name',''); assert n, 'name is empty'; print(n)") || {
     gk_error "Task $TASK_ID has no 'name' field"
     echo "CROSS_TEAM_FAILED"
     exit 1
   }
-  TEST_CMD=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tests']['quantitative']['command'])") || {
+  TEST_CMD=$(echo "$TASK_JSON" | "$PYTHON" -c "import sys,json; print(json.load(sys.stdin)['tests']['quantitative']['command'])") || {
     gk_error "Task $TASK_ID missing tests.quantitative.command"
     echo "CROSS_TEAM_FAILED"
     exit 1
   }
-  PROMPT_FILE=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['prompt_file'])") || {
+  PROMPT_FILE=$(echo "$TASK_JSON" | "$PYTHON" -c "import sys,json; print(json.load(sys.stdin)['prompt_file'])") || {
     gk_error "Task $TASK_ID missing prompt_file"
     echo "CROSS_TEAM_FAILED"
     exit 1
   }
-  QUAL_CRITERIA=$(echo "$TASK_JSON" | python3 -c "
+  QUAL_CRITERIA=$(echo "$TASK_JSON" | "$PYTHON" -c "
 import sys, json
 t = json.load(sys.stdin)
 criteria = t.get('tests', {}).get('qualitative', {}).get('criteria', [])
@@ -215,7 +217,7 @@ YOUR TASK:
 $TASK_PROMPT"
 
   # Mark task as in_progress
-  python3 "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$TASK_ID" || {
+  "$PYTHON" "${PLUGIN_ROOT}/scripts/plan_utils.py" "$PLAN_FILE" --start-task "$TASK_ID" || {
     gk_warn "Failed to update plan.yaml status for task $TASK_ID"
   }
 
@@ -226,7 +228,7 @@ $TASK_PROMPT"
   export _GK_TASK_ID="$TASK_ID"
   export _GK_TASK_JSON="$TASK_JSON"
   export _GK_SESSION_DIR="$SESSION_DIR"
-  SETUP_JSON=$(python3 << 'PYEOF'
+  SETUP_JSON=$("$PYTHON" << 'PYEOF'
 import json, os
 print(json.dumps({
     "prompt": os.environ["_GK_TASK_PROMPT"],

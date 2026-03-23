@@ -24,8 +24,8 @@ Display the following command reference to the user. Do NOT attempt to run any t
                                gates. Supports optional deep discovery mode
                                for comprehensive project understanding.
 
-  gatekeeper:cross-team           Execute tasks with TDD + Gatekeeper. Handles both
-                               single-task and multi-task parallel execution.
+  gatekeeper:cross-team           Execute tasks with TDD + Gatekeeper. Parallel
+                               team orchestration.
 
   gatekeeper:run-away             Emergency rollback. Safely revert changes
                                when execution goes off track.

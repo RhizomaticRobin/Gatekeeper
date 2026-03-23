@@ -229,9 +229,9 @@ Phase 4 uses a hierarchy of specialized subagents to build the plan with full co
 
 **Architecture**: High-level planner → Sequential refinement → Per-phase decomposition → Assembly
 
-### Step 4.0: Ensure `.planning/PROJECT.md` Exists
+### Step 4.0: Project Vision Gate — Ensure `.planning/PROJECT.md` Is Comprehensive
 
-Check for the project intent file:
+PROJECT.md is the **authoritative vision** that ALL agents (planning AND execution) will read. Every concept, feature, and term in the entire pipeline traces back to this document. It must be comprehensive and precise BEFORE planning begins.
 
 ```bash
 ls .planning/PROJECT.md 2>/dev/null
@@ -242,14 +242,69 @@ ls .planning/PROJECT.md 2>/dev/null
 mkdir -p .planning
 ```
 
-Then generate `.planning/PROJECT.md` using the Write tool, following the template at `${CLAUDE_PLUGIN_ROOT}/templates/project.md`. Populate it from:
+Generate `.planning/PROJECT.md` using the Write tool, following the template at `${CLAUDE_PLUGIN_ROOT}/templates/project.md`. Populate from:
 - `project_context` (if Deep Discovery was used in Phase 0)
 - Project description + codebase recon findings (if Quick mode)
 - User answers from Phase 2
+- Research findings from Phase 3
 
-**If exists**, read it for use as the intent anchor in all subsequent subagent prompts.
+**If exists**, read it and verify it is still current.
 
-Store the contents of `.planning/PROJECT.md` in a variable `PROJECT_INTENT` for injection into subagent prompts.
+#### Mandatory Sections Check
+
+Before proceeding, verify PROJECT.md contains ALL of these sections with substantive content (not placeholders):
+
+| Section | Required Content |
+|---------|-----------------|
+| **What This Is** | 2-3 sentences, specific product description |
+| **Core Value** | Single sentence — the ONE thing that must work |
+| **Requirements — Active** | Bulleted list of what we're building NOW |
+| **Requirements — Out of Scope** | Bulleted list with reasons — explicit boundaries |
+| **Constraints** | Tech stack, timeline, or other hard limits |
+
+If any section is empty or contains only placeholders, fill it from the context gathered in Phases 0-3. If you cannot determine the content, use `AskUserQuestion` to clarify.
+
+#### Terminology Anchoring
+
+Scan PROJECT.md for key terms (entity names, API paths, component names). These become the **canonical terminology** that all downstream agents must use. If PROJECT.md uses "user", tasks must say "user" — not "account", "member", or "profile" unless PROJECT.md defines those as distinct concepts.
+
+#### Present to User for Confirmation
+
+Display the completed PROJECT.md to the user:
+
+```
+## Project Vision Document
+
+{full contents of PROJECT.md}
+
+This document will be the authoritative source of truth for ALL planning
+and execution agents. Every feature, term, and concept must be traceable
+to this document.
+```
+
+Use `AskUserQuestion` to confirm:
+- "Does this accurately capture your project vision? Any corrections?"
+  - Options: "Looks good — proceed", "Needs changes — let me edit"
+
+If the user wants changes, apply them and re-present. Do NOT proceed to Step 4.1 until the user confirms.
+
+#### Feed to All Downstream Agents
+
+Store the confirmed contents of `.planning/PROJECT.md` in `PROJECT_INTENT` for injection into ALL subagent prompts — planning agents (high-level-planner, plan-refiner, phase-planner, plan-checker, consistency-checker) AND execution agents (phase-assessor, tester, assessor, executor, verifier, phase-verifier).
+
+Also store these extracted sections separately for the compact `PROJECT_VISION_CONTEXT` block used by all agents:
+- `core_value` — from Core Value section
+- `active_requirements` — from Requirements — Active section
+- `out_of_scope` — from Requirements — Out of Scope section
+- `constraints` — from Constraints section
+
+If `.planning/codebase/` exists (brownfield), also load and store summaries for the `PROJECT_CODEBASE_CONTEXT` block:
+- `stack_summary` — 1-2 lines from `.planning/codebase/STACK.md`
+- `architecture_summary` — 1-2 lines from `.planning/codebase/ARCHITECTURE.md`
+- `conventions_summary` — 1-2 lines from `.planning/codebase/CONVENTIONS.md`
+- `testing_summary` — 1-2 lines from `.planning/codebase/TESTING.md`
+
+Both context blocks are injected into ALL downstream agents — planning and execution.
 
 ### Step 4.1: Spawn High-Level Planner (Opus 4.6)
 
@@ -293,94 +348,121 @@ ls .claude/plan/high-level-outline.yaml
 
 Read the outline contents for use in subsequent steps.
 
-### Step 4.2: Sequential Plan Refinement (1-2 passes)
+### Step 4.1.5: Generate Skeleton Files from File Manifest
 
-Run 2 sequential refinement passes. Each pass reads the current outline and improves it.
+After the outline is created, generate skeleton files from the `project_files` manifest. These skeleton files exist on disk for phase-planners to fill with pseudocode.
 
-**Pass 1:**
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/generate-skeletons.py" .claude/plan/high-level-outline.yaml --from-outline
+```
+
+This creates a minimal stub at every path listed in `project_files`. Phase-planners will fill these with pseudocode (function signatures, imports, TODO markers) during Step 4.3.
+
+### Step 4.2: Plan Refinement (Convergence Loop)
+
+Refine the outline until no issues remain. The refiner evaluates 9 dimensions, fixes what it can, and reports whether issues remain. Loop until clean or max 10 rounds.
+
+```
+refinement_round = 1
+max_refinement_rounds = 10
+previous_notes = "(none — first round)"
+```
+
+**Convergence loop:**
+
 ```python
-Task(
-    subagent_type='gatekeeper:plan-refiner',
-    model='opus',
-    prompt="""
+while refinement_round <= max_refinement_rounds:
+    outline = read(".claude/plan/high-level-outline.yaml")
+
+    result = Task(
+        subagent_type='gatekeeper:plan-refiner',
+        model='opus',
+        prompt="""
 ## PROJECT INTENT
 {PROJECT_INTENT — full contents of .planning/PROJECT.md}
 
 ## CURRENT OUTLINE
-{full contents of .claude/plan/high-level-outline.yaml}
+{outline}
 
-## REFINEMENT PASS NUMBER
-1
-
-## PREVIOUS REFINEMENT NOTES
-(none — this is the first pass)
-
-## INSTRUCTIONS
-Evaluate and improve the outline across all 7 dimensions.
-Overwrite .claude/plan/high-level-outline.yaml with the improved version.
-Append refinement_notes documenting all changes.
-"""
-)
-```
-
-**Wait.** Read back the updated outline.
-
-**Pass 2:**
-```python
-Task(
-    subagent_type='gatekeeper:plan-refiner',
-    model='opus',
-    prompt="""
-## PROJECT INTENT
-{PROJECT_INTENT — full contents of .planning/PROJECT.md}
-
-## CURRENT OUTLINE
-{full contents of UPDATED .claude/plan/high-level-outline.yaml after pass 1}
-
-## REFINEMENT PASS NUMBER
-2
+## REFINEMENT ROUND
+{refinement_round}
 
 ## PREVIOUS REFINEMENT NOTES
-{refinement_notes section from pass 1 output}
+{previous_notes}
 
 ## INSTRUCTIONS
-Evaluate and improve the outline across all 7 dimensions.
-Focus on issues the previous pass identified but didn't fully resolve.
+Evaluate and improve the outline across all 10 dimensions.
 Overwrite .claude/plan/high-level-outline.yaml with the improved version.
 Append refinement_notes documenting all changes.
+Output REFINEMENT_PASS if no issues remain, or REFINEMENT_ISSUES:{count}:{summary}.
 """
-)
+    )
+
+    # Parse verdict from result
+    if result contains "REFINEMENT_PASS":
+        break  # Outline is clean — proceed to phase decomposition
+
+    # Read back updated outline and refinement_notes for next round
+    updated_outline = read(".claude/plan/high-level-outline.yaml")
+    previous_notes = extract refinement_notes from updated_outline
+
+    refinement_round += 1
 ```
 
-**Wait.** Read back the final outline. Parse it to get the list of phases for Step 4.3.
+If max rounds reached without REFINEMENT_PASS, proceed with the best outline available — the refiner has improved it as much as it can.
 
-### Step 4.3: Per-Phase Task Decomposition (Sequential with Full Context Injection)
+Read back the final outline. Parse it to get the list of phases for Step 4.3.
 
-**CRITICAL**: Phase-planner agents run SEQUENTIALLY. Each one receives the FULL contents of all prior phases' outputs — both the YAML fragments AND the complete task-{id}.md files. This ensures no granularity is lost between phases.
+### Step 4.3: Per-Phase Task Decomposition (Wave-Parallel with Verification Gates)
 
-Initialize an accumulator for prior phase context:
+Phase-planners run in **waves**. Phases with no dependencies on each other can be planned in parallel. Phases that depend on earlier phases wait until those are complete.
+
+First, compute phase waves from the refined outline:
+
+```bash
+phase_waves=$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/phase_waves.py" .claude/plan/high-level-outline.yaml)
+# Example output: [[1], [2, 3], [4]]
+# Wave 1: phase 1 (alone)
+# Wave 2: phases 2 and 3 (parallel — both depend only on phase 1)
+# Wave 3: phase 4 (depends on 2 and 3)
+```
+
+Initialize:
 
 ```
 completed_phases_context = ""
 ```
 
-For each phase in the outline (sorted by ID):
+**For each wave** (waves processed sequentially; phases within a wave run in parallel):
 
 ```python
-# Before spawning, build the full prior-phase context by reading ALL files
-# produced by prior phase-planner agents
+for wave in phase_waves:
+    if len(wave) == 1:
+        # Single phase — sequential, gets full prior context
+        run steps 4.3a through 4.3d for the single phase
+    else:
+        # Multiple independent phases — spawn phase-planners in PARALLEL
+        # Each gets the SAME completed_phases_context (from prior waves only)
+        # They cannot see each other's output (safe because no mutual dependencies)
+        spawn all phase-planners for this wave in parallel (multiple Task calls in one message)
+        wait for all to complete
+        # Then run TPG + PPG gates for each phase in the wave (can also be parallel)
+        # Then accumulate ALL their outputs into completed_phases_context
+```
 
+For each phase in the current wave:
+
+#### 4.3a: Spawn Phase-Planner
+
+```python
+# Build prior-phase context
 prior_context_parts = []
 for prev_phase_id in completed_phase_ids:
-    # Read the phase YAML fragment
     phase_yaml = read(f".claude/plan/phases/phase-{prev_phase_id}.yaml")
-    prior_context_parts.append(f"### Phase {prev_phase_id} YAML Fragment\n```yaml\n{phase_yaml}\n```")
-
-    # Read EVERY task .md file from that phase (the full content, not just names)
+    prior_context_parts.append(f"### Phase {prev_phase_id} YAML\n```yaml\n{phase_yaml}\n```")
     for task_file in glob(f".claude/plan/tasks/task-{prev_phase_id}.*.md"):
         task_content = read(task_file)
         prior_context_parts.append(f"### {task_file}\n```markdown\n{task_content}\n```")
-
 completed_phases_context = "\n\n".join(prior_context_parts)
 
 Task(
@@ -408,37 +490,178 @@ Dependencies: {dependencies}
 {phase_id} (your tasks will be {phase_id}.1, {phase_id}.2, etc.)
 
 ## PRIOR PHASES' COMPLETE TASK CONTEXT
-This section contains the FULL output from all prior phase-planner agents.
-Read it carefully — it tells you exactly what files, APIs, types, and test
-infrastructure exist when your phase begins executing. Your tasks MUST
-build on this foundation. Only reference task IDs that appear here.
-
 {completed_phases_context}
-
-(If this is Phase 1, this section will be empty — you have no prior tasks.)
+(If Phase 1, this section will be empty.)
 
 ## CODEBASE SUMMARY
-{key findings from Phase 1 recon — frameworks, existing code, packages}
-{if brownfield: codebase-mapper dimension summaries}
+{key findings from Phase 1 recon}
 
 ## INSTRUCTIONS
 Decompose this phase into concrete tasks. Write:
 1. .claude/plan/phases/phase-{id}.yaml — phase fragment with all tasks
 2. .claude/plan/tasks/task-{id}.{seq}.md — one prompt file per task
-
-Follow your agent instructions for task design rules, output format, and success criteria.
-Reference prior task outputs by specific file path and function/class name.
 """
 )
 ```
 
-**Wait for completion.** Then:
-1. Read the newly created `phases/phase-{id}.yaml`
-2. Read ALL newly created `tasks/task-{id}.*.md` files
+**Wait.** Read `phases/phase-{id}.yaml` and all `tasks/task-{id}.*.md` files.
+
+#### 4.3b: Per-Task Quality Gate — TPG Token (Convergence Loop)
+
+For each task file produced by the phase-planner, spawn a task-plan-assessor to verify the individual task spec is self-contained, specific, and vision-faithful.
+
+```python
+for task_file in glob(f".claude/plan/tasks/task-{phase_id}.*.md"):
+    task_content = read(task_file)
+    task_id = extract_task_id(task_file)
+    tpg_round = 1
+    tpg_prior_issues = "(none — first round)"
+
+    while tpg_round <= 10:
+        result = Task(
+            subagent_type='gatekeeper:task-plan-assessor',
+            model='opus',
+            prompt="""
+## PROJECT INTENT
+{PROJECT_INTENT}
+
+## TASK ID
+{task_id}
+
+## TASK FILE
+{task_content}
+
+## PHASE SPEC
+{phase definition from outline}
+
+## PRIOR TASKS CONTEXT
+{summary of tasks this task depends on}
+
+## ROUND
+{tpg_round}
+
+## PRIOR ISSUES
+{tpg_prior_issues}
+"""
+        )
+
+        if result contains "TASK_PLAN_PASS":
+            # Extract TPG token from result
+            tpg_token = extract_token(result)
+
+            # Submit TPG token via MCP
+            mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_token(
+                token=tpg_token,
+                session_id="{session_id}",
+                task_id=task_id
+            )
+            mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal(
+                signal_type="TASK_PLAN_PASS",
+                session_id="{session_id}",
+                task_id=task_id,
+                agent_id="task-plan-assessor"
+            )
+            break  # Task passed — move to next task
+
+        if result contains "TASK_PLAN_FAIL":
+            # Orchestrator fixes task file using fix guidance
+            apply fixes per structured_issues to task file
+            task_content = read(task_file)  # re-read after fixes
+            tpg_prior_issues = structured_issues
+            tpg_round += 1
+```
+
+#### 4.3c: Phase Collective Gate — PPG Token (Convergence Loop)
+
+After all tasks in this phase have TPG tokens, verify the tasks are collectively consistent.
+
+```python
+ppg_round = 1
+ppg_prior_issues = "(none — first round)"
+
+while ppg_round <= 10:
+    phase_yaml = read(f".claude/plan/phases/phase-{phase_id}.yaml")
+    task_files = {f: read(f) for f in glob(f".claude/plan/tasks/task-{phase_id}.*.md")}
+
+    result = Task(
+        subagent_type='gatekeeper:phase-plan-checker',
+        model='opus',
+        prompt="""
+## PROJECT INTENT
+{PROJECT_INTENT}
+
+## PHASE ID
+{phase_id}
+
+## PHASE SPEC
+{phase definition from outline}
+
+## PHASE YAML
+{phase_yaml}
+
+## TASK FILES
+{for each task_file: full contents}
+
+## PRIOR PHASES CONTEXT
+{completed_phases_context}
+
+## ROUND
+{ppg_round}
+
+## PRIOR ISSUES
+{ppg_prior_issues}
+"""
+    )
+
+    if result contains "PHASE_PLAN_PASS":
+        # Orchestrator generates PPG token
+        ppg_token = "PPG_COMPLETE_{32 hex chars}"
+
+        mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_pvg_token(
+            session_id="{session_id}",
+            token_value=ppg_token,
+            phase_id={phase_id},
+            integration_check_passed=true
+        )
+        mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal(
+            signal_type="PHASE_PLAN_PASS",
+            session_id="{session_id}",
+            phase_id={phase_id},
+            agent_id="phase-plan-checker"
+        )
+        break  # Phase passed
+
+    if result contains "PHASE_PLAN_FAIL":
+        # Orchestrator fixes phase yaml and task files using fix hints
+        apply fixes per structured_issues
+        ppg_prior_issues = structured_issues
+        ppg_round += 1
+```
+
+#### 4.3c.5: Orchestrator Reflection
+
+After PHASE_PLAN_PASS, before accumulating context for the next phase, pause and review:
+
+1. Re-read the phase-plan-checker's verdict (already in context from Step 4.3c)
+2. Review the task files for this phase — scan for anything the automated checks might have missed:
+   - Do the tasks *feel* right for this phase's goal?
+   - Is the scope proportional to the phase goal (not too big, not too small)?
+   - Would YOU be able to implement these tasks from the specs alone?
+   - Are there any subtle inconsistencies between tasks that a read-only checker couldn't catch?
+3. If anything seems off, fix it directly (Write/Edit) and re-run the phase-plan-checker
+4. Only proceed to the next phase when confident this phase's foundation is solid
+
+This is a human-judgment step — the automated checkers verify structure and consistency, but only the orchestrator (with full context) can judge whether the phase decomposition *makes sense*.
+
+#### 4.3d: Accumulate Context for Next Phase
+
+After both gates pass:
+1. Read the verified `phases/phase-{id}.yaml`
+2. Read ALL verified `tasks/task-{id}.*.md` files
 3. Append their FULL contents to `completed_phases_context` for the next phase
 4. Continue to the next phase
 
-**The context accumulation is the key mechanism**: by the time Phase N runs, its planner has seen the complete task specifications (not just IDs) from Phases 1 through N-1. This preserves full granularity of dependency information, artifact locations, API surfaces, and test infrastructure across phase boundaries.
+**The context accumulation is the key mechanism**: by the time Phase N runs, its planner has seen the complete, TPG-verified, PPG-verified task specifications from Phases 1 through N-1. No phase builds on unverified foundations.
 
 ### Step 4.4: Assemble Final plan.yaml
 
@@ -488,28 +711,125 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/validate-plan.py" .claude/plan/plan.yaml
 
 If validation fails, fix errors in plan.yaml and re-validate. Do NOT proceed until validation passes.
 
-5. **Spawn plan-checker** for post-assembly quality gate:
+5. **Spawn plan-checker** for post-assembly structural quality gate (convergence loop):
 
-```python
-Task(
-    subagent_type='gatekeeper:plan-checker',
-    prompt="""Verify the assembled plan at .claude/plan/plan.yaml and task files at .claude/plan/tasks/.
-
-    Project intent: {PROJECT_INTENT summary}
-
-    Run all 6 verification dimensions:
-    1. Requirement coverage — every project must_have maps to task(s)
-    2. Task completeness — all required fields present
-    3. Dependency integrity — DAG valid, no orphans, references real task IDs
-    4. Test quality — specific commands, observable criteria
-    5. File scope safety — parallel waves have non-overlapping owns
-    6. Context budget — no oversized tasks
-
-    Return PASS or NEEDS_REVISION with specific issues."""
-)
+```
+checker_round = 1
+max_checker_rounds = 10
 ```
 
-If verdict is **NEEDS_REVISION** with blockers, fix the issues in plan.yaml and task files, then re-run the checker. Do NOT proceed until PASS.
+```python
+while checker_round <= max_checker_rounds:
+    result = Task(
+        subagent_type='gatekeeper:plan-checker',
+        model='opus',
+        prompt="""Verify the assembled plan at .claude/plan/plan.yaml and task files at .claude/plan/tasks/.
+
+        Project intent: {PROJECT_INTENT summary}
+
+        Run all 8 verification dimensions:
+        1. Requirement coverage — every project must_have maps to task(s)
+        2. Task completeness — all required fields present
+        3. Dependency integrity — DAG valid, no orphans, references real task IDs
+        4. Test quality — specific commands, observable criteria
+        5. File scope safety — parallel waves have non-overlapping owns
+        6. Context budget — no oversized tasks
+        7. Contract coverage — formal verification contracts at module boundaries
+        8. Terminology baseline — naming consistency across task files
+
+        Return PASS or NEEDS_REVISION with specific issues."""
+    )
+
+    if verdict == "PASS":
+        break
+
+    # Fix each blocker using fix_hint, re-validate structure
+    for each blocker in issues:
+        apply fix per fix_hint to plan.yaml and/or task-*.md files
+
+    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/validate-plan.py" .claude/plan/plan.yaml
+    checker_round += 1
+```
+
+Do NOT proceed until PASS.
+
+### Step 4.4.5: Semantic Consistency Gate (Convergence Loop)
+
+After the structural plan-checker passes, run the semantic consistency gate. This verifies the plan is conceptually faithful to PROJECT.md — not just structurally valid.
+
+**Architecture**: consistency-checker (read-only, diagnoses) → orchestrator (applies fixes) → re-check
+
+Initialize:
+```
+consistency_round = 1
+max_consistency_rounds = 10
+prior_issues = "(none — first round)"
+```
+
+**Convergence loop:**
+
+```python
+while consistency_round <= max_consistency_rounds:
+    # Read current state of all plan files
+    plan_yaml = read(".claude/plan/plan.yaml")
+    task_files = {f: read(f) for f in glob(".claude/plan/tasks/task-*.md")}
+
+    # Spawn read-only consistency checker
+    result = Task(
+        subagent_type='gatekeeper:plan-consistency-checker',
+        model='opus',
+        prompt="""
+## PROJECT INTENT
+{PROJECT_INTENT — full contents of .planning/PROJECT.md}
+
+## PLAN
+{plan_yaml}
+
+## TASK FILES
+{for each task_file: "### {filename}\n" + full contents}
+
+## ROUND NUMBER
+{consistency_round}
+
+## PRIOR ISSUES
+{prior_issues}
+
+## INSTRUCTIONS
+Run all 7 consistency dimensions against PROJECT.md.
+On round > 1, verify prior blockers were resolved.
+Output CONSISTENCY_PASS or CONSISTENCY_FAIL with structured YAML.
+"""
+    )
+
+    # Parse verdict from result
+    if verdict == "CONSISTENCY_PASS":
+        break  # Plan is semantically faithful — proceed to summary
+
+    if verdict == "CONSISTENCY_FAIL":
+        if consistency_round == max_consistency_rounds:
+            # Final round failed — escalate to user
+            AskUserQuestion(
+                "Plan has unresolved semantic consistency issues after 10 rounds. What would you like to do?",
+                options=[
+                    "Continue anyway — I'll handle these manually",
+                    "Abort — let me revise PROJECT.md and re-run /quest"
+                ]
+            )
+            break
+
+        # Apply fixes for each blocker using the fix_hint
+        # (orchestrator applies directly via Write/Edit — same pattern as plan-checker fixes)
+        for each blocker in issues:
+            apply fix per fix_hint to plan.yaml and/or task-*.md files
+
+        # Re-validate structure after edits
+        python3 "${CLAUDE_PLUGIN_ROOT}/scripts/validate-plan.py" .claude/plan/plan.yaml
+
+        prior_issues = issues
+        consistency_round += 1
+```
+
+Store the final `consistency_round` for the Phase 5 summary table.
 
 6. **Generate** `.claude/plans/plan-summary.md` (under 200 lines) using the Write tool:
 
@@ -563,6 +883,28 @@ Optionally remove intermediate files to reduce clutter:
 
 Keep these if you want to preserve the planning audit trail. The assembled `plan.yaml` and `tasks/task-*.md` files are the authoritative artifacts.
 
+### Step 4.5.5: Skeleton File Generation
+
+Generate skeleton files for the entire project based on `file_scope.owns` across all tasks. This creates the project structure upfront so that:
+1. The user can see the full file tree before execution starts
+2. At `/cross-team` start, these files are encrypted per-task for progressive access control
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/generate-skeletons.py" .claude/plan/plan.yaml
+```
+
+This creates a minimal stub file at each path listed in any task's `file_scope.owns`:
+- Existing files are skipped (not overwritten)
+- Directories are created with `mkdir -p`
+- Each skeleton contains a comment header: `# Skeleton — implementation by task {task_id}`
+
+The script outputs a JSON mapping `{file_path: task_id}` which is consumed by the encryption step at `/cross-team` start.
+
+Verify:
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/generate-skeletons.py" .claude/plan/plan.yaml --dry-run
+```
+
 ---
 
 ## Phase 5: Confirm and Summarize
@@ -577,7 +919,8 @@ Present a final summary to the user:
 | Phases | N |
 | Tasks | N |
 | Waves | N |
-| Validation | PASSED |
+| Structural Validation | PASSED |
+| Semantic Consistency | PASSED (round N) |
 
 ### must_haves Summary
 | Phase | Truths | Artifacts | Key Links |
@@ -598,7 +941,7 @@ Present a final summary to the user:
 
 ### Next Step
 Run `/gatekeeper:cross-team` to start executing tasks with TDD-first workflow.
-It will automatically parallelize if multiple tasks in Wave 1 are unblocked, or run a single task if only one is ready.
+It will set up team mode and orchestrate all unblocked tasks in parallel (respecting file scope conflicts).
 
 **Note**: cross-team uses Gatekeeper MCP tools (`create_session`, `submit_token`, `record_agent_signal`, etc.) for all session and token management. The MCP server is the source of truth for execution state.
 ```
@@ -622,3 +965,4 @@ It will automatically parallelize if multiple tasks in Wave 1 are unblocked, or 
 13. Design must_haves goal-backward: end state first, then decompose
 14. Assign wave numbers to enable parallel execution via `/gatekeeper:cross-team`
 15. Set `integration_check` on each phase — true at natural seams where cross-phase wiring matters
+16. Plan must pass semantic consistency check against PROJECT.md (concept traceability, terminology, scope creep, gold-plating, vision anchoring, cross-file consistency, must-have specificity)

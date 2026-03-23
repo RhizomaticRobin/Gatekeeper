@@ -52,9 +52,7 @@ gatekeeper/
 │   ├── setup-verifier-loop.sh     Initialize Gatekeeper state + token
 │   ├── generate-verifier-prompt.sh Build immutable verifier prompt
 │   ├── fetch-completion-token.sh  Independent test execution for token grant
-│   ├── transition-task.sh         Mark complete + find next task
 │   ├── cross-team-setup.sh        Plan validation + task dispatch setup
-│   ├── single-task-setup.sh       Single-task Gatekeeper initialization
 │   ├── validate-plan.py           Plan.yaml structural validation
 │   ├── plan_utils.py              Shared plan utilities (load, save, find, sort, lock)
 │   ├── next-task.py               Find next unblocked task

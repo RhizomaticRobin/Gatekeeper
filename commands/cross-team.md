@@ -1,5 +1,5 @@
 ---
-description: "Execute tasks via TDD-first Gatekeeper loop — single-task or parallel Agent Teams"
+description: "Execute tasks via TDD-first Gatekeeper loop — parallel Agent Teams"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "Bash(cat:*)", "Bash(mkdir:*)", "Bash(rm:*)", "Read", "Write", "Edit", "Glob", "Grep", "Task", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__create_session", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_session", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__close_session", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_token", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_next_task", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_token_status", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_pending_signals", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__mark_signal_processed", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_pvg_token", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__check_phase_integration", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_evolution_attempt", "mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_evolution_context"]
 ---
 
@@ -14,7 +14,6 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/cross-team-setup.sh" "${CLAUDE_PLUGIN_ROOT}"
 Check the output above. Route based on the last status line:
 
 - **CROSS_TEAM_FAILED** → follow the recovery steps below
-- **CROSS_TEAM_SINGLE_OK** → proceed to single-task execution
 - **CROSS_TEAM_OK** → proceed to team orchestration
 
 ---
@@ -29,20 +28,6 @@ After fixing, run `/gatekeeper:cross-team` again.
 
 ---
 
-## If CROSS_TEAM_SINGLE_OK — Single-Task Execution
-
-Only 1 unblocked task was found. Extract the task ID from the `SINGLE_TASK_ID=...` line in the setup output above, then run this command (replacing the task ID):
-
-```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/single-task-setup.sh" "${CLAUDE_PLUGIN_ROOT}" "<task_id>"
-```
-
-If the last line is **CROSS_TEAM_FAILED**, follow the recovery steps above. If it is **CROSS_OK**, proceed.
-
-**Single-task mode uses the same orchestration flow as multi-task mode** — you spawn 1 tester + assessor + executor + verifier subagent and manage it identically. Follow the "Orchestrate the Team" section below with a single task.
-
----
-
 ## If CROSS_TEAM_OK — Orchestrate the Team
 
 You are now the **Lead Orchestrator**. You do NOT write code. You coordinate worker teammates.
@@ -51,6 +36,47 @@ Read the orchestrator prompt template and follow it:
 
 ```python
 prompt_template = open('${CLAUDE_PLUGIN_ROOT}/scripts/team-orchestrator-prompt.md').read()
+```
+
+### Load Project Vision
+
+Before dispatching any agents, read `.planning/PROJECT.md` and extract the vision context:
+
+```python
+project_md = open('.planning/PROJECT.md').read()
+# Extract key sections for the compact PROJECT_VISION_CONTEXT block
+# that gets injected into every agent prompt (see team-orchestrator-prompt.md)
+```
+
+This is mandatory. If `.planning/PROJECT.md` does not exist, run `/gatekeeper:quest` first.
+
+If `.planning/codebase/` exists (brownfield), also read and extract summaries from STACK.md, ARCHITECTURE.md, CONVENTIONS.md, TESTING.md for the `PROJECT_CODEBASE_CONTEXT` block injected into all agent prompts.
+
+### Encrypt Task Files (Progressive Decryption)
+
+After loading project context, encrypt all task spec files and skeleton files for progressive access control. This ensures the orchestrator must actually complete dependency tasks before accessing downstream task specs.
+
+```
+mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__encrypt_task_files(
+    session_id="{session_id}",
+    project_dir="{absolute path to project}",
+    plan_path=".claude/plan/plan.yaml"
+)
+```
+
+After encryption:
+- Task-*.md files are replaced with `ENCRYPTED` placeholders
+- Skeleton files are replaced with `LOCKED` placeholders
+- To access a task's content, call `decrypt_task_file(session_id, task_id)` — this only succeeds after all dependency tasks have GK_COMPLETE tokens
+
+**Before spawning any agent for a task**, decrypt it first:
+```
+decrypted = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__decrypt_task_file(
+    session_id="{session_id}",
+    task_id="{task_id}"
+)
+# decrypted.task_spec contains the full task-*.md content
+# decrypted.skeleton_files contains the unlocked file paths and content
 ```
 
 ### Session Setup — Use MCP Tools
@@ -125,7 +151,7 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
          context={"summary": "{summary}"}
      )
      ```
-   - On FAIL: re-spawn tester with critique (max 3 rounds). Record each attempt:
+   - On FAIL: re-spawn tester with critique (max 10 rounds). Record each attempt:
      ```
      mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_evolution_attempt(
          task_id="{task_id}",
@@ -172,7 +198,7 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
      python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id} --token {gk_token}
      ```
    - On FAIL (test issue): re-spawn tester in reassess mode, then assessor + executor + verifier
-   - On FAIL (impl issue): re-spawn executor with critique (max 3 rounds)
+   - On FAIL (impl issue): re-spawn executor with critique (max 10 rounds)
    - Record each failure attempt:
      ```
      mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_evolution_attempt(

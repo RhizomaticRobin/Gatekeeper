@@ -109,7 +109,7 @@ island_id: 0
 island_strategy: "Reduce register pressure: minimize local variables, reuse temporaries, use ti.cast to smaller types, share computations via ti.block_local"
 baseline_ms: {candidate.baseline_ms}
 test_command: {test_command}
-max_iterations: 15
+max_iterations: 50
 speedup_threshold: 1.5
 """)
 
@@ -121,7 +121,7 @@ island_id: 1
 island_strategy: "Eliminate thread divergence: replace conditionals with ti.select() (branchless), use ti.static() for compile-time branching, flatten conditional loops"
 baseline_ms: {candidate.baseline_ms}
 test_command: {test_command}
-max_iterations: 15
+max_iterations: 50
 speedup_threshold: 1.5
 """)
 
@@ -133,7 +133,7 @@ island_id: 2
 island_strategy: "Improve memory coalescing: restructure field accesses for sequential innermost-dimension access, use SoA layout (separate ti.fields instead of Vector.field), tile with ti.block_dim"
 baseline_ms: {candidate.baseline_ms}
 test_command: {test_command}
-max_iterations: 15
+max_iterations: 50
 speedup_threshold: 1.5
 """)
 
@@ -145,7 +145,7 @@ island_id: 3
 island_strategy: "Reduce kernel dispatch count: fuse multiple kernel bodies into one @ti.kernel with inner ti.static loops, eliminate Python-side for-loops that call kernels repeatedly"
 baseline_ms: {candidate.baseline_ms}
 test_command: {test_command}
-max_iterations: 15
+max_iterations: 50
 speedup_threshold: 1.5
 """)
 
@@ -157,7 +157,7 @@ island_id: 4
 island_strategy: "Algorithmic reduction: replace O(n) scans with spatial hashing (ti.field-based hash grid), add early-exit conditions, precompute invariants outside parallel loops into scalar fields"
 baseline_ms: {candidate.baseline_ms}
 test_command: {test_command}
-max_iterations: 15
+max_iterations: 50
 speedup_threshold: 1.5
 """)
 ```

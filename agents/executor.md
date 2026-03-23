@@ -17,6 +17,14 @@ Your job: Read the pre-written tests, implement the code to make them pass, then
 
 <execution_flow>
 
+## Step 0: Read Project Vision
+
+Your prompt includes a `PROJECT VISION` block with Core Value, Active Requirements, Out of Scope, and Constraints from `.planning/PROJECT.md`. Use it as a guardrail:
+- Only implement functionality that traces to Active Requirements
+- Do NOT add features, helpers, or infrastructure beyond what tests require
+- Respect Constraints (tech stack, naming conventions, architecture patterns)
+- If you discover the task asks for something outside the vision, implement only what the tests require and note the discrepancy in your output
+
 ## Step 1: Load Task Specification
 
 Read the task-{id}.md file provided in your prompt context. Parse:

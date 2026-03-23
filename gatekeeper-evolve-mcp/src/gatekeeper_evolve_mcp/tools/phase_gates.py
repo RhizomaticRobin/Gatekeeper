@@ -26,6 +26,7 @@ _db: Optional[DatabaseManager] = None
 _state_writer: Optional["StateWriter"] = None
 
 PVG_TOKEN_PATTERN = re.compile(r'^PVG_COMPLETE_[a-f0-9]{32}$')
+PPG_TOKEN_PATTERN = re.compile(r'^PPG_COMPLETE_[a-f0-9]{32}$')
 
 
 def register_tools(mcp: FastMCP, db: DatabaseManager, state_writer: Optional["StateWriter"] = None) -> None:
@@ -34,6 +35,7 @@ def register_tools(mcp: FastMCP, db: DatabaseManager, state_writer: Optional["St
     _db = db
     _state_writer = state_writer
     mcp.tool()(submit_pvg_token)
+    mcp.tool()(submit_ppg_token)
     mcp.tool()(check_phase_integration)
     logger.info("Phase gate tools registered", extra={'tool_name': 'phase_gates'})
 
@@ -88,6 +90,60 @@ def submit_pvg_token(
             _state_writer.write_state_files(session_id)
         except Exception as e:
             logger.error(f"Failed to write state files: {e}", extra={'tool_name': 'submit_pvg_token'})
+
+    return phase_token.to_dict()
+
+
+def submit_ppg_token(
+    session_id: str,
+    token_value: str,
+    phase_id: int,
+    integration_check_passed: bool
+) -> Dict[str, Any]:
+    """
+    Submit a phase plan gate token (planning verification).
+
+    Args:
+        session_id: Session ID to associate token with
+        token_value: PPG token (format: PPG_COMPLETE_[32 hex chars])
+        phase_id: Phase number this token represents
+        integration_check_passed: Whether all tasks in the phase passed collective verification
+
+    Returns:
+        Dict containing PhaseToken dataclass fields
+    """
+    try:
+        validate_session_id(session_id)
+    except ValidationError as e:
+        raise ValueError(str(e))
+
+    if not PPG_TOKEN_PATTERN.match(token_value):
+        raise ValueError(f"Invalid PPG token format: {token_value}. Expected format: PPG_COMPLETE_[32 lowercase hex chars]")
+
+    existing = _db.fetchone('SELECT id FROM phase_tokens WHERE token_value = ?', (token_value,))
+    if existing:
+        raise ValueError(f"PPG token already exists: {token_value}")
+
+    created_at = datetime.now(timezone.utc).isoformat()
+    token_data = {
+        'session_id': session_id,
+        'token_value': token_value,
+        'phase_id': phase_id,
+        'integration_check_passed': 1 if integration_check_passed else 0,
+        'created_at': created_at,
+        'validated': 0
+    }
+
+    _db.insert('phase_tokens', token_data)
+
+    row = _db.fetchone('SELECT * FROM phase_tokens WHERE token_value = ?', (token_value,))
+    phase_token = PhaseToken.from_row(row)
+
+    if _state_writer:
+        try:
+            _state_writer.write_state_files(session_id)
+        except Exception as e:
+            logger.error(f"Failed to write state files: {e}", extra={'tool_name': 'submit_ppg_token'})
 
     return phase_token.to_dict()
 

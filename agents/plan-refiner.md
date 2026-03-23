@@ -79,13 +79,30 @@ Evaluate the outline across these dimensions. For each, identify specific issues
 - Does every public function at a phase boundary have at least one contract?
 - **Fix**: Add missing contracts. Sharpen vague contracts into formalizable expressions. Fix inconsistent pre/postcondition pairs across phases.
 
+## 9. Scope Discipline
+- Does every phase goal use specific, bounded language? (no "handle", "manage", "support", "deal with")
+- Does every phase trace to an Active requirement in PROJECT.md?
+- Are there phases addressing Out of Scope items from PROJECT.md?
+- Are phase goals narrow enough that a fresh agent cannot over-interpret them?
+- Are there open-ended qualifiers ("etc.", "and more", "various", "as needed", "comprehensive")?
+- **Fix**: Replace fuzzy goals with specific deliverables. Remove phases without PROJECT.md anchors. Eliminate open-ended language.
+
+## 10. File Manifest Completeness
+- Does `project_files` list every source and test file the project will create?
+- Does every file have a clear `purpose` description?
+- Is every file assigned to exactly one `phase`?
+- Are there gaps — files implied by phase goals that aren't in the manifest?
+- Are there duplicates — same file listed twice or assigned to multiple phases?
+- Do file paths follow the project's conventions (from codebase recon or PROJECT.md constraints)?
+- **Fix**: Add missing files. Remove duplicates. Assign orphan files to the correct phase.
+
 </evaluation_dimensions>
 
 <process>
 
 1. Read the current outline and PROJECT.md
 2. Scan the codebase briefly (Glob/Grep) to verify assumptions about existing code
-3. Evaluate across all 8 dimensions
+3. Evaluate across all 10 dimensions
 4. Make improvements — rewrite goals, add must_haves, fix ordering, split/merge phases
 5. Overwrite `.claude/plan/high-level-outline.yaml` with the improved version
 6. Append a `refinement_notes` section at the bottom of the YAML documenting what changed
@@ -102,7 +119,7 @@ The file MUST maintain the same schema as the original. Append a refinement_note
 # ... (same schema as high-level-outline.yaml) ...
 
 refinement_notes:
-  pass: 1  # or 2
+  round: 1
   changes:
     - dimension: "clarity"
       description: "Sharpened Phase 2 goal from 'implement features' to specific feature list"
@@ -110,8 +127,16 @@ refinement_notes:
       description: "Added Phase 4 for missing authentication requirement from PROJECT.md"
     - dimension: "ordering"
       description: "Moved Phase 3 before Phase 2 — it produces types Phase 2 consumes"
+  remaining_issues: 2  # count of issues still present after this round's fixes
   overall_assessment: "Outline improved from B to A-. Remaining concern: Phase 5 scope may be too broad."
 ```
+
+After writing the improved outline, output a verdict as your final line:
+
+- `REFINEMENT_PASS` — no issues remain across all 10 dimensions. The outline is clean.
+- `REFINEMENT_ISSUES:{count}:{summary}` — issues were found and fixed this round, but {count} issues remain that need another pass. {summary} briefly describes what's left.
+
+The orchestrator uses this verdict to decide whether to re-spawn you for another round.
 
 ## Constraints
 
@@ -123,11 +148,12 @@ refinement_notes:
 </output_format>
 
 <success_criteria>
-- [ ] All 8 evaluation dimensions addressed
+- [ ] All 10 evaluation dimensions addressed
 - [ ] Improved outline is valid YAML
 - [ ] Under 200 lines (excluding refinement_notes)
 - [ ] Every project requirement maps to at least one phase
 - [ ] No vague phase goals remain
 - [ ] Integration checkpoints correctly placed
 - [ ] Refinement notes document all changes
+- [ ] Verdict line output (REFINEMENT_PASS or REFINEMENT_ISSUES)
 </success_criteria>

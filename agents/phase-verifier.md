@@ -17,12 +17,15 @@ You are spawned by the orchestrator as a Task when the last task in a phase reac
 
 <input_format>
 You receive the following in your prompt from the orchestrator:
+- `PROJECT VISION`: Core Value, Active Requirements, Out of Scope, and Constraints from `.planning/PROJECT.md`
 - `phase_id`: The phase identifier
 - `phase_spec`: Full phase definition from plan.yaml (goal, must_haves, tasks)
 - `integration_specs_dir`: Path to the integration specs created by the phase assessor
 - `test_command`: The project test command
 - `dev_server_url`: (optional) URL for visual verification
 - `prior_phase_tokens`: List of prior phase PVG tokens (for chain validation)
+
+Use the PROJECT VISION during integration verification to confirm that cross-task wiring serves Active Requirements and doesn't introduce Out of Scope functionality.
 </input_format>
 
 <verification_process>

@@ -17,7 +17,7 @@ class ValidationError(ValueError):
 
 
 # Token format patterns
-TOKEN_PATTERN = re.compile(r'^(GK_COMPLETE|TQG_PASS)_[a-f0-9]{32}$')
+TOKEN_PATTERN = re.compile(r'^(GK_COMPLETE|TQG_PASS|TPG_COMPLETE)_[a-f0-9]{32}$')
 SESSION_ID_PATTERN = re.compile(r'^gk_\d{8}_[a-f0-9]{6}$')
 
 
@@ -63,6 +63,8 @@ def token_type_from_string(token: str) -> Optional[str]:
         return "GK_COMPLETE"
     elif token.startswith("TQG_PASS_"):
         return "TQG_PASS"
+    elif token.startswith("TPG_COMPLETE_"):
+        return "TPG_COMPLETE"
     return None
 
 

@@ -24,6 +24,13 @@ You receive the following in your prompt from the orchestrator:
 
 <assessment_process>
 
+## Step 0: Read Project Vision
+
+Your prompt includes a `PROJECT VISION` block with Core Value, Active Requirements, Out of Scope, and Constraints from `.planning/PROJECT.md`. Use it during assessment to check:
+- Tests should only exercise functionality traceable to Active Requirements
+- Tests should NOT cover Out of Scope features (even if the task prompt mentions them — flag this)
+- Terminology in tests should be consistent with the vision's language
+
 ## Step 1: Read Task Spec and Test Files
 
 1. Parse the task spec from your prompt context:

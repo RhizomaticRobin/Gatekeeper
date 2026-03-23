@@ -23,7 +23,7 @@ On first iteration of a task, the evolution population is empty. The pollinator 
 The `GATEKEEPER_PLAN_LOCKED=1` environment variable is used to prevent deadlock when a parent Bash process holds the plan.yaml flock and calls a Python child. If this env var is not properly propagated (e.g., in a subprocess without `export`), deadlock can occur.
 
 ### Team Mode Stop Hook Skip
-When `.claude/gk-team-active` exists, the stop hook skips all Gatekeeper processing. If a team execution is interrupted without cleanup, this marker file can persist and break subsequent single-task Gatekeeper executions. Manual removal of `.claude/gk-team-active` is the recovery.
+When `.claude/gk-team-active` exists, the stop hook skips all Gatekeeper processing. If a team execution is interrupted without cleanup, this marker file can persist and break subsequent Gatekeeper executions. Manual removal of `.claude/gk-team-active` is the recovery.
 
 ## Performance Concerns
 

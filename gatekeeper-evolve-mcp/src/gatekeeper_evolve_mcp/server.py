@@ -138,6 +138,10 @@ def initialize_server() -> None:
     phase_gates.register_tools(mcp, db, state_writer)
     logger.info("Phase gate tools registered", extra={'tool_name': 'server'})
 
+    from gatekeeper_evolve_mcp.tools import task_encryption
+    task_encryption.register_tools(mcp, db, state_writer)
+    logger.info("Task encryption tools registered", extra={'tool_name': 'server'})
+
     evolution.register_tools(mcp, db, state_writer)
     logger.info("Evolution tools registered", extra={'tool_name': 'server'})
 

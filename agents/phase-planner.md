@@ -91,6 +91,38 @@ Tasks creating module boundaries MUST have a `contracts` section in must_haves:
 - Invariants: what must remain true throughout (state preservation)
 - Contracts must be specific enough to formalize (not "data is valid" — must be expressible as `x > 0`, `result.len() > 0`, etc.)
 
+### 11. Pseudocode Generation
+
+For each file assigned to this phase in the `project_files` manifest, fill the skeleton file with pseudocode using the Write tool. This pseudocode becomes the INTERFACE CONTRACT — testers write tests against these signatures, executors implement the bodies.
+
+For each file:
+1. Read the skeleton file (already created by the orchestrator after Step 4.1)
+2. Write pseudocode that defines:
+   - Import statements (exact module paths from prior phases or this phase's other files)
+   - Class/function signatures with type annotations
+   - Docstrings describing each function's purpose and expected behavior
+   - `# TODO: task {task_id}` markers showing which task implements each function
+   - Return type placeholders (`raise NotImplementedError("task {task_id}")`)
+3. For files shared across tasks within this phase, clearly mark which sections belong to which task
+
+**file_scope.owns MUST reference files from project_files** — do not invent new files. If you need a file not in the manifest, note it as a planning gap in your output.
+
+Example pseudocode for `src/auth/handler.ts`:
+```python
+from db import UserModel
+from auth.middleware import requireAuth
+
+# TODO: task 1.1
+async def login(email: str, password: str) -> AuthResponse:
+    """Authenticate user with email/password. Returns JWT token on success, raises AuthError on failure."""
+    raise NotImplementedError("task 1.1")
+
+# TODO: task 1.1
+async def register(email: str, password: str, name: str) -> User:
+    """Create new user account. Validates email uniqueness. Returns created user."""
+    raise NotImplementedError("task 1.1")
+```
+
 </methodology>
 
 <prior_phase_context_usage>

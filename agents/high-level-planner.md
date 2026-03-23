@@ -123,6 +123,26 @@ phases:
       contracts: [...]
     estimated_tasks: 3
     dependencies: [1]
+
+project_files:
+  - path: "src/auth/handler.ts"
+    purpose: "Authentication endpoint handlers (login, register, logout)"
+    phase: 1
+  - path: "src/auth/middleware.ts"
+    purpose: "Route protection middleware — requireAuth, requireRole"
+    phase: 1
+  - path: "src/db/schema.ts"
+    purpose: "Database schema definitions and migrations"
+    phase: 1
+  - path: "src/api/users.ts"
+    purpose: "User CRUD endpoints"
+    phase: 2
+  - path: "tests/auth.test.ts"
+    purpose: "Auth endpoint test suite"
+    phase: 1
+  - path: "tests/users.test.ts"
+    purpose: "User endpoint test suite"
+    phase: 2
 ```
 
 ## Constraints
@@ -132,6 +152,7 @@ phases:
 - **Every phase must have must_haves** with all four fields (truths, artifacts, key_links, contracts)
 - **project_must_haves must be covered** — every truth/artifact/contract must map to at least one phase
 - **Dependencies must form a DAG** — no cycles between phases
+- **project_files is the authoritative file manifest** — every source file the project will create must be listed here with its purpose and owning phase. Phase-planners assign files to tasks from this manifest. Files not in the manifest should not appear in any task's file_scope.owns.
 
 </output_format>
 
@@ -143,4 +164,6 @@ phases:
 - [ ] Phase ordering is logical and dependency-safe
 - [ ] Foundation/infrastructure comes first
 - [ ] Integration checkpoints placed at natural seams
+- [ ] project_files lists every source and test file with purpose and owning phase
+- [ ] Every file in project_files maps to exactly one phase
 </success_criteria>

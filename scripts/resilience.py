@@ -92,9 +92,39 @@ class ResilienceManager:
 
     def check_stuck(self, task_id: str, threshold: int) -> Tuple[bool, int, str]:
         count = self.state.task_failures.get(task_id, 0)
-        is_stuck = count >= threshold
-        msg = f"Gatekeeper: Stuck on task {task_id} ({count} consecutive failures, threshold: {threshold})"
-        return is_stuck, count, msg
+
+        if count < threshold:
+            return False, count, f"Gatekeeper: Task {task_id} ({count} failures, below threshold {threshold})"
+
+        # Examine recent error messages for this task
+        recent_errors = []
+        for entry in reversed(self.state.failure_window):
+            if entry.get("task_id") == task_id and "error" in entry:
+                recent_errors.append(entry["error"])
+                if len(recent_errors) >= count:
+                    break
+
+        if not recent_errors:
+            # No error messages recorded — fall back to count-based
+            is_stuck = count >= threshold
+            msg = f"Gatekeeper: Stuck on task {task_id} ({count} consecutive failures, threshold: {threshold})"
+            return is_stuck, count, msg
+
+        unique_errors = set(recent_errors[:threshold])
+
+        if len(unique_errors) <= 1:
+            # All recent errors identical — truly stuck
+            msg = f"Gatekeeper: Stuck on task {task_id} ({count} identical consecutive failures, threshold: {threshold})"
+            return True, count, msg
+        else:
+            # Diverse errors — still making progress, extend threshold
+            extended_threshold = threshold * 2
+            is_stuck = count >= extended_threshold
+            msg = (
+                f"Gatekeeper: Task {task_id} has {count} consecutive failures "
+                f"({len(unique_errors)} distinct errors, extended threshold: {extended_threshold})"
+            )
+            return is_stuck, count, msg
 
     def check_circuit_breaker(self, threshold: int) -> Tuple[bool, int, str]:
         count = self.state.total_failures
@@ -158,8 +188,8 @@ class ResilienceManager:
     def check_all(
         self, task_id: str, config: Dict[str, Any]
     ) -> Tuple[bool, Optional[str], Optional[str]]:
-        stuck_threshold = config.get("stuck_threshold", 3)
-        circuit_breaker_threshold = config.get("circuit_breaker_threshold", 5)
+        stuck_threshold = config.get("stuck_threshold", 10)
+        circuit_breaker_threshold = config.get("circuit_breaker_threshold", 10)
         max_iterations = config.get("max_gatekeeper_iterations", 50)
         timeout_hours = config.get("timeout_hours", 8)
 

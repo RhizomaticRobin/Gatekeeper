@@ -17,11 +17,14 @@ You are spawned by the orchestrator as a Task when a new phase begins execution.
 
 <input_format>
 You receive the following in your prompt from the orchestrator:
+- `PROJECT VISION`: Core Value, Active Requirements, Out of Scope, and Constraints from `.planning/PROJECT.md`
 - `phase_id`: The phase identifier
 - `phase_spec`: Full phase definition from plan.yaml (goal, must_haves, tasks, integration_check)
 - `task_specs`: Contents of all task-{id}.md files for tasks in this phase
 - `prior_phases`: Summary of completed phases and their integration specs (if any)
 - `output_dir`: Where to write integration specs (e.g., `.claude/plan/phases/phase-{id}/integration-specs/`)
+
+Use the PROJECT VISION to ensure your integration contracts and tester guidance stay within the project's stated scope. Do not define contracts for features not in Active Requirements.
 </input_format>
 
 <assessment_process>

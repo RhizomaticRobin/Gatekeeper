@@ -7,6 +7,7 @@
 
 PLUGIN_ROOT_LOG="$(dirname "$(dirname "$(realpath "$0")")")"
 source "${PLUGIN_ROOT_LOG}/scripts/gk_log.sh"
+source "${PLUGIN_ROOT_LOG}/bin/python3-resolve.sh"
 INPUT=$(cat)
 
 # Extract skill name
@@ -40,7 +41,7 @@ if [[ -z "$CURRENT_TASK_ID" ]]; then
 fi
 
 PLUGIN_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
-PIPELINE_INFO=$(python3 -c "
+PIPELINE_INFO=$("$PYTHON" -c "
 import sys, json
 sys.path.insert(0, '${PLUGIN_ROOT}/scripts')
 from plan_utils import load_plan

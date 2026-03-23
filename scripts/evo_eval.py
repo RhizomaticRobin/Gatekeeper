@@ -18,6 +18,7 @@ import argparse
 import json
 import os
 import re
+import statistics
 import subprocess
 import sys
 import time
@@ -541,8 +542,16 @@ def _measure_taichi_timing(function_name, module_path, baseline_ms):
             pass
 
 
+_CPU_TIMING_MIN_SAMPLES = 3
+_CPU_TIMING_MAX_SAMPLES = 20
+_CPU_TIMING_CV_THRESHOLD = 0.10
+
+
 def _measure_cpu_timing(function_name, module_path, baseline_ms):
-    """Measure CPU function timing via timeit subprocess."""
+    """Measure CPU function timing via timeit subprocess.
+
+    Runs until timing variance converges (CV < 10%), min 3 samples, max 20.
+    """
     mod_path = module_path.replace("/", ".").replace("\\", ".")
     if mod_path.endswith(".py"):
         mod_path = mod_path[:-3]
@@ -551,7 +560,8 @@ def _measure_cpu_timing(function_name, module_path, baseline_ms):
     stmt_code = f"{function_name}()"
 
     timings = []
-    for rep in range(5):
+    cv = 1.0
+    while len(timings) < _CPU_TIMING_MAX_SAMPLES:
         cmd = [
             sys.executable, "-m", "timeit",
             "-n", "1", "-r", "1",
@@ -577,8 +587,14 @@ def _measure_cpu_timing(function_name, module_path, baseline_ms):
                 elif unit == "sec":
                     val *= 1000.0
                 timings.append(val)
+                if len(timings) >= _CPU_TIMING_MIN_SAMPLES:
+                    mean_t = statistics.mean(timings)
+                    if mean_t > 0:
+                        cv = statistics.stdev(timings) / mean_t
+                        if cv < _CPU_TIMING_CV_THRESHOLD:
+                            break
         except subprocess.TimeoutExpired:
-            gk_warn(f"timeit timed out for {function_name} (rep {rep + 1}/5)")
+            gk_warn(f"timeit timed out for {function_name} (sample {len(timings) + 1}/{_CPU_TIMING_MAX_SAMPLES})")
             continue
 
     if not timings:
@@ -596,6 +612,8 @@ def _measure_cpu_timing(function_name, module_path, baseline_ms):
         "speedup_ratio": round(speedup_ratio, 4),
         "timing_ms": round(median_ms, 4),
         "timing_method": "timeit",
+        "timing_samples": len(timings),
+        "timing_cv": round(cv, 4),
     }
 
 

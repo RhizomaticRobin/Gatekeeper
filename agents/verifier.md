@@ -40,6 +40,14 @@ You receive the following in your prompt from the orchestrator:
 
 <verification_process>
 
+## Step 0: Read Project Vision
+
+Your prompt includes a `PROJECT VISION` block with Core Value, Active Requirements, Out of Scope, and Constraints from `.planning/PROJECT.md`. During verification, check:
+- Implementation should only contain functionality traceable to Active Requirements
+- Code that implements Out of Scope features = FAIL (scope creep that leaked through)
+- Naming conventions should be consistent with the vision's terminology
+- Constraints (tech stack, patterns) should be respected
+
 ## Step 1: Read Task Specification
 
 Parse the task spec from your prompt context:

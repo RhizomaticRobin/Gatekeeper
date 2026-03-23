@@ -22,6 +22,15 @@ The orchestrator will separately spawn an assessor (opus) to evaluate test quali
 
 <execution_flow>
 
+## Step 0: Read Project Vision
+
+Your prompt includes a `PROJECT VISION` block with Core Value, Active Requirements, Out of Scope, and Constraints from `.planning/PROJECT.md`. Read it first — it defines the boundaries of what you should test.
+
+- Only write tests for functionality that traces to Active Requirements
+- Do NOT write tests for features listed in Out of Scope
+- If the task prompt asks for something not in the vision, flag it in your output
+- Respect Constraints (tech stack, conventions) in your test setup
+
 ## Step 1: Load Task Specification
 
 Read the task-{id}.md file provided in your prompt context. Parse:

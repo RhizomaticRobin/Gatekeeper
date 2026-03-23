@@ -33,8 +33,8 @@ OPTIONAL_METADATA = [
 METADATA_DEFAULTS = {
     "max_gatekeeper_iterations": 50,
     "timeout_hours": 8,
-    "stuck_threshold": 3,
-    "circuit_breaker_threshold": 5,
+    "stuck_threshold": 10,
+    "circuit_breaker_threshold": 10,
 }
 
 POSITIVE_INT_METADATA = [

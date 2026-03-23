@@ -99,20 +99,34 @@ def cmd_profile(args):
             if _ti_ready:
                 ti.sync()
 
-        # ---- Warmup ----
-        warmup_t0 = time.perf_counter()
-        for _w in range({warmup}):
+        # ---- Convergence-based warmup (min 2, max {warmup}, CV < 15%) ----
+        _WARMUP_MIN = 2
+        _WARMUP_MAX = {warmup}
+        _warmup_timings = []
+        for _w in range(_WARMUP_MAX):
             try:
+                _wt0 = time.perf_counter()
                 exec(call_code)
                 _sync()
+                _warmup_timings.append(time.perf_counter() - _wt0)
             except Exception as e:
                 _emit({{"success": False, "error": f"Warmup failed: {{e}}"}})
                 sys.exit(1)
-        warmup_ms = (time.perf_counter() - warmup_t0) * 1000.0
+            if len(_warmup_timings) >= _WARMUP_MIN and len(_warmup_timings) >= 3:
+                _wm = statistics.mean(_warmup_timings[-3:])
+                if _wm > 0:
+                    _wcv = statistics.stdev(_warmup_timings[-3:]) / _wm
+                    if _wcv < 0.15:
+                        break
+        warmup_ms = sum(_warmup_timings) * 1000.0
 
-        # ---- Timed trials ----
+        # ---- Convergence-based trials (min 3, max {trials}, CV < 5%) ----
+        _TRIAL_MIN = 3
+        _TRIAL_MAX = {trials}
+        _TRIAL_CV_THRESH = 0.05
         timings = []
-        for _t in range({trials}):
+        _trial_cv = 1.0
+        for _t in range(_TRIAL_MAX):
             try:
                 _sync()
                 t0 = time.perf_counter()
@@ -123,6 +137,12 @@ def cmd_profile(args):
             except Exception as e:
                 _emit({{"success": False, "error": f"Trial {{_t}} failed: {{e}}"}})
                 sys.exit(1)
+            if len(timings) >= _TRIAL_MIN:
+                _tm = statistics.mean(timings)
+                if _tm > 0:
+                    _trial_cv = statistics.stdev(timings) / _tm
+                    if _trial_cv < _TRIAL_CV_THRESH:
+                        break
 
         timings.sort()
         n = len(timings)
@@ -137,7 +157,9 @@ def cmd_profile(args):
             "max_ms": round(max_ms, 3),
             "std_ms": round(std_ms, 3),
             "trials": n,
+            "warmup_count": len(_warmup_timings),
             "warmup_ms": round(warmup_ms, 3),
+            "trial_cv": round(_trial_cv, 4),
             "success": True,
         }}
         _emit(result)
@@ -218,8 +240,8 @@ def main():
     parser.add_argument("--profile", action="store_true", required=True)
     parser.add_argument("--setup-file", required=True, help="Python setup file")
     parser.add_argument("--call-code", required=True, help="Kernel invocation expression")
-    parser.add_argument("--warmup", type=int, default=3, help="Warmup iterations (default: 3)")
-    parser.add_argument("--trials", type=int, default=10, help="Timing trials (default: 10)")
+    parser.add_argument("--warmup", type=int, default=10, help="Max warmup iterations; converges early when stable (default: 10)")
+    parser.add_argument("--trials", type=int, default=30, help="Max timing trials; converges early when CV < 5%% (default: 30)")
     args = parser.parse_args()
     cmd_profile(args)
 

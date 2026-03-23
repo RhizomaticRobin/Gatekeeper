@@ -23,11 +23,11 @@ The central abstraction. The executor cannot self-certify completion. Only the v
 ```
 User
  └─ /cross-team
-     ├─ Single task -> Executor (model: opus)
-     │    ├─ Writes all tests (TDD Red)
-     │    ├─ Dispatches gk-builder sub-agents (1 per test, wave-based)
-     │    ├─ Runs full test suite (TDD Green)
-     │    └─ Spawns Verifier (model: opus, read-only) -> PASS/FAIL
+     ├─ Team Mode (1+ tasks in parallel)
+     │    ├─ Tester agents write tests (TDD Red)
+     │    ├─ Assessor agents validate test quality
+     │    ├─ Executor agents implement code (TDD Green)
+     │    └─ Verifier agents validate (read-only) -> PASS/FAIL
      │
      └─ Multiple tasks -> Lead Orchestrator (no code)
           ├─ Spawns Executor sub-orchestrators (concurrent)

@@ -1,7 +1,7 @@
 ---
 name: plan-checker
-description: Pre-execution plan quality gate. Verifies plans WILL achieve phase goal before execution starts. 6 verification dimensions.
-model: sonnet
+description: Pre-execution plan quality gate. Verifies plans WILL achieve phase goal before execution starts. 8 verification dimensions.
+model: opus
 tools: Read, Bash, Glob, Grep
 disallowedTools: Write, Edit, WebFetch, WebSearch, Task
 color: green
@@ -70,6 +70,15 @@ Are formal verification contracts comprehensive?
 - Every cross-task integration point has composability constraints (caller postcondition implies callee precondition)
 - Contracts are formalizable — expressions like `x > 0`, `result.len() > 0`, not vague like "data is valid"
 - No contradictions between contracts across tasks (producer postcondition consistent with consumer precondition)
+
+## Dimension 8: Terminology Baseline
+
+Are naming conventions consistent across task files?
+- Grep all task files for common naming pattern inconsistencies
+- Check: camelCase vs snake_case mixing in API field names across different tasks
+- Check: singular vs plural entity names (User vs Users, item vs items)
+- Check: path convention consistency (/api/users vs /api/user vs /users)
+- Flag obvious mismatches that cross task boundaries — these cause integration failures at execution time
 
 </verification_dimensions>
 

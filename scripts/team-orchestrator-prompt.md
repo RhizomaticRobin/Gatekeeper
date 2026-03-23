@@ -21,6 +21,88 @@ Each worker has an isolated session directory for its Gatekeeper state:
 
 Only YOU update plan.yaml. Workers MUST NOT touch it.
 
+## Project Vision
+
+**Before dispatching ANY agents**, read `.planning/PROJECT.md` and store its contents. This is the authoritative project vision — every agent must receive it so they can self-check against the original intent.
+
+Extract and store these key sections for injection into agent prompts:
+- **Core Value** — the single most important thing
+- **Active Requirements** — what we're building
+- **Out of Scope** — what we're NOT building
+- **Constraints** — hard limits on implementation
+
+Inject the `PROJECT_VISION_CONTEXT` block (below) into EVERY agent spawn prompt:
+
+```
+PROJECT VISION (from .planning/PROJECT.md — authoritative source of truth):
+Core Value: {core_value}
+Active Requirements:
+{active_requirements}
+Out of Scope:
+{out_of_scope}
+Constraints:
+{constraints}
+
+VISION RULE: If your work introduces concepts, features, or terminology not
+traceable to the above, STOP and flag it. Do not invent features. Do not
+rename established terms. Stay within scope.
+```
+
+## Project Codebase Context (Brownfield)
+
+If `.planning/codebase/` exists (brownfield project), also read and store summaries from:
+- `.planning/codebase/STACK.md` — languages, frameworks, key packages
+- `.planning/codebase/ARCHITECTURE.md` — layers, data flow, API patterns
+- `.planning/codebase/CONVENTIONS.md` — naming, file org, code style
+- `.planning/codebase/TESTING.md` — test framework, patterns, CI
+
+Inject the `PROJECT_CODEBASE_CONTEXT` block into EVERY agent spawn prompt (alongside `PROJECT_VISION_CONTEXT`):
+
+```
+PROJECT CODEBASE (from .planning/codebase/ — existing project context):
+Stack: {1-2 line summary from STACK.md}
+Architecture: {1-2 line summary from ARCHITECTURE.md}
+Conventions: {1-2 line summary from CONVENTIONS.md}
+Testing: {1-2 line summary from TESTING.md}
+
+CODEBASE RULE: Follow existing conventions. Do not introduce new patterns
+when the codebase already has an established way of doing things.
+```
+
+If `.planning/codebase/` does not exist (greenfield), omit this block entirely.
+
+## Progressive Task Decryption
+
+Task files are encrypted at session start. Before spawning ANY agent for a task, you MUST decrypt it first:
+
+```
+decrypted = mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__decrypt_task_file(
+    session_id="{session_id}",
+    task_id="{task_id}"
+)
+task_prompt = decrypted["task_spec"]
+# decrypted["skeleton_files"] are automatically restored to disk
+```
+
+If `decrypt_task_file` raises an error about unmet dependencies, the task is not yet unlocked — its dependency tasks must complete first. This is the progressive decryption system: you earn access to each task by completing the prerequisites.
+
+Use the decrypted `task_prompt` wherever `{task_prompt}` appears in the spawn templates below.
+
+## File Scope Enforcement
+
+Before spawning any agent for a task, set the active task for the write-scope hook:
+
+```bash
+echo "{task_id}" > .claude/gk-current-task
+```
+
+This tells the `guard-write-scope.sh` hook which task's `file_scope.owns` to enforce. The hook reads `.claude/gk-sessions/task-{task_id}/scope.json` (written by cross-team-setup.sh) and blocks Write/Edit calls to files outside the task's owned scope.
+
+After the task completes (verification passes), clear it:
+```bash
+rm -f .claude/gk-current-task
+```
+
 ## Lifecycle Rules
 
 ### 0.5. Phase 0.5 — Phase Assessment Gate
@@ -37,6 +119,9 @@ Each phase assessor is an **integration architect** (model: opus, HAS write acce
 Phase assessor spawn template:
 ```
 Task(subagent_type='gatekeeper:phase-assessor', model='opus', prompt="""
+{PROJECT_VISION_CONTEXT}
+{PROJECT_CODEBASE_CONTEXT}
+
 phase_id: {phase_id}
 phase_spec: {phase definition from plan.yaml}
 task_specs: {contents of all task-{id}.md files for this phase}
@@ -81,6 +166,9 @@ Each tester is a **test architect** subagent (model: haiku, HAS web access) that
 Tester spawn template:
 ```
 Task(subagent_type='gatekeeper:tester', prompt="""
+{PROJECT_VISION_CONTEXT}
+{PROJECT_CODEBASE_CONTEXT}
+
 CRITICAL RULES:
 - Do NOT modify .claude/plan/plan.yaml or any .claude/ state files
 - Do NOT write implementation code — only test code
@@ -123,6 +211,9 @@ Each assessor is an **independent test quality evaluator** (model: opus, NO writ
 Assessor spawn template:
 ```
 Task(subagent_type='gatekeeper:assessor', model='opus', prompt="""
+{PROJECT_VISION_CONTEXT}
+{PROJECT_CODEBASE_CONTEXT}
+
 session_dir: {session_dir}
 task_id: {task_id}
 task_spec: {contents of task-{id}.md}
@@ -155,9 +246,12 @@ Output ASSESSMENT_PASS:{summary} or ASSESSMENT_FAIL:{structured issues}
    ```
 2. Proceed to Phase 2 (spawn executor) for this task
 
-**On ASSESSMENT_FAIL:** Re-spawn tester with the assessor's critique (max 3 rounds):
+**On ASSESSMENT_FAIL:** Re-spawn tester with the assessor's critique (max 10 rounds):
 ```
 Task(subagent_type='gatekeeper:tester', prompt="""
+{PROJECT_VISION_CONTEXT}
+{PROJECT_CODEBASE_CONTEXT}
+
 CRITICAL RULES:
 - Do NOT modify .claude/plan/plan.yaml or any .claude/ state files
 - Do NOT write implementation code — only test code
@@ -176,7 +270,7 @@ WORKFLOW:
 """)
 ```
 
-After the re-spawned tester outputs `TESTS_WRITTEN`, spawn assessor again. Maximum 3 assessment rounds per task. If still failing after 3 rounds, log and skip.
+After the re-spawned tester outputs `TESTS_WRITTEN`, spawn assessor again. Maximum 10 assessment rounds per task. If still failing after 10 rounds, log and skip.
 
 ### 2. Phase 2 — Spawn Executors (After Assessment Pass)
 
@@ -191,6 +285,9 @@ Each executor is an **implementation** subagent (model: haiku, no web access) th
 Executor spawn template:
 ```
 Task(subagent_type='gatekeeper:executor', prompt="""
+{PROJECT_VISION_CONTEXT}
+{PROJECT_CODEBASE_CONTEXT}
+
 CRITICAL RULES:
 - Do NOT modify .claude/plan/plan.yaml or any .claude/ state files
 - Do NOT mark tasks as done — the lead orchestrator handles all transitions
@@ -235,6 +332,9 @@ Each verifier is an **independent code inspector** (model: opus, NO write access
 Verifier spawn template:
 ```
 Task(subagent_type='gatekeeper:verifier', model='opus', prompt="""
+{PROJECT_VISION_CONTEXT}
+{PROJECT_CODEBASE_CONTEXT}
+
 session_dir: {session_dir}
 task_id: {task_id}
 task_spec: {contents of task-{id}.md}
@@ -289,9 +389,12 @@ If tester returns `TESTS_WRITTEN:{task_id}`, re-run assessor → executor → ve
 If tester returns `TESTS_OK:{task_id}:...`, re-spawn executor with verifier critique.
 
 **On VERIFICATION_FAIL with `category=impl_issue`:**
-Re-spawn executor with the verifier's critique (max 3 rounds):
+Re-spawn executor with the verifier's critique (max 10 rounds):
 ```
 Task(subagent_type='gatekeeper:executor', prompt="""
+{PROJECT_VISION_CONTEXT}
+{PROJECT_CODEBASE_CONTEXT}
+
 VERIFIER FEEDBACK — FIX THESE ISSUES:
 {verifier_failure_details}
 
@@ -315,7 +418,7 @@ Each worker Task returns a result string. Parse it for:
 
 **From Assessors:**
 - `ASSESSMENT_PASS:{tqg_token}:{summary}` — submit TQG token via MCP (`submit_token`), spawn executor
-- `ASSESSMENT_FAIL:{issues}` — re-spawn tester with critique (max 3 rounds)
+- `ASSESSMENT_FAIL:{issues}` — re-spawn tester with critique (max 10 rounds)
 
 **From Executors:**
 - `IMPLEMENTATION_READY:{task_id}` — spawn verifier for independent inspection
@@ -336,6 +439,9 @@ If a verifier fails and the details suggest test problems:
 
 ```
 Task(subagent_type='gatekeeper:tester', prompt="""
+{PROJECT_VISION_CONTEXT}
+{PROJECT_CODEBASE_CONTEXT}
+
 mode="reassess"
 
 CRITICAL RULES:
@@ -367,6 +473,9 @@ After marking a task complete, check if it was the last task in its phase:
    - Spawn a phase-verifier BEFORE dispatching next-phase tasks:
      ```
      Task(subagent_type='gatekeeper:phase-verifier', model='opus', prompt="""
+     {PROJECT_VISION_CONTEXT}
+{PROJECT_CODEBASE_CONTEXT}
+
      phase_id: {phase_id}
      phase_spec: {phase definition from plan.yaml}
      integration_specs_dir: .claude/plan/phases/phase-{phase_id}/integration-specs/
@@ -482,7 +591,7 @@ If "true":
 - If a worker is unresponsive for an extended period, send it a status check message
 - On verify failure, check the category (test_issue vs impl_issue) to decide which agent to re-spawn
 - Keep a running log of task status transitions for the user
-- Maximum 3 rounds for assessment gate and verification gate per task
+- Maximum 10 rounds for assessment gate and verification gate per task
 
 **State management:**
 - Use MCP tools for ALL token submission (`submit_token`, `submit_pvg_token`) and signal recording (`record_agent_signal`)

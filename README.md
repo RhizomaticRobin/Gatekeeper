@@ -349,7 +349,7 @@ Phase 5 ── Confirm & Summarize → "Run /cross-team to start execution"
 │   └──────────────────────┬──────────────────────────────────────────┘    │
 │                          ▼                                               │
 │   ┌─────────────────────────────────────────────────────────────────┐    │
-│   │ Phase 1.5 ── ASSESSOR (opus, read-only)          max 3 rounds  │    │
+│   │ Phase 1.5 ── ASSESSOR (opus, read-only)          max 10 rounds  │    │
 │   │                                                   ┌──────────┐ │    │
 │   │  Possibility ──► contradictions? impossible?      │ on FAIL: │ │    │
 │   │  Comprehensiveness ──► happy/error/edge covered?  │ re-spawn │ │    │
@@ -387,7 +387,7 @@ Phase 5 ── Confirm & Summarize → "Run /cross-team to start execution"
 │   └──────────────────────┬──────────────────────────────────────────┘    │
 │                          ▼                                               │
 │   ┌─────────────────────────────────────────────────────────────────┐    │
-│   │ Phase 2.5 ── VERIFIER (opus, read-only)          max 3 rounds  │    │
+│   │ Phase 2.5 ── VERIFIER (opus, read-only)          max 10 rounds  │    │
 │   │                                                   ┌──────────┐ │    │
 │   │  16-point deep inspection:                        │ on FAIL: │ │    │
 │   │   empty bodies, hardcoded returns, TODOs,         │ test_iss │ │    │
@@ -535,14 +535,14 @@ Tester ─── TESTS_WRITTEN:{id} ──────────────�
        └── TESTS_WRITE_FAILED:{id}:{reason} ──► log, skip
 
 Assessor ── ASSESSMENT_PASS:{tqg_token}:{summary} ──► write TQG token, spawn Executor
-         └─ ASSESSMENT_FAIL:{issues} ────────────────► re-spawn Tester (max 3)
+         └─ ASSESSMENT_FAIL:{issues} ────────────────► re-spawn Tester (max 10)
 
 Executor ── IMPLEMENTATION_READY:{id} ────────► Orchestrator ──► spawn Verifier
          └─ TASK_FAILED:{id}:{reason} ────────► log, retry or skip
 
 Verifier ── VERIFICATION_PASS ────────────────► generate GK token, mark complete
          └─ VERIFICATION_FAIL:{critique} ────► test_issue: re-spawn Tester (reassess)
-                                               impl_issue: re-spawn Executor (max 3)
+                                               impl_issue: re-spawn Executor (max 10)
 
 Phase Verifier ── PHASE_VERIFICATION_PASS:{phase_id} ──► generate PVG token, next phase
                └─ PHASE_VERIFICATION_FAIL:{phase_id}:{critique} ──► fix CRITICAL issues
@@ -578,7 +578,21 @@ Evo-optimizer ── OPTIMIZATION_PASS:{island}:{speedup}:{iter} ──► migra
 │  └─ Active when: .claude/verifier-loop.local.md exists          │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
-│  CRYPTOGRAPHIC TOKEN CHAIN (4 gates per phase)                  │
+│  CRYPTOGRAPHIC TOKEN CHAIN (6 gates: 2 planning + 4 execution)   │
+│                                                                 │
+│  ── PLANNING TOKENS (issued during /quest) ──                    │
+│                                                                 │
+│  TPG ── Task Plan Gate                                           │
+│  ├─ Format: TPG_COMPLETE_{32_hex_chars} (128-bit)               │
+│  ├─ Generated: by task-plan-assessor agent per task-*.md file   │
+│  └─ Stored: completion_tokens table via MCP submit_token         │
+│                                                                 │
+│  PPG ── Phase Plan Gate                                          │
+│  ├─ Format: PPG_COMPLETE_{32_hex_chars} (128-bit)               │
+│  ├─ Generated: by orchestrator after PHASE_PLAN_PASS            │
+│  └─ Stored: phase_tokens table via MCP submit_ppg_token          │
+│                                                                 │
+│  ── EXECUTION TOKENS (issued during /cross-team) ──              │
 │                                                                 │
 │  PAG ── Phase Assessment Gate                                   │
 │  ├─ Format: PAG_COMPLETE_{32_hex_chars} (128-bit)               │
@@ -601,7 +615,8 @@ Evo-optimizer ── OPTIMIZATION_PASS:{island}:{speedup}:{iter} ──► migra
 │  ├─ Generated: by orchestrator after PHASE_VERIFICATION_PASS    │
 │  └─ Stored: .claude/gk-sessions/phase-{id}/pvg-token.secret    │
 │                                                                 │
-│  Token chain per task: PAG → TQG → GK → PVG                     │
+│  Planning chain: TPG (per task) → PPG (per phase)                │
+│  Execution chain: PAG → TQG → GK → PVG                          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -686,7 +701,7 @@ Before implementation begins, the tester agent's tests must pass an independent 
 - Is test data realistic (not "foo", "bar")?
 - Do tests comply with format contracts from the phase assessor?
 
-On pass, the assessor generates a cryptographic TQG token (`TQG_COMPLETE_[32-hex]`) included in its output signal. The orchestrator extracts and stores it in `assessor-token.secret`. On fail, tests are iteratively fixed (max 3 rounds).
+On pass, the assessor generates a cryptographic TQG token (`TQG_COMPLETE_[32-hex]`) included in its output signal. The orchestrator extracts and stores it in `assessor-token.secret`. On fail, tests are iteratively fixed (max 10 rounds).
 
 ### TDD-First with Wave Dispatch
 
@@ -778,7 +793,7 @@ phases:
 | Command | Description |
 |---------|-------------|
 | `/quest` | Plan a project -- 5-phase discovery that generates plan.yaml + task prompt files |
-| `/cross-team` | Hyperphase 1 -- execute tasks with TDD + Gatekeeper loop (single-task or parallel team orchestration) |
+| `/cross-team` | Hyperphase 1 -- execute tasks with TDD + Gatekeeper loop (parallel team orchestration) |
 | `/hyperphase` | Hyperphase N -- evolutionary optimization of hot-spot functions after verification |
 | `/research` | Domain research before planning (parallel researcher agents) |
 | `/map-codebase` | Analyze existing codebase (7-dimension brownfield analysis) |
@@ -924,9 +939,7 @@ gatekeeper/
 │   ├── generate-verifier-prompt.sh  Build immutable verifier prompt
 │   ├── generate-test-assessor-prompt.sh  Build test assessor prompt
 │   ├── fetch-completion-token.sh    Independent test execution for token
-│   ├── transition-task.sh           Mark complete + find next task
 │   ├── cross-team-setup.sh          Plan validation + task dispatch setup
-│   ├── single-task-setup.sh         Single-task Gatekeeper setup
 │   ├── validate-plan.py             Plan.yaml structural validation
 │   ├── plan_utils.py                Shared plan utilities (load, save, find, sort)
 │   ├── get-unblocked-tasks.py       Find all unblocked tasks

@@ -51,6 +51,5 @@ echo "Try: Run /gatekeeper:quest to generate a plan." >&2
 - Exit codes: 0 = success, 1 = error, 2 = special (e.g., "all tasks complete" in transition-task.sh)
 
 ## Status Codes in Shell Output
-- `CROSS_TEAM_FAILED` / `CROSS_TEAM_SINGLE_OK` / `CROSS_TEAM_OK` — cross-team-setup.sh routing
-- `CROSS_OK` — single-task-setup.sh success
+- `CROSS_TEAM_FAILED` / `CROSS_TEAM_OK` — cross-team-setup.sh routing
 - `TASK_COMPLETE:{id}:{token}` / `TASK_FAILED:{id}:{reason}` — executor output protocol
