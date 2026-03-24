@@ -122,6 +122,61 @@ Does the task's file_scope.owns only reference files from the project_files mani
 Severity: BLOCKER if owns references files outside the manifest (unless test files).
           BLOCKER if owns files from another phase without dependency.
 
+## Dimension 8: Spirit Alignment with Ground Truth
+
+Does this task spec align with the spirit of what the project is trying to achieve?
+- Does the task's Goal capture what the user ACTUALLY wants, or is it a technically correct but soulless interpretation?
+- Are the must_haves testing for the RIGHT things — outcomes the user cares about, not just structural correctness?
+- Does the task respect the Core Value? If this task touches the Core Value path, are the tests and deliverables thorough enough?
+- Is the task's complexity appropriate for its importance? (don't gold-plate a utility function, don't cut corners on a critical user flow)
+- Does the task spec use the project's language and framing, or has it been translated into generic engineering terms?
+
+Severity: BLOCKER if the task fundamentally misinterprets what it should deliver.
+          WARNING if framing or priority doesn't match the project's character.
+
+## Dimension 9: Completeness (Nothing Missing In Task)
+
+Is the task spec complete enough that nothing will be discovered missing mid-implementation?
+- **Missing test cases**: Are there behaviors implied by the Goal or must_haves that have no corresponding test in the Test Dependency Graph?
+- **Missing deliverables**: Does the Goal describe functionality that no deliverable implements? (e.g., goal says "with validation" but no deliverable handles validation logic)
+- **Missing dependencies**: Does the task reference files, APIs, or types from other tasks without listing them in depends_on or file_scope.reads?
+- **Missing error paths**: Does the task only specify happy-path behavior, or does it also define what happens on invalid input, auth failure, network errors?
+- **Missing technical details**: Would an executor need to guess about database schema, API request/response shapes, component props, or state management approach?
+- **Missing setup**: Does the task assume test infrastructure, dev server config, or env variables that aren't specified?
+
+Severity: BLOCKER if Goal promises functionality that no deliverable or test covers.
+          BLOCKER if dependencies are missing from depends_on.
+          WARNING if error paths or edge cases are underspecified.
+
+## Dimension 10: Training Quality Standards
+
+If this task involves ML/RL training:
+- Does the task specify EMA-based convergence criteria (window size, threshold, max-steps cap) — not "train for N epochs"?
+- Does the task define a quantitative quality gate the trained model must pass (accuracy ≥ X, reward ≥ Y, loss ≤ Z on validation set)?
+- Does the must_haves.truths include the quality gate as a testable assertion? ("Model achieves ≥0.85 F1 on test set" not "model is trained")
+- Does the task include: checkpointing with best-model tracking, train/val/test split, random seed, hyperparameter specification, loss/reward curve logging?
+- Does the task define failure criteria (EMA divergence, NaN loss, reward collapse below threshold)?
+- Is the test command something that actually EVALUATES the model (runs inference on test set, checks threshold) rather than just checking "model file exists"?
+
+Severity: BLOCKER if training success = "training finishes" instead of "model meets quality threshold."
+          BLOCKER if no convergence criteria (fixed epochs = BLOCKER).
+
+## Dimension 11: No Copouts
+
+**THERE IS NO SUCH THING AS A GRACEFUL FALLBACK.** A fallback is a premeditated failure. If this task says "if API unavailable, use mock data," the executor WILL use mock data and ship it. Require real dependencies. Plan for success, not for settling.
+
+Does this task spec contain any escape hatches that would let the executor declare success without actually delivering?
+- **Fallback language in Goal**: "If X is too complex, simplify to Y" — the task commits to one thing
+- **Optional deliverables**: "Optionally add" / "bonus" / "stretch" — remove or make mandatory
+- **Vague must_haves**: "Works correctly" / "handles errors properly" / "good performance" — what number? What specific behavior? What threshold?
+- **Delegation to executor**: "Choose appropriate library" / "decide the best approach" / "implement as needed" — the spec decides, the executor follows
+- **Hardcoded-passable tests**: Could the executor pass the test command by returning hardcoded values? The must_haves.truths must be specific enough that hardcoded returns FAIL. Example — BAD: "endpoint returns user data" (hardcoded JSON passes). GOOD: "endpoint returns the user matching the requested ID from the database, with created_at reflecting actual insertion time"
+- **Mock as final state**: "Use mock data if API not available" — if the API is a dependency, require it via depends_on. Don't plan escape routes around your own dependencies.
+- **Conditional must_haves**: "If applicable" / "when relevant" / "as needed" in must_haves — must_haves are unconditional or they're not must_haves
+
+Severity: BLOCKER for any copout in Goal, must_haves, or test specifications.
+          WARNING for hedging in Technical Notes.
+
 </assessment_dimensions>
 
 <output_format>

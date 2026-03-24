@@ -135,6 +135,59 @@ Check that must_haves are specific enough to be verifiable:
 Severity: BLOCKER if a truth is untestable.
           WARNING if an artifact is a category rather than a path.
 
+## Dimension 8: Spirit Alignment with Ground Truth
+
+Does the plan align with the spirit of PROJECT.md, not just its literal requirements?
+- Read PROJECT.md holistically — what is the user ACTUALLY trying to build?
+- Does the plan's overall shape match the project's ambition? (simple project → simple plan, ambitious project → thorough plan)
+- Does the plan respect the Core Value as the driving force, or has it been diluted into just another requirement?
+- Are the priorities right? Tasks that serve the Core Value should come first and get the most attention
+- Does the terminology and framing in the plan match the user's language in PROJECT.md, or has it been translated into generic engineering jargon?
+- Would the user recognize their vision in this plan, or would they have to squint?
+
+Severity: BLOCKER if the plan fundamentally misinterprets the project's intent or priorities.
+          WARNING if tone/framing drifts from the user's language.
+
+## Dimension 9: Completeness (Nothing Missing)
+
+Is the plan missing anything that PROJECT.md requires?
+- **Forward completeness**: For each Active Requirement in PROJECT.md, verify there is a complete implementation path — not just one task that "covers" it, but the full chain (data model → API → UI → tests)
+- **Constraint satisfaction**: Every Constraint in PROJECT.md must be addressed somewhere — tech stack choices, deployment requirements, security requirements
+- **Core Value protection**: The Core Value from PROJECT.md must be thoroughly covered — multiple tasks should protect it, not just one
+- **Boundary completeness**: Every Out of Scope boundary should have a corresponding scope limit in the plan — if PROJECT.md says "no admin panel," there should be no tasks that drift toward admin functionality
+- **Cross-cutting concerns**: Are authentication, authorization, error handling, logging, and validation accounted for across all relevant tasks, not just one?
+
+Severity: BLOCKER if an Active Requirement has no complete implementation path.
+          BLOCKER if the Core Value is insufficiently covered.
+          WARNING if a Constraint isn't reflected in any task.
+
+## Dimension 10: Training Quality Standards
+
+If the project involves ML/RL training:
+- Training tasks MUST use EMA-based convergence (not fixed epochs) with specified window size and convergence threshold
+- Tasks must define quantitative quality gates (accuracy/reward/loss thresholds) — "training completes" is NOT a valid success criterion
+- Must include checkpointing with best-model tracking, train/val/test split separation, reproducibility specs (seeds, hyperparams, logging)
+- Must define failure criteria (divergence, NaN, reward collapse)
+- Check that these standards are CONSISTENT across all training-related tasks — same evaluation metrics, same quality thresholds, same convergence parameters
+
+Severity: BLOCKER if training tasks define success as "training finishes" rather than "model meets threshold."
+          BLOCKER if convergence criteria are missing or use fixed epoch counts.
+
+## Dimension 11: No Copouts
+
+**THERE IS NO SUCH THING AS A GRACEFUL FALLBACK.** A fallback is a premeditated failure. If a plan says "fall back to X," the agent WILL fall back — guaranteed. Plan for what you want, not for what you'll settle for.
+
+Does the plan contain escape hatches, fallbacks, or weasel language that would let drift go unchecked?
+- **Fallback language**: "If X is too complex, simplify to Y" — the plan should commit to one approach, not hedge
+- **Optional scope**: "Optionally" / "stretch goal" / "nice to have" / "if time permits" — either it's in scope or it's Out of Scope in PROJECT.md
+- **Vague success**: "Reasonable" / "acceptable" / "appropriate" / "well enough" — unanchored to any PROJECT.md standard
+- **Implementer delegation**: "Choose the best" / "use appropriate" / "decide at implementation time" — scope decisions belong in the plan, not the executor
+- **Graceful degradation as design**: Falling back to mocks, placeholders, or stubs as an acceptable end state — real dependencies should be required, not worked around
+- **Consistency**: Check that NO task across the entire plan uses copout language — even one weakens the entire chain
+
+Severity: BLOCKER for fallbacks or optional deliverables in any task Goal or must_haves.
+          WARNING for hedging in Technical Notes.
+
 </consistency_dimensions>
 
 <output_format>

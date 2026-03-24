@@ -103,6 +103,60 @@ Do all tasks trace to the project vision?
 
 Severity: BLOCKER for Out of Scope work or hallucinated features.
 
+## Dimension 8: Spirit Alignment with Ground Truth
+
+Do this phase's tasks align with the spirit of the project vision?
+- Does the phase decomposition match what PROJECT.md actually intends for this area of functionality?
+- Are the tasks solving the RIGHT problem, or a technically adjacent one?
+- If this phase serves the Core Value, are the tasks robust enough to protect it? (Core Value tasks deserve extra coverage, not minimal implementations)
+- Does the task granularity match the project's character? (don't split a simple feature into 5 micro-tasks, don't cram a complex feature into 1 mega-task)
+- Do the task names and goals use the project's language, or have they drifted into generic engineering terms?
+
+Severity: BLOCKER if tasks fundamentally misinterpret the phase goal's intent.
+          WARNING if granularity or framing doesn't match project character.
+
+## Dimension 9: Gap Detection (Nothing Missing Within Phase)
+
+Are there gaps in this phase's task decomposition?
+- **Phase goal decomposition**: Does the set of tasks fully decompose the phase goal, or are there aspects of the goal that no task addresses?
+- **Missing glue tasks**: Do independently-built tasks need a wiring/integration task to connect them? (e.g., Task A creates an API, Task B creates a UI, but no task wires the UI to the API)
+- **Infrastructure prerequisites**: Do any tasks assume infrastructure (test fixtures, config files, type definitions, shared utilities) that no task in this phase or prior phases creates?
+- **Error handling coverage**: Do tasks cover only happy paths, or do they also handle failure modes implied by the phase goal?
+- **Missing test coverage**: Is every deliverable across all tasks covered by at least one test specification?
+- **Dependency chain completeness**: If Task C depends on Task A and Task B, do A and B collectively produce everything C needs?
+
+Severity: BLOCKER if phase goal has uncovered aspects or tasks assume nonexistent infrastructure.
+          WARNING if error handling or edge cases are thin.
+
+## Dimension 10: Training Quality Standards
+
+If this phase involves ML/RL training:
+- Do training tasks specify EMA-based convergence with window size and threshold — not fixed epoch counts?
+- Do tasks define quantitative quality gates (accuracy/reward/loss thresholds) that the model must pass before task completion?
+- Do tasks include checkpointing with best-model tracking, train/val/test separation?
+- Do tasks define failure criteria (divergence, NaN loss, reward collapse)?
+- Is data pipeline / evaluation infrastructure built by prior tasks or earlier tasks in this phase BEFORE training begins?
+- Are hyperparameter ranges specified, not left to the executor to guess?
+
+Severity: BLOCKER if training tasks lack convergence criteria or quality gates.
+          BLOCKER if "training completes" is the success criterion instead of "model meets threshold."
+
+## Dimension 11: No Copouts
+
+**THERE IS NO SUCH THING AS A GRACEFUL FALLBACK.** A fallback is a premeditated failure. If a task says "fall back to mock data," the executor WILL use mock data and call it done. Require what you need. Don't plan escape routes.
+
+Do any tasks within this phase contain copout language?
+- **Fallback exits**: "If X is too complex, fall back to Y" — the plan commits to one approach
+- **Optional deliverables**: "Optionally" / "stretch goal" / "if time permits" — in scope or not
+- **Vague success**: "Works well enough" / "reasonable performance" / "acceptable" — define the number
+- **Delegation**: "Choose the best approach" / "decide at implementation time" — plan decides, executor implements
+- **Mock/placeholder as endpoint**: Tasks where a stub, mock, or placeholder is an acceptable final state rather than a temporary test fixture
+- **Skip conditions**: "If not applicable" / "as appropriate" in must_haves — must_haves are unconditional
+- **Hardcoded-passable tests**: Are must_haves specific enough that returning a hardcoded value would FAIL? If `must_have.truth = "endpoint returns user data"`, a hardcoded JSON blob passes. It should be `"endpoint returns user matching the requested ID from the database"`
+
+Severity: BLOCKER for any copout in task Goal, must_haves, or test specifications.
+          WARNING for hedging in Technical Notes or Context.
+
 </verification_dimensions>
 
 <output_format>

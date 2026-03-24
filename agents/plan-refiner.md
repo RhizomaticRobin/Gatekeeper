@@ -96,13 +96,46 @@ Evaluate the outline across these dimensions. For each, identify specific issues
 - Do file paths follow the project's conventions (from codebase recon or PROJECT.md constraints)?
 - **Fix**: Add missing files. Remove duplicates. Assign orphan files to the correct phase.
 
+## 11. Spirit Alignment with Ground Truth
+- Does the outline build what PROJECT.md actually WANTS, or does it technically satisfy requirements while missing the point?
+- Does the plan's complexity match the project's ambition? (don't overengineer a simple project or underplan an ambitious one)
+- Are phase priorities consistent with the Core Value? (Core Value phases should be early and robust)
+- Does the outline preserve the user's language, or has everything been rewritten into generic terms?
+- For brownfield: does the outline work WITH existing architecture, or impose a new one?
+- **Fix**: Reorder phases to prioritize Core Value. Simplify overengineered phases. Match complexity to project ambition. Use the user's terminology.
+
+## 12. Gap Detection (Nothing Missing)
+- For each project-level must_have, is there a COMPLETE path to achieving it — not just a phase that mentions it, but phases that collectively build every piece?
+- Are there implicit requirements that no phase addresses? (e.g., database migrations, auth middleware, error handling, config management, environment setup)
+- Does the outline account for testing infrastructure (test helpers, fixtures, CI config)?
+- Are there integration gaps between phases — Phase 2 consumes something that Phase 1 doesn't explicitly produce?
+- Would a developer following this outline end up with a working system, or would they discover missing pieces mid-implementation?
+- **Fix**: Add phases or expand existing phases to cover gaps. Add missing infrastructure to the earliest appropriate phase.
+
+## 13. Training Quality Standards
+- If any phase involves ML/RL training, does it specify EMA-based convergence (not fixed epochs)?
+- Does it define quantitative quality gates for trained models (accuracy/reward/loss thresholds)?
+- Does it include checkpointing, train/val/test separation, reproducibility requirements?
+- Does it define failure criteria (divergence detection, NaN, reward collapse)?
+- Are training phases ordered so that data pipeline and evaluation infrastructure come BEFORE training phases?
+- **Fix**: Add convergence criteria, quality gates, and failure criteria to training phases. Reorder if data pipeline is missing.
+
+## 14. No Copouts
+**THERE IS NO SUCH THING AS A GRACEFUL FALLBACK.** A fallback is a premeditated failure that WILL be taken. Plan for what you want built, or don't plan it.
+- Does any phase goal contain fallback language ("if too complex, simplify to...")?
+- Does any phase have optional deliverables ("stretch goal", "nice to have", "if time permits")?
+- Are phase success criteria specific numbers/behaviors, or vague ("reasonable", "acceptable", "appropriate")?
+- Does any phase delegate decisions to downstream agents ("choose the best approach", "use appropriate library")?
+- Are there phases that plan for graceful degradation of their OWN deliverables (mock data, placeholder UI)?
+- **Fix**: Remove fallbacks — commit to one approach. Remove optionals — either in scope or out. Replace vague criteria with specific thresholds. Make all decisions in the plan.
+
 </evaluation_dimensions>
 
 <process>
 
 1. Read the current outline and PROJECT.md
 2. Scan the codebase briefly (Glob/Grep) to verify assumptions about existing code
-3. Evaluate across all 10 dimensions
+3. Evaluate across all 14 dimensions
 4. Make improvements — rewrite goals, add must_haves, fix ordering, split/merge phases
 5. Overwrite `.claude/plan/high-level-outline.yaml` with the improved version
 6. Append a `refinement_notes` section at the bottom of the YAML documenting what changed
@@ -133,7 +166,7 @@ refinement_notes:
 
 After writing the improved outline, output a verdict as your final line:
 
-- `REFINEMENT_PASS` — no issues remain across all 10 dimensions. The outline is clean.
+- `REFINEMENT_PASS` — no issues remain across all 14 dimensions. The outline is clean.
 - `REFINEMENT_ISSUES:{count}:{summary}` — issues were found and fixed this round, but {count} issues remain that need another pass. {summary} briefly describes what's left.
 
 The orchestrator uses this verdict to decide whether to re-spawn you for another round.
@@ -148,7 +181,7 @@ The orchestrator uses this verdict to decide whether to re-spawn you for another
 </output_format>
 
 <success_criteria>
-- [ ] All 10 evaluation dimensions addressed
+- [ ] All 14 evaluation dimensions addressed
 - [ ] Improved outline is valid YAML
 - [ ] Under 200 lines (excluding refinement_notes)
 - [ ] Every project requirement maps to at least one phase

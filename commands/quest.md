@@ -391,7 +391,7 @@ while refinement_round <= max_refinement_rounds:
 {previous_notes}
 
 ## INSTRUCTIONS
-Evaluate and improve the outline across all 10 dimensions.
+Evaluate and improve the outline across all 14 dimensions.
 Overwrite .claude/plan/high-level-outline.yaml with the improved version.
 Append refinement_notes documenting all changes.
 Output REFINEMENT_PASS if no issues remain, or REFINEMENT_ISSUES:{count}:{summary}.
@@ -542,6 +542,22 @@ for task_file in glob(f".claude/plan/tasks/task-{phase_id}.*.md"):
 
 ## PRIOR ISSUES
 {tpg_prior_issues}
+
+## INSTRUCTIONS
+Run all 11 assessment dimensions:
+1. Self-containment — could a fresh agent implement from this file alone?
+2. Test Dependency Graph validity — DAG valid, each test has guidance
+3. Must-have specificity — truths testable, artifacts are paths
+4. Deliverable-must-have alignment — every deliverable maps to a must_have
+5. Vision anchoring — task goal traces to PROJECT.md Active Requirements
+6. Scope discipline — no fuzzy language in Goal or must_haves
+7. File manifest compliance — file_scope.owns matches project_files manifest
+8. Spirit alignment — does this task build what the user ACTUALLY wants?
+9. Completeness — nothing missing that would be discovered mid-implementation
+10. Training quality — EMA convergence, quantitative quality gates, checkpointing, failure criteria
+11. No copouts — no fallbacks, optionals, vague success, delegation to executor, hardcoded-passable tests
+
+Output TASK_PLAN_PASS:{task_id}:{tpg_token}:{summary} or TASK_PLAN_FAIL:{task_id}:{issues}
 """
         )
 
@@ -610,6 +626,22 @@ while ppg_round <= 10:
 
 ## PRIOR ISSUES
 {ppg_prior_issues}
+
+## INSTRUCTIONS
+Run all 11 verification dimensions:
+1. Phase goal coverage — tasks collectively satisfy the phase goal
+2. Internal consistency — tasks agree with each other (terminology, deliverables, dependencies)
+3. File scope safety — same-wave tasks have non-overlapping owns
+4. Dependency integrity — valid DAG, no cycles, wave-consistent
+5. Must-have specificity — truths testable, artifacts are paths
+6. Prior phase compatibility — correct references to prior phase outputs
+7. Vision anchoring — all tasks trace to PROJECT.md, no Out of Scope work
+8. Spirit alignment — tasks solve the RIGHT problem at the RIGHT granularity
+9. Gap detection — nothing missing (glue tasks, infrastructure, error handling, test coverage)
+10. Training quality — EMA convergence, quantitative quality gates, checkpointing, failure criteria
+11. No copouts — no fallbacks, optionals, vague success, delegation, hardcoded-passable tests, mock as final state
+
+Output PHASE_PLAN_PASS or PHASE_PLAN_FAIL with structured YAML.
 """
     )
 
@@ -727,7 +759,7 @@ while checker_round <= max_checker_rounds:
 
         Project intent: {PROJECT_INTENT summary}
 
-        Run all 8 verification dimensions:
+        Run all 12 verification dimensions:
         1. Requirement coverage — every project must_have maps to task(s)
         2. Task completeness — all required fields present
         3. Dependency integrity — DAG valid, no orphans, references real task IDs
@@ -736,6 +768,10 @@ while checker_round <= max_checker_rounds:
         6. Context budget — no oversized tasks
         7. Contract coverage — formal verification contracts at module boundaries
         8. Terminology baseline — naming consistency across task files
+        9. Spirit alignment — does the plan build what the user ACTUALLY wants?
+        10. Gap detection — is anything missing? End-to-end paths, infrastructure, integration glue
+        11. Training quality — EMA convergence, quantitative quality gates, checkpointing, failure criteria
+        12. No copouts — no fallbacks, optional deliverables, vague success criteria, delegation to implementer, hardcoded-passable tests
 
         Return PASS or NEEDS_REVISION with specific issues."""
     )
@@ -795,7 +831,19 @@ while consistency_round <= max_consistency_rounds:
 {prior_issues}
 
 ## INSTRUCTIONS
-Run all 7 consistency dimensions against PROJECT.md.
+Run all 11 consistency dimensions against PROJECT.md:
+1. Concept traceability — no hallucinated features
+2. Terminology consistency — same terms across all files
+3. Scope creep via fuzzy language — no "handle", "manage", "various", "etc."
+4. Gold-plating detection — deliverable:must_have ratio, unjustified work
+5. Vision anchoring — bidirectional coverage (PROJECT.md ↔ plan)
+6. Cross-file semantic consistency — no contradictions between files
+7. Must-have specificity — truths testable, artifacts are paths, key_links concrete
+8. Spirit alignment — does the plan build what the user ACTUALLY wants?
+9. Completeness — every Active Requirement has a full implementation path
+10. Training quality — EMA convergence, quantitative quality gates, failure criteria
+11. No copouts — no fallbacks, optionals, vague success, delegation to implementer
+
 On round > 1, verify prior blockers were resolved.
 Output CONSISTENCY_PASS or CONSISTENCY_FAIL with structured YAML.
 """
