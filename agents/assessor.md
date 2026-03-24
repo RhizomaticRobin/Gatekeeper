@@ -127,7 +127,20 @@ If `{session_dir}` contains a `tester-guidance-task-{task_id}.md` file (written 
 - Verify integration points use the correct interfaces
 - If tests violate format contracts → ASSESSMENT_FAIL with contract mismatch details
 
-## Step 7: Output Verdict
+## Step 7: Pre-Existing Issues in Test Infrastructure
+
+Check for issues that existed BEFORE the tester wrote their tests. "It was already broken" is not an excuse — if the test infrastructure is broken, the tests built on it are broken.
+
+- **Broken test helpers/fixtures from prior tasks**: If this task's tests import shared test utilities or fixtures that are themselves flawed (wrong assertions, stale mock data, missing cleanup), flag them.
+- **Inherited bad patterns**: If prior-task tests established a testing pattern that is wrong (e.g., over-mocking, testing mocks instead of real code, trivial assertions), and this task's tester copied that pattern — FAIL. Don't propagate bad test patterns.
+- **Stale test dependencies**: If tests import from modules that have changed since the test helpers were written, flag it even if the tester didn't create the import.
+- **Pre-existing flaky tests**: If the test suite already has timing-dependent tests, shared mutable state, or order-dependent tests that could interfere with this task's tests — flag them.
+
+The rule: **if you can see it, you own it.** Tests that pass through your gate pass with your name on them.
+
+Any pre-existing test infrastructure issues → ASSESSMENT_FAIL with category `pre_existing` and fix guidance.
+
+## Step 8: Output Verdict
 
 </assessment_process>
 

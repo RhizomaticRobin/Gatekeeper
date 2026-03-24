@@ -153,6 +153,19 @@ If `dev_server_url` is in your prompt, use the Playwright MCP tools to verify qu
 
 ## Step 5: Verdict
 
+## Step 5.5: Pre-Existing Issues
+
+Scan for issues that existed BEFORE this task's executor touched the code. These are not the executor's fault, but they are still your problem. You do not get to pass code that has known defects just because someone else left them there.
+
+- **Pre-existing bugs in files this task touches**: If file_scope.reads or file_scope.owns files contain silent failures, copouts, or broken logic that predates this task — flag them. The executor should have fixed them while they were in there.
+- **Inherited tech debt**: If prior-phase code that this task depends on has hardcoded values, swallowed exceptions, or placeholder logic — flag it. "It was already like that" is not an excuse.
+- **Broken patterns**: If the codebase has an established pattern that is itself wrong (e.g., every handler swallows exceptions), and this task follows that pattern — flag it. Don't propagate bad patterns just because they're established.
+- **Stale dependencies**: If imports reference modules that no longer exist or have changed API, flag them even if this task didn't create the import.
+
+The rule: **if you can see it, you own it.** Code that ships through your gate ships with your name on it. Pre-existing issues are still issues.
+
+## Step 6: Verdict
+
 Only if ALL of the following are true:
 - Zero hard fails from the 16-point inspection
 - No more than 2 minor smells
@@ -160,6 +173,7 @@ Only if ALL of the following are true:
 - Tests pass AND test quality is acceptable
 - Formal verification passes (all annotations present, verification commands succeed, no weakened contracts)
 - Visual verification passes (if applicable)
+- No pre-existing issues in files this task touches
 - You would stake your professional reputation on this code
 
 Then output `VERIFICATION_PASS`.

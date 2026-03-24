@@ -200,6 +200,28 @@ WORKFLOW:
 
 Spawn all non-conflicting testers in parallel (multiple Task calls in one message).
 
+### 1.4. Tick Check (Before Assessment)
+
+Before spawning the assessor, run the tick-finder on the test code to catch copouts early:
+
+```
+Task(subagent_type='gatekeeper:tick-finder', model='opus', prompt="""
+{PROJECT_VISION_CONTEXT}
+{PROJECT_CODEBASE_CONTEXT}
+
+task_id: {task_id}
+task_spec: {contents of task-{id}.md}
+file_scope_owns: {task's file_scope.owns — scan these files}
+
+Find every fallback, silent failure, graceful degradation, placeholder, stub, and copout.
+Output TICK_CHECK_PASS or TICK_CHECK_FAIL with fart-annotated findings.
+""")
+```
+
+**On TICK_CHECK_FAIL:** Re-spawn the tester with the tick list — they must remove the copouts before assessment. Do NOT proceed to the assessor.
+
+**On TICK_CHECK_PASS:** Proceed to assessment gate.
+
 ### 1.5. Phase 1.5 — Assessment Gate
 
 For each task where tester returned `TESTS_WRITTEN:{task_id}`, spawn an assessor using `Task(subagent_type='gatekeeper:assessor')`.
@@ -318,6 +340,28 @@ WORKFLOW:
 ```
 
 Spawn all non-conflicting executors in parallel (multiple Task calls in one message).
+
+### 2.4. Tick Check (Before Verification)
+
+Before spawning the verifier, run the tick-finder on the implementation code to catch copouts the executor snuck in:
+
+```
+Task(subagent_type='gatekeeper:tick-finder', model='opus', prompt="""
+{PROJECT_VISION_CONTEXT}
+{PROJECT_CODEBASE_CONTEXT}
+
+task_id: {task_id}
+task_spec: {contents of task-{id}.md}
+file_scope_owns: {task's file_scope.owns — scan these files}
+
+Find every fallback, silent failure, graceful degradation, placeholder, stub, and copout.
+Inject crash markers into offending files. Output TICK_CHECK_PASS or TICK_CHECK_FAIL.
+""")
+```
+
+**On TICK_CHECK_FAIL:** Re-spawn the executor with the tick list — they must remove the copouts AND the crash markers before verification. Do NOT proceed to the verifier.
+
+**On TICK_CHECK_PASS:** Proceed to verification gate.
 
 ### 2.5. Phase 2.5 — Verification Gate
 
