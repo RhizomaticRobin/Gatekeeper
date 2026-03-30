@@ -45,7 +45,10 @@ Every task MUST have BOTH `deliverables.backend` AND `deliverables.frontend`. No
 ### 2. TDD-First Test Specs
 Every task MUST have:
 - `tests.quantitative.command` — a shell command that exits 0 on success
-- `tests.qualitative.criteria` — observable UI/output behaviors for verification
+- `tests.qualitative.playwright_url` — a route/page where this task's results can be visually verified via Playwright (MANDATORY, even for backend/CLI tasks)
+- `tests.qualitative.criteria` — observable UI/output behaviors Playwright will check at that URL
+
+**Visual verification is mandatory for ALL tasks.** For backend-only or CLI tasks, the task must include a verification surface — a minimal status page, results viewer, health dashboard, or CLI output rendered in an HTML report — that Playwright can navigate to and verify. "No frontend" is never an excuse to skip visual verification. The `dev_server_command` in plan metadata must start a server that serves these verification pages.
 
 ### 3. Task IDs
 Use `{phase_id}.{sequence}` format. If your phase ID is 2, your tasks are 2.1, 2.2, 2.3, etc.

@@ -22,15 +22,6 @@
         ]
       },
       {
-        "matcher": "Write|Edit|WebFetch|WebSearch",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-orchestrator.sh"
-          }
-        ]
-      },
-      {
         "matcher": "Write|Edit",
         "hooks": [
           {

@@ -130,7 +130,24 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
      ```
    - Testers for independent tasks (same wave, no file_scope overlap) can run in parallel
 
-2. **Phase 1.5 — Assessment gate** for each task with ready tests:
+2. **Phase 1.4 — Tick check (before assessment)** for each task with ready tests:
+   - One `Task(subagent_type='gatekeeper:tick-finder')` per task (model: opus, HAS write access)
+   - Each tick-finder gets: task spec, file_scope.owns (test files to scan)
+   - Tick-finders scan for copouts: silent failures, fallback returns, placeholders, stubs, hardcoded returns, empty implementations, obnoxiously wrong logic
+   - On `TICK_CHECK_FAIL`: inject crash markers into offending files, re-spawn tester with tick list — do NOT proceed to assessment
+   - On `TICK_CHECK_PASS`: proceed to assessment gate
+   - Record the signal:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal(
+         signal_type="TICK_CHECK_PASS",  # or "TICK_CHECK_FAIL"
+         session_id="{session_id}",
+         task_id="{task_id}",
+         agent_id="tick-finder",
+         context={"phase": "post-tester", "ticks_found": {count}}
+     )
+     ```
+
+3. **Phase 1.5 — Assessment gate** for each task with ready tests:
    - One `Task(subagent_type='gatekeeper:assessor')` per task (model: opus, NO write access)
    - Each assessor gets: task spec + session directory path
    - Assessors check test possibility, comprehensiveness, quality, and must_haves alignment
@@ -162,7 +179,7 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
      )
      ```
 
-3. **Phase 2 — Spawn executor agents** for each task that passed assessment:
+4. **Phase 2 — Spawn executor agents** for each task that passed assessment:
    - One `Task(subagent_type='gatekeeper:executor')` per task (model: haiku, no web access)
    - Each executor gets: task prompt + session directory path
    - Executors read pre-written tests, implement code to make them pass, run full test suite
@@ -177,11 +194,29 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
      )
      ```
 
-4. **Phase 2.5 — Verification gate** for each task with ready implementation:
+5. **Phase 2.4 — Tick check (before verification)** for each task with ready implementation:
+   - One `Task(subagent_type='gatekeeper:tick-finder')` per task (model: opus, HAS write access)
+   - Each tick-finder gets: task spec, file_scope.owns (implementation files to scan)
+   - Tick-finders scan for copouts the executor snuck in: silent failures, fallback returns, hardcoded magic numbers matching test fixtures, copy-pasted test values, stubs, empty implementations
+   - On `TICK_CHECK_FAIL`: inject crash markers into offending files, re-spawn executor with tick list — do NOT proceed to verifier
+   - On `TICK_CHECK_PASS`: proceed to verification gate
+   - Record the signal:
+     ```
+     mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal(
+         signal_type="TICK_CHECK_PASS",  # or "TICK_CHECK_FAIL"
+         session_id="{session_id}",
+         task_id="{task_id}",
+         agent_id="tick-finder",
+         context={"phase": "post-executor", "ticks_found": {count}}
+     )
+     ```
+
+6. **Phase 2.5 — Verification gate** for each task with ready implementation:
    - One `Task(subagent_type='gatekeeper:verifier')` per task (model: opus, NO write access)
-   - Each verifier gets: task spec + test command + session directory path
-   - Verifiers perform deep code inspection, run tests independently, check must_haves
-   - Verifiers return `VERIFICATION_PASS` or `VERIFICATION_FAIL:{critique}`
+   - Each verifier gets: task spec + test command + session directory path + `dev_server_url` (MANDATORY)
+   - **The `dev_server_url` MUST be provided to every verifier.** Visual verification via Playwright is required for ALL tasks, including backend/CLI tasks. The plan must define a `dev_server_command` and each task must have a `playwright_url`.
+   - Verifiers perform deep code inspection, run tests independently, check must_haves, AND run Playwright visual verification
+   - Verifiers return `VERIFICATION_PASS`, `VERIFICATION_FAIL:{critique}`, or `VERIFICATION_PAUSED:playwright_unavailable`
    - On PASS: submit the GK completion token via MCP and mark task completed:
      ```
      mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_token(
@@ -197,6 +232,7 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
      )
      python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id} --token {gk_token}
      ```
+   - On `VERIFICATION_PAUSED:playwright_unavailable`: **STOP all execution.** Use AskUserQuestion to alert the user that Playwright is unavailable and request intervention. Do NOT proceed, do NOT skip visual verification, do NOT mark any tasks complete. Resume only after user confirms Playwright is working.
    - On FAIL (test issue): re-spawn tester in reassess mode, then assessor + executor + verifier
    - On FAIL (impl issue): re-spawn executor with critique (max 10 rounds)
    - Record each failure attempt:
@@ -210,7 +246,7 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
      )
      ```
 
-5. **Handle verify failures (test problem suspected)**:
+7. **Handle verify failures (test problem suspected)**:
    - If the verifier's failure details suggest test issues:
      - Re-spawn Tester: `Task(subagent_type='gatekeeper:tester', prompt="mode=reassess ...")`
      - Include verifier failure details in the prompt
@@ -224,7 +260,7 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
      )
      ```
 
-6. **Mark tasks completed** — use MCP for token submission, plan_utils for plan.yaml update:
+8. **Mark tasks completed** — use MCP for token submission, plan_utils for plan.yaml update:
    ```
    # Generate token hex (32 chars)
    token_hex = random 32 hex chars
@@ -241,7 +277,7 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan_utils.py" .claude/plan/plan.yaml --complete-task {task_id} --token {gk_token}
    ```
 
-7. **Phase verification gate** after marking a task complete:
+9. **Phase verification gate** after marking a task complete:
    - If the completed task was the last task in its phase AND the phase has `integration_check: true`:
    - First, check phase integration artifacts via MCP:
      ```
@@ -275,7 +311,7 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
    - WARNING-level issues can be noted and addressed later
    - Next phase starts with Phase 0.5 (phase assessor) before testers
 
-8. **Check for newly unblocked tasks** after each completion:
+10. **Check for newly unblocked tasks** after each completion:
    ```
    # Use MCP for next task suggestion
    mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__get_next_task(
@@ -285,9 +321,9 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
    # Cross-reference with plan.yaml for full task details
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/get-unblocked-tasks.py" .claude/plan/plan.yaml
    ```
-   - For each newly unblocked task, spawn tester → assessor → executor → verifier
+   - For each newly unblocked task, spawn tester → tick-check → assessor → executor → tick-check → verifier
 
-9. **When all tasks are done**:
+11. **When all tasks are done**:
    - All verifier Tasks have returned PASS
    - Verify all tokens submitted via MCP:
      ```
@@ -306,8 +342,8 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
    - Remove `.claude/plan-locked`
    - Report final status
 
-10. **Hyperphase N — Evolutionary Optimization (optional)**:
-   - Steps 1–9 above are **Hyperphase 1** (the main Gatekeeper Pipeline)
+12. **Hyperphase N — Evolutionary Optimization (optional)**:
+   - Steps 1–11 above are **Hyperphase 1** (the main Gatekeeper Pipeline)
    - After all Hyperphase 1 tasks are completed, check if `plan.yaml metadata.hyperphase: true`
    - If enabled, follow Section 8 of the team-orchestrator-prompt (scout → optimize → verify)
    - This is opt-in per project and can also be run standalone via `/gatekeeper:hyperphase`
@@ -317,7 +353,7 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
 - You are the LEAD ORCHESTRATOR — never write implementation or test code
 - Only YOU update plan.yaml — tester, assessor, executor, and verifier sub-agents must not touch it
 - **Use MCP tools for ALL token submission and signal recording** — do NOT manually generate tokens with `openssl rand` or write `.secret` files
-- Always run tester → assessor → executor → verifier for each task
+- Always run tester → tick-check → assessor → executor → tick-check → verifier for each task
 - Testers/executors with overlapping file scopes must NOT run simultaneously
 - If an executor fails 3 times, skip the task and note it for the user
 - On verify failure, check category (test_issue vs impl_issue) to decide which agent to re-spawn
@@ -326,3 +362,5 @@ The per-phase flow is: **Phase Assessor** (defines integration contracts + forma
 - Token chain per task: PAG (phase start) → TQG (test quality) → GK (task verification) → PVG (phase end)
 - All tokens must be submitted via `mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__submit_token` or `submit_pvg_token`
 - All agent signals must be recorded via `mcp__plugin_gatekeeper_gatekeeper-evolve-mcp__record_agent_signal`
+- **Playwright visual verification is MANDATORY for every task** — always pass `dev_server_url` to verifiers. If a verifier returns `VERIFICATION_PAUSED:playwright_unavailable`, STOP all execution and ask the user for help via AskUserQuestion. Do NOT skip visual verification.
+- Every task must have a `tests.qualitative.playwright_url` — if missing, the plan is incomplete

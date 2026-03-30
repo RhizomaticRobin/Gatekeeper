@@ -52,9 +52,13 @@ def _encrypt_content(content: str, key_hex: str) -> str:
 
 def _decrypt_content(encrypted_b64: str, key_hex: str) -> str:
     """Decrypt base64-encoded AES-256-CBC ciphertext. Returns plaintext."""
+    # openssl -base64 requires a trailing newline on stdin
+    input_bytes = encrypted_b64.encode("utf-8")
+    if not input_bytes.endswith(b"\n"):
+        input_bytes += b"\n"
     result = subprocess.run(
         ["openssl", "enc", "-d", "-aes-256-cbc", "-pbkdf2", "-base64", "-pass", f"pass:{key_hex}"],
-        input=encrypted_b64.encode("utf-8"),
+        input=input_bytes,
         capture_output=True,
         timeout=10,
     )
@@ -248,9 +252,15 @@ def decrypt_task_file(
                 f"not yet completed (no GK_COMPLETE token found)"
             )
 
-    # All dependencies satisfied — decrypt
+    # All dependencies satisfied — decrypt and restore
     task_spec = None
     skeleton_files = []
+
+    # Resolve project dir once for file restoration
+    session_row = _db.fetchone(
+        "SELECT project_dir FROM sessions WHERE session_id = ?",
+        (session_id,),
+    )
 
     for row in rows:
         content = _decrypt_content(row["encrypted_content"], row["encryption_key"])
@@ -264,22 +274,11 @@ def decrypt_task_file(
             })
 
         # Mark as decrypted
-        _db.execute(
-            "UPDATE encrypted_tasks SET decrypted = 1 WHERE id = ?",
-            (row["id"],),
-        )
+        _db.update("encrypted_tasks", {"decrypted": 1}, "id = ?", (row["id"],))
 
-    # Restore original files on disk
-    for row in rows:
-        content = _decrypt_content(row["encrypted_content"], row["encryption_key"])
-        original_path = row["original_path"]
-        # Resolve relative to project dir from session
-        session_row = _db.fetchone(
-            "SELECT project_dir FROM sessions WHERE session_id = ?",
-            (session_id,),
-        )
+        # Restore original file on disk
         if session_row:
-            full_path = os.path.join(session_row["project_dir"], original_path)
+            full_path = os.path.join(session_row["project_dir"], row["original_path"])
             parent = os.path.dirname(full_path)
             if parent:
                 os.makedirs(parent, exist_ok=True)

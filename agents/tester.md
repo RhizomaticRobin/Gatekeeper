@@ -89,6 +89,7 @@ Create all test files as specified in the task prompt. For each test file:
    - Concurrent operations (if applicable)
 4. **Must_haves alignment**: Every truth, artifact, and key_link must have corresponding test assertions
 5. **Integration points**: Tests that verify components connect correctly
+6. **Visual verification surface**: The task's `playwright_url` endpoint must be tested — write a test that starts the dev server and verifies the verification page serves HTML, connects to the backend, and displays live data (not hardcoded/static content). This is mandatory even for backend/CLI tasks.
 
 ### Quality Requirements
 

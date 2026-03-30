@@ -90,6 +90,18 @@ For each item in must_haves:
 
 Any must_have without a corresponding test → ASSESSMENT_FAIL.
 
+## Step 5.25: Visual Verification Surface Check
+
+**Every task must have a visual verification surface.** Check:
+
+- The task spec includes `tests.qualitative.playwright_url` — if missing, ASSESSMENT_FAIL
+- The task spec includes `tests.qualitative.criteria` with specific observable behaviors — if empty or vague, ASSESSMENT_FAIL
+- The tester wrote tests that exercise the verification surface (e.g., a test that starts the dev server and checks the endpoint returns HTML)
+- For backend/CLI tasks: verify the task includes a deliverable for the verification surface (status page, results viewer, health endpoint serving HTML, CLI output as HTML report)
+- Flag if the planned verification surface is likely to be deceptively disconnected: a static HTML file with no API calls, a page that renders hardcoded data, or a `<pre>` dump of console output with no live data binding
+
+If no visual verification surface is planned → ASSESSMENT_FAIL with `category=alignment` and guidance to add a `playwright_url` and verification UI deliverable.
+
 ## Step 5.5: Contract Specification Quality Check
 
 Find and read the contract spec file: `{test_dir}/contracts/task-{task_id}-contracts.yaml`. Evaluate:

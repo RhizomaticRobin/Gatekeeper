@@ -22,7 +22,7 @@ You receive the following in your prompt from the orchestrator:
 - `phase_spec`: Full phase definition from plan.yaml (goal, must_haves, tasks)
 - `integration_specs_dir`: Path to the integration specs created by the phase assessor
 - `test_command`: The project test command
-- `dev_server_url`: (optional) URL for visual verification
+- `dev_server_url`: URL for visual verification (MANDATORY — if Playwright is unavailable, output PHASE_VERIFICATION_PAUSED:playwright_unavailable)
 - `prior_phase_tokens`: List of prior phase PVG tokens (for chain validation)
 
 Use the PROJECT VISION during integration verification to confirm that cross-task wiring serves Active Requirements and doesn't introduce Out of Scope functionality.

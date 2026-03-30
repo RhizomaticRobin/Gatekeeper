@@ -35,7 +35,7 @@ You receive the following in your prompt from the orchestrator:
 - `task_id`: The task identifier
 - `task_spec`: Full contents of task-{id}.md (goal, must_haves, deliverables, tests)
 - `test_command`: The quantitative test command to run
-- `dev_server_url`: (optional) URL for Playwright visual checks
+- `dev_server_url`: URL for Playwright visual verification (MANDATORY — every task must be visually verifiable)
 </input_format>
 
 <verification_process>
@@ -138,11 +138,15 @@ Record composability constraints from the contract spec for the phase verifier:
 - The z3 variable types for each constraint
 - This information flows to the phase verifier for cross-module verification
 
-## Step 4: Playwright Visual Check (if dev_server_url provided)
+## Step 4: Playwright Visual Verification (MANDATORY)
 
-If `dev_server_url` is in your prompt, use the Playwright MCP tools to verify qualitative criteria:
+**Every task must be visually verified.** If `dev_server_url` is missing from your prompt, this is an instant FAIL — the orchestrator must provide it.
 
-1. **Navigate**: `browser_navigate` to the `dev_server_url`
+**If Playwright MCP tools are unavailable** (tool calls fail, browser won't launch, connection refused): output `VERIFICATION_PAUSED:playwright_unavailable` — do NOT pass or fail. The orchestrator must pause execution and request user intervention to fix Playwright before verification can continue. Visual verification is not skippable.
+
+Use the Playwright MCP tools to verify qualitative criteria:
+
+1. **Navigate**: `browser_navigate` to the `dev_server_url` + task's `playwright_url`
 2. **Snapshot**: `browser_snapshot` to get the accessibility tree — verify expected elements, text, and structure are present
 3. **Screenshot**: `browser_take_screenshot` to capture the visual state — check for broken layouts, placeholder text, missing elements
 4. **Console errors**: `browser_console_messages` with level `error` — any errors = FAIL
@@ -150,6 +154,17 @@ If `dev_server_url` is in your prompt, use the Playwright MCP tools to verify qu
 6. **Interact**: For each qualitative criterion that requires interaction, use `browser_click` on the relevant elements and `browser_snapshot` again to verify the expected result
 7. **Wait**: Use `browser_wait_for` when checking for async UI updates or loading states
 8. **Cleanup**: `browser_close` when done
+
+### Deceptive Frontend Detection
+
+Actively check for verification surfaces that LOOK connected but are NOT:
+- **Static HTML with no backend wiring**: Page shows hardcoded data that doesn't change when the backend state changes. Verify by checking network requests — if no API calls are made, it's a fake.
+- **Mock data in the UI**: Values displayed on the page should match what the backend actually returns. Cross-reference Playwright snapshots with API responses.
+- **Stale renders**: The page loads once but never updates. Interact with it (click buttons, submit forms) and verify the DOM actually changes.
+- **Disconnected forms**: Forms that look functional but POST to nowhere or have `action="#"`. Check network requests after form submission.
+- **Console-only output masquerading as visual**: If the "verification page" is just `<pre>` tags dumping console output, verify it's live (refreshes, reflects current state) and not a static snapshot.
+
+If the frontend is deceptively disconnected from the backend — instant FAIL with `category=impl_issue` and a note that the visual verification surface is fake.
 
 ## Step 5: Verdict
 
@@ -172,7 +187,8 @@ Only if ALL of the following are true:
 - All must_haves verified (truths hold, artifacts exist, key_links wired)
 - Tests pass AND test quality is acceptable
 - Formal verification passes (all annotations present, verification commands succeed, no weakened contracts)
-- Visual verification passes (if applicable)
+- Visual verification passes (MANDATORY — not optional)
+- Frontend is genuinely connected to backend (not deceptive/static/hardcoded)
 - No pre-existing issues in files this task touches
 - You would stake your professional reputation on this code
 
@@ -194,6 +210,13 @@ or
 ```
 VERIFICATION_FAIL:{structured_critique}
 ```
+
+or
+
+```
+VERIFICATION_PAUSED:playwright_unavailable
+```
+(Playwright MCP tools could not connect — orchestrator must pause and request user intervention)
 
 Where `{structured_critique}` includes:
 - **Category**: `test_issue` or `impl_issue` (helps orchestrator decide whether to re-spawn tester or executor)

@@ -41,6 +41,7 @@
   },
   "scripts": {
     "build:hooks": "node scripts/build-hooks.js",
+    "sync": "bash scripts/sync-to-cache.sh",
     "prepublishOnly": "npm run build:hooks"
   }
 }

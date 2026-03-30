@@ -108,7 +108,21 @@ else:
     # degraded mode that ships nothing
 ```
 
-## 8. Obnoxiously Wrong
+## 8. Deceptive or Missing Visual Verification Surface
+
+Every task MUST have a visual verification surface that Playwright can check. Scan for:
+
+- **No verification page at all**: The task's `playwright_url` route doesn't exist in the codebase — no handler, no template, no route registration
+- **Static HTML with hardcoded data**: An HTML file that displays values without any API calls, fetch requests, or backend wiring. Grep the HTML/JS for `fetch(`, `axios`, `XMLHttpRequest`, `$.ajax` — if none exist, it's a fake.
+- **Disconnected forms**: Forms with `action="#"`, `onsubmit="return false"`, or submit handlers that don't actually POST to the backend
+- **Mock data in templates**: Template files that embed literal data values instead of template variables or API-fetched values (e.g., `<td>42</td>` instead of `<td>{{count}}</td>`)
+- **Console-dump pages**: Pages that just render `<pre>` or `<code>` blocks with static text instead of live data
+- **Missing route registration**: A handler function exists but isn't registered in the router/app — the URL will 404
+- **Dead verification endpoints**: Endpoints that return `200 OK` with empty body, `{}`, or `"ok"` instead of actual verification data
+
+These are the WORST ticks because they make the system THINK visual verification passed when nothing was actually verified.
+
+## 9. Obnoxiously Wrong
 
 Code that is SO wrong it could only have been written by an agent trying to get past tests as fast as possible:
 - **Type coercion abuse**: `str(anything)` to make type checks pass, `int(bool_value)` to fake metrics, `json.dumps` on an error object to pretend it's data

@@ -21,6 +21,10 @@
     "evolve-mcp": {
       "command": "${CLAUDE_PLUGIN_ROOT}/bin/gatekeeper-evolve-mcp.sh",
       "env": {}
+    },
+    "opencode-mcp": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/opencode-mcp.sh",
+      "env": {}
     }
   }
 }
