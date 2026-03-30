@@ -104,13 +104,49 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
   exit 1
 fi
 
-# ─── Step 2: Set up gatekeeper-evolve-mcp server ─────────────────────────────
+# ─── Step 2: Set up submodules and MCP servers ────────────────────────────────
 
 cd "$PLUGIN_ROOT"
 echo ""
-echo -e "${BOLD}Setting up gatekeeper-evolve-mcp server...${RESET}"
+echo -e "${BOLD}Setting up submodules and MCP servers...${RESET}"
 echo ""
 
+# Init submodules (Better-OpenCodeMCP)
+if [[ -f ".gitmodules" ]]; then
+  echo -e "  ${DIM}Initializing git submodules...${RESET}"
+  git submodule update --init --recursive 2>&1 | while read -r line; do
+    echo -e "    ${DIM}${line}${RESET}"
+  done
+  echo -e "  ${GREEN}✓${RESET} Submodules initialized"
+fi
+
+# Build Better-OpenCodeMCP if present
+if [[ -f "Better-OpenCodeMCP/package.json" ]]; then
+  echo -e "  ${DIM}Building opencode-mcp server...${RESET}"
+  if [[ ! -d "Better-OpenCodeMCP/node_modules" ]]; then
+    (cd Better-OpenCodeMCP && npm install --production=false 2>&1 | tail -1)
+  fi
+  if [[ ! -f "Better-OpenCodeMCP/dist/index.js" ]]; then
+    (cd Better-OpenCodeMCP && npm run build 2>&1 | tail -1)
+  fi
+  echo -e "  ${GREEN}✓${RESET} Built: Better-OpenCodeMCP/dist/index.js"
+fi
+
+# Install OpenCode CLI if not present
+if command -v opencode &>/dev/null || [[ -f "$HOME/.opencode/bin/opencode" ]]; then
+  OPENCODE_VERSION=$(PATH="$HOME/.opencode/bin:$PATH" opencode --version 2>/dev/null || echo "unknown")
+  echo -e "  ${GREEN}✓${RESET} OpenCode CLI: ${DIM}${OPENCODE_VERSION}${RESET}"
+else
+  echo -e "  ${DIM}Installing OpenCode CLI...${RESET}"
+  if curl -fsSL https://opencode.ai/install | bash 2>&1 | tail -3; then
+    echo -e "  ${GREEN}✓${RESET} Installed OpenCode CLI"
+  else
+    echo -e "  ${YELLOW}!${RESET} Could not install OpenCode CLI automatically"
+    echo -e "    ${DIM}Install manually: curl -fsSL https://opencode.ai/install | bash${RESET}"
+  fi
+fi
+
+# Install fastmcp Python dependency
 echo -e "  ${DIM}Installing Python dependencies (fastmcp)...${RESET}"
 if pip install fastmcp 2>/dev/null || pip3 install fastmcp 2>/dev/null; then
   echo -e "  ${GREEN}✓${RESET} Installed fastmcp Python dependency"
@@ -224,6 +260,8 @@ check_file "$PLUGIN_ROOT/agents/executor.md" "executor agent definition"
 check_file "$PLUGIN_ROOT/agents/tester.md" "tester agent definition"
 check_file "$PLUGIN_ROOT/agents/verifier.md" "verifier agent definition"
 check_file "$PLUGIN_ROOT/bin/gatekeeper-evolve-mcp.sh" "gatekeeper-evolve-mcp launcher"
+check_file "$PLUGIN_ROOT/bin/opencode-mcp.sh" "opencode-mcp launcher"
+check_file "$PLUGIN_ROOT/Better-OpenCodeMCP/dist/index.js" "opencode-mcp server build"
 
 echo ""
 

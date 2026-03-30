@@ -1,5 +1,7 @@
 # Gatekeeper
 
+> **Beta** — Gatekeeper is under active development. Expect breaking changes.
+
 A Claude Code plugin for spec-driven development with cryptographic verifier loops, TDD-first execution, and concurrent opencode agents.
 
 ## How It Works
