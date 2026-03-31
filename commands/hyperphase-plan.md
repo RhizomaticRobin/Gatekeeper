@@ -1,6 +1,6 @@
 ---
 description: "Hyperphase N Planning — Discover optimization candidates, propose strategies, get user approval before running optimization loop."
-allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "Read", "Task", "mcp__plugin_gatekeeper_evolve-mcp__profile_hotspots"]
+allowed-tools: ["Bash", "Read", "Glob", "Grep", "Write", "Task", "AskUserQuestion", "mcp__plugin_gatekeeper_evolve-mcp__profile_hotspots"]
 ---
 
 # Hyperphase N Planning

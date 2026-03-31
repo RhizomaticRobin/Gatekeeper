@@ -1,7 +1,7 @@
 ---
 description: "Plan the quest — discover unknowns, generate plan.yaml with must_haves + task .md files"
 argument-hint: "[PROJECT_DESCRIPTION]"
-allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*:*)", "Bash(python3:*)", "Bash(cat:*)", "Bash(ls:*)", "Bash(find:*)", "Bash(grep:*)", "Bash(head:*)", "Bash(wc:*)", "Bash(mkdir:*)", "Read", "Glob", "Grep", "Write", "Edit", "AskUserQuestion", "Task"]
+allowed-tools: ["Bash", "Read", "Glob", "Grep", "Write", "Edit", "AskUserQuestion", "Task", "WebSearch", "WebFetch", "mcp__plugin_gatekeeper_opencode-mcp__launch_opencode", "mcp__plugin_gatekeeper_opencode-mcp__wait_for_completion", "mcp__plugin_gatekeeper_opencode-mcp__opencode_sessions"]
 ---
 
 You are now running the **GSD Quest Planner** for the Gatekeeper system.
